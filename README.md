@@ -23,7 +23,7 @@ re-implemented per project:
 
 The core (`gazebo`) depends only on `pydantic`. Framework integration is opt-in.
 
-> ![NOTE]
+> [!NOTE]
 > This is an experiment using AI to refine a number of patterns I've
 > established building out APIs over the years. The current implementation
 > mainly targets use with FastAPI, but I've tried to keep the core abstractions
