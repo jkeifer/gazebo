@@ -1,0 +1,89 @@
+"""Runnable examples backing ``docs/fastapi/app.md``."""
+
+from __future__ import annotations
+
+from fastapi.testclient import TestClient
+
+
+# --8<-- [start:create_app]
+from gazebo.ext.fastapi import GazeboApp, GazeboRouter, Overrides, Providers
+
+router = GazeboRouter()
+
+
+@router.get('/ping')
+async def ping() -> dict[str, str]:
+    return {'pong': 'ok'}
+
+
+def create_app(overrides: Overrides | None = None) -> GazeboApp:
+    providers = Providers()
+    app = GazeboApp(providers, overrides=overrides)
+    app.include_router(router)
+    return app
+
+
+# --8<-- [end:create_app]
+
+
+with TestClient(create_app()) as client:
+    assert client.get('/ping').json() == {'pong': 'ok'}
+    assert client.get('/health').status_code == 200  # mounted by default
+
+
+# --8<-- [start:upgrade]
+from fastapi import FastAPI
+
+from gazebo.ext.fastapi import Providers, upgrade
+
+existing = FastAPI()  # someone else's app
+existing.include_router(router)
+upgrade(existing, Providers())  # add gazebo's machinery in place; idempotent
+# --8<-- [end:upgrade]
+
+
+with TestClient(existing) as client:
+    assert client.get('/ping').json() == {'pong': 'ok'}
+
+
+# --8<-- [start:mount]
+from fastapi import FastAPI
+
+from gazebo.ext.fastapi import forward_lifespans
+
+sub = create_app()  # a GazeboApp
+root = FastAPI(lifespan=forward_lifespans(sub))  # run the sub-app's lifespan
+root.mount('/api', sub)
+# --8<-- [end:mount]
+
+
+with TestClient(root) as client:
+    assert client.get('/api/ping').json() == {'pong': 'ok'}
+
+
+# --8<-- [start:validation_problem]
+from gazebo.ext.fastapi import GazeboApp, GazeboRouter, Providers
+
+validating = GazeboRouter()
+
+
+@validating.get('/widgets')
+async def list_widgets(limit: int = 10) -> dict[str, int]:
+    return {'limit': limit}
+
+
+vapp = GazeboApp(Providers())
+vapp.include_router(validating)
+
+# Now GET /widgets?limit=nope fails request validation and the glue returns an
+# application/problem+json 422 (see the response shape below) — no handler needed.
+# --8<-- [end:validation_problem]
+
+
+with TestClient(vapp) as client:
+    resp = client.get('/widgets?limit=nope')
+    assert resp.status_code == 422
+    assert resp.headers['content-type'] == 'application/problem+json'
+    problem = resp.json()
+    assert problem['status'] == 422
+    assert problem['errors'][0]['loc'] == ['query', 'limit']

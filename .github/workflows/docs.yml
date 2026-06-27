@@ -1,0 +1,73 @@
+name: Documentation
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+
+# Allow only one concurrent deployment, to avoid mike/gh-pages races.
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  # On pull requests, just confirm the docs build cleanly (no deploy).
+  build:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          python-version: "3.14"
+      - name: Sync
+        run: uv sync --locked --all-extras --group docs
+      - name: Build (strict)
+        run: uv run zensical build --strict --clean
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0  # full history so mike can update the gh-pages branch
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          python-version: "3.14"
+
+      - name: Sync
+        run: uv sync --locked --all-extras --group docs
+
+      # mike (squidfunk's Zensical-aware fork) builds via `zensical build` and
+      # commits each version to the gh-pages branch.
+      - name: Deploy dev version
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: uv run mike deploy --push --update-aliases dev latest
+
+      - name: Deploy release version
+        if: github.event_name == 'release' && !github.event.release.prerelease
+        run: |
+          VERSION="${{ github.event.release.tag_name }}"
+          uv run mike deploy --push --update-aliases "$VERSION" stable
+          uv run mike set-default --push stable
+
+      - name: Deploy pre-release version
+        if: github.event_name == 'release' && github.event.release.prerelease
+        run: |
+          VERSION="${{ github.event.release.tag_name }}"
+          uv run mike deploy --push "$VERSION"

@@ -1,0 +1,110 @@
+[project]
+site_name = "gazebo"
+site_description = "Everything needed to build OGC-style APIs, under one roof"
+site_url = "https://teotl.dev/gazebo/"
+repo_url = "https://github.com/jkeifer/gazebo"
+repo_name = "jkeifer/gazebo"
+edit_uri = "edit/main/docs"
+copyright = "Copyright &copy; 2026 Jarrett Keifer"
+
+nav = [
+  { Home = "index.md" },
+  { "Getting started" = "getting-started.md" },
+  { Core = [
+    { Overview = "core/index.md" },
+    { "Request context" = "core/context.md" },
+    { Links = "core/links.md" },
+    { Collections = "core/collections.md" },
+    { Problems = "core/problems.md" },
+    { "Landing & conformance" = "core/ogc.md" },
+    { "Constants & tags" = "core/constants.md" },
+  ] },
+  { "Dependency injection" = [
+    { Overview = "di/index.md" },
+    { "Providers & recipes" = "di/providers.md" },
+    { "Scopes & lifecycle" = "di/scopes.md" },
+    { "Qualifiers & overrides" = "di/qualifiers-overrides.md" },
+  ] },
+  { "FastAPI integration" = [
+    { Overview = "fastapi/index.md" },
+    { "GazeboApp & upgrade" = "fastapi/app.md" },
+    { "Routers & injection" = "fastapi/routers.md" },
+    { "Proxy, context & health" = "fastapi/proxy.md" },
+  ] },
+  { Example = "example.md" },
+  { "API reference" = "reference.md" },
+]
+
+[project.theme]
+name = "material"
+language = "en"
+features = [
+  "content.action.edit",
+  "content.code.annotate",
+  "content.code.copy",
+  "navigation.footer",
+  "navigation.indexes",
+  "navigation.sections",
+  "navigation.top",
+  "navigation.tracking",
+  "search.highlight",
+  "toc.follow",
+]
+
+# Follow the system preference by default; the toggle cycles auto -> light -> dark.
+[[project.theme.palette]]
+media = "(prefers-color-scheme)"
+toggle.icon = "lucide/monitor"
+toggle.name = "Switch to light mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+primary = "teal"
+accent = "teal"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+primary = "teal"
+accent = "teal"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to system preference"
+
+# Version selector, backed by mike (see .github/workflows/docs.yml).
+[project.extra.version]
+provider = "mike"
+
+# API reference is generated from source docstrings/type hints.
+[project.plugins.mkdocstrings]
+default_handler = "python"
+[project.plugins.mkdocstrings.handlers.python.options]
+docstring_style = "google"
+show_root_heading = true
+show_source = true
+members_order = "source"
+separate_signature = true
+show_signature_annotations = true
+
+[project.markdown_extensions.abbr]
+[project.markdown_extensions.admonition]
+[project.markdown_extensions.attr_list]
+[project.markdown_extensions.def_list]
+[project.markdown_extensions.footnotes]
+[project.markdown_extensions.md_in_html]
+[project.markdown_extensions.tables]
+[project.markdown_extensions.toc]
+permalink = true
+[project.markdown_extensions.pymdownx.details]
+[project.markdown_extensions.pymdownx.highlight]
+anchor_linenums = true
+line_spans = "__span"
+pygments_lang_class = true
+[project.markdown_extensions.pymdownx.inlinehilite]
+[project.markdown_extensions.pymdownx.superfences]
+# Include runnable example code from tests/examples/ so docs snippets stay tested.
+[project.markdown_extensions.pymdownx.snippets]
+base_path = ["."]
+check_paths = true

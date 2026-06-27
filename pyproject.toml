@@ -1,0 +1,133 @@
+[project]
+name = "gazebo"
+description = "Everything needed to build OGC-style APIs, under one roof"
+readme = "README.md"
+authors = [
+    {name = "Jarrett Keifer", email = "jkeifer0@gmail.com"},
+]
+license = {text = "Apache 2.0"}
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2",
+]
+dynamic = [
+    'version',
+]
+
+[project.urls]
+Repository = 'https://github.com/jkeifer/gazebo'
+
+[project.optional-dependencies]
+fastapi = [
+    "fastapi",
+]
+
+[tool.uv.workspace]
+members = ["examples/garden"]
+
+[build-system]
+requires = [
+    "hatchling",
+    "hatch-vcs",
+]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+fallback-version = "0.0.0"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/gazebo/__version__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gazebo"]
+
+[tool.ruff]
+line-length = 99
+
+[tool.ruff.format]
+quote-style = 'single'
+
+[tool.ruff.lint]
+# https://docs.astral.sh/ruff/rules/
+select = [
+    'B',
+    'BLE',
+    'C4',
+    'C90',
+    'COM',
+    'DTZ',
+    'E',
+    'ERA',
+    'F',
+    'FA',
+    'G',
+    'I',
+    'INP',
+    'N',
+    'NPY',
+    'PT',
+    'PTH',
+    'RET',
+    'RUF',
+    'S',
+    'SIM',
+    'T20',
+    'UP',
+    'W',
+
+]
+
+[tool.ruff.lint.per-file-ignores]
+'__init__.py' = ['E402']
+'tests/**/*' = ['T201', 'S101', 'S105', 'S106', 'S107', 'INP001']
+# Doc-snippet modules are split into self-contained regions that each re-import
+# what they show, so imports land after code (E402), repeat names (F811), and
+# can't be grouped (I001). These are inherent to the literate-example layout.
+'tests/examples/*' = ['E402', 'F811', 'I001']
+
+[tool.ruff.lint.isort]
+lines-between-types = 1
+
+[tool.mypy]
+disable_error_code = ['prop-decorator']
+ignore_missing_imports = true
+scripts_are_modules = true
+
+[tool.pytest.ini_options]
+addopts="--cov=gazebo"
+filterwarnings = ['error']
+pythonpath = ["src"]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+sort = "Cover"
+
+[dependency-groups]
+docs = [
+    "zensical>=0.0.46",
+    "mkdocstrings[python]>=0.27",
+    # Zensical builds via squidfunk's mike fork (the upstream mike only drives mkdocs).
+    "mike",
+]
+
+dev = [
+    "httpx2>=2.5.0",
+    "mypy>=1.15.0",
+    "pre-commit>=4.2.0",
+    "pre-commit-hooks>=5.0.0",
+    "pyright>=1.1.390",
+    "pytest>=8.3.5",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=6.1.1",
+    "pytest-coverage>=0.0",
+    "ruff>=0.11.6",
+    "fastapi",
+]
+
+[tool.uv.sources]
+# squidfunk's mike fork, pinned to the 2.2.0+zensical-0.1.0 release commit.
+mike = { git = "https://github.com/squidfunk/mike.git", rev = "0f62791256ebeba60d20d2f1d8fe6ec3b7d1e2b3" }
