@@ -33,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the `ParamError` exception. `bbox` allows antimeridian-crossing boxes (and answers
   `BBox.contains(lon, lat)` accordingly); `datetime` accepts RFC 3339 instants and
   open/closed intervals, treating a naive value as UTC.
-- `gazebo.jsonschema`: pure-pydantic helpers for OGC-style serialization —
+- `gazebo.serialization`: pure-pydantic helpers for OGC-style serialization —
   `OmitNullModel`, a base model that omits absent (`None`) members on the JSON wire
   while keeping an honest (non-opaque) OpenAPI response schema, plus the underlying
   `faithful_serialization_schema` and `drop_none`. `OmitNullModel` is re-exported from
@@ -95,7 +95,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `gazebo.ext.fastapi` is organized as a package — one module per concern (injection,
-  OGC param adapters, CORS, caching/headers, routers, app wiring) — rather than a
+  OGC param adapters, CORS, response helpers, routers, app wiring) — rather than a
   single module. The public import surface is flat and unchanged: keep importing from
   `gazebo.ext.fastapi`. The `Cors` type alias is now exported.
 

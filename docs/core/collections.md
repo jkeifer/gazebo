@@ -113,4 +113,4 @@ test driver follows these POST `next` links by reposting that body.
 
 See [`gazebo.collection`](../reference.md#gazebo.collection),
 [`gazebo.pagination`](../reference.md#gazebo.pagination), and
-[`OmitNullModel`](../reference.md#gazebo.jsonschema.OmitNullModel).
+[`OmitNullModel`](../reference.md#gazebo.serialization.OmitNullModel).

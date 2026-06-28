@@ -28,7 +28,7 @@ Auto-generated from the source docstrings and type hints.
 
 ::: gazebo.rels
 
-::: gazebo.jsonschema
+::: gazebo.serialization
 
 ::: gazebo.tags
 

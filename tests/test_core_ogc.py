@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from pydantic import HttpUrl
 
 from gazebo.collection import LinkedCollection
-from gazebo.context import use_context
+from gazebo.context import use_context, with_query
 from gazebo.ogc import (
     Collection,
     Collections,
@@ -18,7 +18,7 @@ from gazebo.ogc import (
     SpatialExtent,
     TemporalExtent,
 )
-from gazebo.pagination import paginate, with_query
+from gazebo.pagination import paginate
 from gazebo.params import CRS84
 from gazebo.problems import ProblemDetail, ProblemException
 from gazebo.rels import Rel

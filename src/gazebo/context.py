@@ -15,6 +15,7 @@ from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from typing import Any, Protocol, runtime_checkable
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 
 @runtime_checkable
@@ -74,6 +75,23 @@ def resolve_context(info_context: Any = None) -> RequestContext | None:
         if candidate is not None:
             return candidate
     return None
+
+
+def with_query(ctx: RequestContext, **overrides: object) -> str:
+    """Return the current URL with ``overrides`` merged into the query string.
+
+    A ``None`` value removes that parameter. Other values are stringified. The shared
+    "derive a URL from the active context" helper behind deferred pagination and
+    content-negotiation hrefs.
+    """
+    parts = urlsplit(ctx.url)
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
+    for key, value in overrides.items():
+        if value is None:
+            query.pop(key, None)
+        else:
+            query[key] = str(value)
+    return urlunsplit(parts._replace(query=urlencode(query)))
 
 
 # --- request id + logging (deferred nicety, opt-in) -----------------------

@@ -1,4 +1,4 @@
-"""Tests for the shared serialization helpers in ``gazebo.jsonschema``."""
+"""Tests for the shared serialization helpers in ``gazebo.serialization``."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from typing import Annotated
 
 from pydantic import PlainSerializer
 
-from gazebo.jsonschema import OmitNullModel, drop_none
+from gazebo.serialization import OmitNullModel, drop_none
 
 
 def test_drop_none_keeps_falsy_non_none():
