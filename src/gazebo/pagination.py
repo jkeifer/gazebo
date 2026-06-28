@@ -30,9 +30,8 @@ import json
 
 from collections.abc import Mapping
 from typing import Any
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-from gazebo.context import RequestContext
+from gazebo.context import with_query
 from gazebo.link import Link
 from gazebo.params import ParamError
 from gazebo.rels import MediaType, Rel
@@ -45,21 +44,6 @@ def last_page_offset(total: int, limit: int) -> int:
     deriving their own ``last`` cursor don't re-spell the rounding math.
     """
     return ((total - 1) // limit) * limit if total > 0 else 0
-
-
-def with_query(ctx: RequestContext, **overrides: object) -> str:
-    """Return the current URL with ``overrides`` merged into the query string.
-
-    A ``None`` value removes that parameter. Other values are stringified.
-    """
-    parts = urlsplit(ctx.url)
-    query = dict(parse_qsl(parts.query, keep_blank_values=True))
-    for key, value in overrides.items():
-        if value is None:
-            query.pop(key, None)
-        else:
-            query[key] = str(value)
-    return urlunsplit(parts._replace(query=urlencode(query)))
 
 
 def _link_fields(
@@ -270,5 +254,4 @@ __all__ = [
     'last_page_offset',
     'paginate',
     'paginate_offset',
-    'with_query',
 ]

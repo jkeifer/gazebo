@@ -23,8 +23,8 @@ from pydantic import (
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import CoreSchema
 
-from gazebo.jsonschema import drop_none, faithful_serialization_schema
 from gazebo.link import Link
+from gazebo.serialization import drop_none, faithful_serialization_schema
 
 
 class LinkedCollection[T](BaseModel):

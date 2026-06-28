@@ -26,8 +26,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from gazebo.context import with_query
 from gazebo.link import Link, UrlResolver
-from gazebo.pagination import with_query
 from gazebo.params import ParamError
 from gazebo.problems import ProblemException
 from gazebo.rels import MediaType, Rel

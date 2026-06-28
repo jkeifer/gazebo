@@ -11,9 +11,9 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from gazebo.collection import LinkedCollection
-from gazebo.jsonschema import OmitNullModel
 from gazebo.link import Link
 from gazebo.params import CRS84
+from gazebo.serialization import OmitNullModel
 
 DEFAULT_TRS = 'http://www.opengis.net/def/uom/ISO-8601/0/Gregorian'
 """The OGC default temporal reference system (the Gregorian calendar / UTC)."""

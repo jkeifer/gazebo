@@ -24,8 +24,8 @@ from pydantic import (
 )
 
 from gazebo.context import RequestContext, resolve_context
-from gazebo.jsonschema import OmitNullModel
 from gazebo.rels import MediaType, Rel
+from gazebo.serialization import OmitNullModel
 
 type UrlResolver = Callable[[RequestContext], object]
 """A callable that, given the request context, returns a URL (str or AnyUrl)."""

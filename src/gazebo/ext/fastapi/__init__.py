@@ -10,7 +10,7 @@ per-request DI scope.
 
 This is the only part of gazebo that imports ``fastapi`` (the ``gazebo[fastapi]``
 extra). It is organized as a package — one module per concern (injection, OGC param
-adapters, CORS, caching/headers, routers, app wiring) — but the public surface is
+adapters, CORS, response helpers, routers, app wiring) — but the public surface is
 flat: import everything straight from ``gazebo.ext.fastapi``.
 """
 
@@ -19,7 +19,6 @@ from __future__ import annotations
 from gazebo.caching import etag_for
 from gazebo.di import Overrides, Providers
 from gazebo.ext.fastapi.app import GazeboApp, forward_lifespans, upgrade
-from gazebo.ext.fastapi.caching import not_modified, set_cache_headers, set_link_header
 from gazebo.ext.fastapi.context import RequestContextAdapter
 from gazebo.ext.fastapi.cors import Cors, CorsConfig
 from gazebo.ext.fastapi.injection import Inject, inject_signature
@@ -29,6 +28,7 @@ from gazebo.ext.fastapi.problems import (
     problem_exception_handler,
     validation_exception_handler,
 )
+from gazebo.ext.fastapi.responses import not_modified, set_cache_headers, set_link_header
 from gazebo.ext.fastapi.routers import GazeboRouter, LinkedRouter
 
 __all__ = [
