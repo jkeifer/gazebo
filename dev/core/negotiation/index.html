@@ -10,34 +10,36 @@
       
       
       
-        <link rel="canonical" href="https://teotl.dev/gazebo/dev/">
+        <link rel="canonical" href="https://teotl.dev/gazebo/dev/core/negotiation/">
       
       
+        <link rel="prev" href="../params/">
       
-        <link rel="next" href="./getting-started/">
+      
+        <link rel="next" href="../geojson/">
       
       
         
       
       
-      <link rel="icon" href="./assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="zensical-0.0.46">
     
     
       
-        <title>gazebo - gazebo</title>
+        <title>Content negotiation - gazebo</title>
       
     
     
       
         
       
-      <link rel="stylesheet" href="./assets/stylesheets/modern/main.19d3147f.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/modern/main.19d3147f.min.css">
       
         
           
         
-        <link rel="stylesheet" href="./assets/stylesheets/modern/palette.dfe2e883.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/modern/palette.dfe2e883.min.css">
       
       
 
@@ -56,7 +58,7 @@
       
     
     
-    <script>__md_scope=new URL(".",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    <script>__md_scope=new URL("../..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
     
       
 
@@ -81,7 +83,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#gazebo" class="md-skip">
+        <a href="#content-negotiation" class="md-skip">
           Skip to content
         </a>
       
@@ -101,7 +103,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="" title="gazebo" class="md-header__button md-logo" aria-label="gazebo" data-md-component="logo">
+    <a href="../.." title="gazebo" class="md-header__button md-logo" aria-label="gazebo" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
@@ -121,7 +123,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              gazebo
+              Content negotiation
             
           </span>
         </div>
@@ -220,7 +222,7 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="" title="gazebo" class="md-nav__button md-logo" aria-label="gazebo" data-md-component="logo">
+    <a href="../.." title="gazebo" class="md-nav__button md-logo" aria-label="gazebo" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
@@ -247,36 +249,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  Home
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
         
   
   
@@ -291,71 +267,6 @@
   
 
       </a>
-      
-        
-
-
-<nav class="md-nav md-nav--secondary" aria-label="On this page">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      On this page
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#whats-in-the-box" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        What's in the box
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#when-to-use-it" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        When to use it
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#where-to-go-next" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Where to go next
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#status" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Status
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -367,7 +278,7 @@
   
   
     <li class="md-nav__item">
-      <a href="./getting-started/" class="md-nav__link">
+      <a href="../../getting-started/" class="md-nav__link">
         
   
   
@@ -390,6 +301,8 @@
       
   
   
+    
+  
   
   
     
@@ -426,15 +339,15 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="./core/" class="md-nav__link ">
+            <a href="../" class="md-nav__link ">
               
   
   
@@ -457,7 +370,7 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
@@ -476,7 +389,7 @@
   
   
     <li class="md-nav__item">
-      <a href="./core/context/" class="md-nav__link">
+      <a href="../context/" class="md-nav__link">
         
   
   
@@ -503,7 +416,7 @@
   
   
     <li class="md-nav__item">
-      <a href="./core/links/" class="md-nav__link">
+      <a href="../links/" class="md-nav__link">
         
   
   
@@ -530,7 +443,7 @@
   
   
     <li class="md-nav__item">
-      <a href="./core/collections/" class="md-nav__link">
+      <a href="../collections/" class="md-nav__link">
         
   
   
@@ -557,7 +470,7 @@
   
   
     <li class="md-nav__item">
-      <a href="./core/problems/" class="md-nav__link">
+      <a href="../problems/" class="md-nav__link">
         
   
   
@@ -584,7 +497,7 @@
   
   
     <li class="md-nav__item">
-      <a href="./core/params/" class="md-nav__link">
+      <a href="../params/" class="md-nav__link">
         
   
   
@@ -608,10 +521,36 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="./core/negotiation/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Content negotiation
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
         
   
   
@@ -626,6 +565,60 @@
   
 
       </a>
+      
+        
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#resolving-a-representation" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Resolving a representation
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#in-a-route" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        In a route
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Reference
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -638,7 +631,7 @@
   
   
     <li class="md-nav__item">
-      <a href="./core/geojson/" class="md-nav__link">
+      <a href="../geojson/" class="md-nav__link">
         
   
   
@@ -665,7 +658,7 @@
   
   
     <li class="md-nav__item">
-      <a href="./core/ogc/" class="md-nav__link">
+      <a href="../ogc/" class="md-nav__link">
         
   
   
@@ -692,7 +685,7 @@
   
   
     <li class="md-nav__item">
-      <a href="./core/constants/" class="md-nav__link">
+      <a href="../constants/" class="md-nav__link">
         
   
   
@@ -755,7 +748,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="./di/" class="md-nav__link ">
+            <a href="../../di/" class="md-nav__link ">
               
   
   
@@ -797,7 +790,7 @@
   
   
     <li class="md-nav__item">
-      <a href="./di/providers/" class="md-nav__link">
+      <a href="../../di/providers/" class="md-nav__link">
         
   
   
@@ -824,7 +817,7 @@
   
   
     <li class="md-nav__item">
-      <a href="./di/scopes/" class="md-nav__link">
+      <a href="../../di/scopes/" class="md-nav__link">
         
   
   
@@ -851,7 +844,7 @@
   
   
     <li class="md-nav__item">
-      <a href="./di/qualifiers-overrides/" class="md-nav__link">
+      <a href="../../di/qualifiers-overrides/" class="md-nav__link">
         
   
   
@@ -916,7 +909,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="./fastapi/" class="md-nav__link ">
+            <a href="../../fastapi/" class="md-nav__link ">
               
   
   
@@ -958,7 +951,7 @@
   
   
     <li class="md-nav__item">
-      <a href="./fastapi/app/" class="md-nav__link">
+      <a href="../../fastapi/app/" class="md-nav__link">
         
   
   
@@ -985,7 +978,7 @@
   
   
     <li class="md-nav__item">
-      <a href="./fastapi/routers/" class="md-nav__link">
+      <a href="../../fastapi/routers/" class="md-nav__link">
         
   
   
@@ -1012,7 +1005,7 @@
   
   
     <li class="md-nav__item">
-      <a href="./fastapi/caching/" class="md-nav__link">
+      <a href="../../fastapi/caching/" class="md-nav__link">
         
   
   
@@ -1039,7 +1032,7 @@
   
   
     <li class="md-nav__item">
-      <a href="./fastapi/proxy/" class="md-nav__link">
+      <a href="../../fastapi/proxy/" class="md-nav__link">
         
   
   
@@ -1102,7 +1095,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="./testing/" class="md-nav__link ">
+            <a href="../../testing/" class="md-nav__link ">
               
   
   
@@ -1144,7 +1137,7 @@
   
   
     <li class="md-nav__item">
-      <a href="./testing/assertions/" class="md-nav__link">
+      <a href="../../testing/assertions/" class="md-nav__link">
         
   
   
@@ -1171,7 +1164,7 @@
   
   
     <li class="md-nav__item">
-      <a href="./testing/pagination/" class="md-nav__link">
+      <a href="../../testing/pagination/" class="md-nav__link">
         
   
   
@@ -1198,7 +1191,7 @@
   
   
     <li class="md-nav__item">
-      <a href="./testing/fixtures/" class="md-nav__link">
+      <a href="../../testing/fixtures/" class="md-nav__link">
         
   
   
@@ -1232,7 +1225,7 @@
   
   
     <li class="md-nav__item">
-      <a href="./example/" class="md-nav__link">
+      <a href="../../example/" class="md-nav__link">
         
   
   
@@ -1258,7 +1251,7 @@
   
   
     <li class="md-nav__item">
-      <a href="./reference/" class="md-nav__link">
+      <a href="../../reference/" class="md-nav__link">
         
   
   
@@ -1318,10 +1311,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#whats-in-the-box" class="md-nav__link">
+  <a href="#resolving-a-representation" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        What's in the box
+        Resolving a representation
       </span>
     </span>
   </a>
@@ -1329,10 +1322,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#when-to-use-it" class="md-nav__link">
+  <a href="#in-a-route" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        When to use it
+        In a route
       </span>
     </span>
   </a>
@@ -1340,21 +1333,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#where-to-go-next" class="md-nav__link">
+  <a href="#reference" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        Where to go next
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#status" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Status
+        Reference
       </span>
     </span>
   </a>
@@ -1376,7 +1358,7 @@
                 
                   
   
-    <a href="https://github.com/jkeifer/gazebo/edit/main/docs/index.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/jkeifer/gazebo/edit/main/docs/core/negotiation.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-file-pen" viewBox="0 0 24 24"><path d="M12.659 22H18a2 2 0 0 0 2-2V8a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 14 2H6a2 2 0 0 0-2 2v9.34"/><path d="M14 2v5a1 1 0 0 0 1 1h5M10.378 12.622a1 1 0 0 1 3 3.003L8.36 20.637a2 2 0 0 1-.854.506l-2.867.837a.5.5 0 0 1-.62-.62l.836-2.869a2 2 0 0 1 .506-.853z"/></svg>
     </a>
@@ -1384,100 +1366,71 @@
   
 
 
-<h1 id="gazebo">gazebo<a class="headerlink" href="#gazebo" title="Permanent link">&para;</a></h1>
+<h1 id="content-negotiation">Content negotiation<a class="headerlink" href="#content-negotiation" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>Everything needed to build OGC-style APIs, under one roof.</p>
+<p>Pick a representation from <code>?f=</code> (then <code>Accept</code>), and link the alternates — without
+gazebo taking a position on HTML or templating.</p>
 </blockquote>
-<p>gazebo packages the recurring machinery of OGC-style services so it doesn't get
-re-implemented per project. The core depends only on <code>pydantic</code>; framework
-integration is opt-in.</p>
-<h2 id="whats-in-the-box">What's in the box<a class="headerlink" href="#whats-in-the-box" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Feature</th>
-<th>Module</th>
-<th>Page</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Deferred links (callable hrefs resolved at serialize time)</td>
-<td><code>gazebo.link</code></td>
-<td><a href="core/links/">Links</a></td>
-</tr>
-<tr>
-<td>The request-context seam links resolve against</td>
-<td><code>gazebo.context</code></td>
-<td><a href="core/context/">Request context</a></td>
-</tr>
-<tr>
-<td>Collection envelopes (items + links + counts)</td>
-<td><code>gazebo.collection</code></td>
-<td><a href="core/collections/">Collections</a></td>
-</tr>
-<tr>
-<td>Pagination links (next/prev)</td>
-<td><code>gazebo.pagination</code></td>
-<td><a href="core/collections/">Collections</a></td>
-</tr>
-<tr>
-<td>RFC 7807 problem responses</td>
-<td><code>gazebo.problems</code></td>
-<td><a href="core/problems/">Problems</a></td>
-</tr>
-<tr>
-<td>Landing pages + conformance</td>
-<td><code>gazebo.ogc</code></td>
-<td><a href="core/ogc/">Landing &amp; conformance</a></td>
-</tr>
-<tr>
-<td>Typed <code>Rel</code> / <code>MediaType</code> / tag constants</td>
-<td><code>gazebo.rels</code>, <code>gazebo.tags</code></td>
-<td><a href="core/constants/">Constants</a></td>
-</tr>
-<tr>
-<td>Typed, scoped dependency injection</td>
-<td><code>gazebo.di</code></td>
-<td><a href="di/">Dependency injection</a></td>
-</tr>
-<tr>
-<td>Proxy-aware URLs + pluggable trust</td>
-<td><code>gazebo.asgi</code></td>
-<td><a href="fastapi/proxy/">Proxy &amp; context</a></td>
-</tr>
-<tr>
-<td>FastAPI app, routers, health, composition</td>
-<td><code>gazebo.ext.fastapi</code></td>
-<td><a href="fastapi/">FastAPI integration</a></td>
-</tr>
-</tbody>
-</table>
-<h2 id="when-to-use-it">When to use it<a class="headerlink" href="#when-to-use-it" title="Permanent link">&para;</a></h2>
-<p>gazebo is for <strong>OGC-style, hypermedia REST APIs on FastAPI</strong> — services where:</p>
-<ul>
-<li>responses carry <code>links</code> whose URLs depend on the incoming request (and must
-  stay correct behind a proxy);</li>
-<li>resources have lifetimes worth managing (app-lifetime pools, per-request
-  sessions, request-derived identity);</li>
-<li>you want OGC shapes — collections, landing pages, conformance, RFC 7807
-  problems — without rebuilding them each time.</li>
-</ul>
-<p>gazebo is a <strong>toolkit, not a framework</strong>: you build on FastAPI and write your own
-handlers, and gazebo supplies the OGC plumbing those handlers reach for — so it
-lives in one place instead of being rebuilt each project. The core is just
-pydantic, so you can pull in one piece without adopting the rest.</p>
-<h2 id="where-to-go-next">Where to go next<a class="headerlink" href="#where-to-go-next" title="Permanent link">&para;</a></h2>
-<ul>
-<li><strong>New here?</strong> <a href="getting-started/">Getting started</a> — install + a working app in ~40 lines.</li>
-<li><strong>Browsing features?</strong> Start with <a href="core/">the core</a>, then <a href="di/">DI</a>, then <a href="fastapi/">FastAPI glue</a>.</li>
-<li><strong>Want the whole thing at once?</strong> <a href="example/">Gazebo Gardens</a>, the complete example app.</li>
-<li><strong>Looking up an API?</strong> <a href="reference/">Reference</a>, generated from the source.</li>
-</ul>
-<h2 id="status">Status<a class="headerlink" href="#status" title="Permanent link">&para;</a></h2>
-<p>Early / pre-1.0. The <code>gazebo.di</code> container is intentionally minimal and
-extraction-ready (stdlib only); it sits behind a <code>Providers</code> interface so a
-mature container could be adopted later without changing user code.</p>
+<p>OGC clients live on <code>?f=json|html</code>, with the HTTP <code>Accept</code> header as the fallback. The
+core ships the <code>ALTERNATE</code> rel and an <code>HTML</code> media type but no negotiation logic, so
+choosing a representation — and advertising the others — was on you. <code>gazebo.negotiation</code>
+closes that gap with pure <em>resolution</em>: given the representations a resource offers, it
+picks one and builds the <code>alternate</code> links to the rest. It deliberately ships <strong>no HTML
+renderer</strong>: turning the chosen representation into bytes (a template, a callable) is the
+app's job; gazebo only tells you <em>which</em> representation and links the others.</p>
+<h2 id="resolving-a-representation">Resolving a representation<a class="headerlink" href="#resolving-a-representation" title="Permanent link">&para;</a></h2>
+<p>A <a href="../../reference/#gazebo.negotiation.Representation"><code>Representation</code></a> pairs a <code>?f=</code> key
+with a media type (<code>JSON</code>, <code>GEOJSON</code>, <code>HTML</code> are ready-made). <code>negotiate()</code> applies the
+OGC order — <code>?f=</code> wins, then <code>Accept</code>, then the first offered (or an explicit
+<code>default</code>):</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">gazebo.negotiation</span><span class="w"> </span><span class="kn">import</span> <span class="n">HTML</span><span class="p">,</span> <span class="n">JSON</span><span class="p">,</span> <span class="n">negotiate</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># ?f= wins; otherwise the Accept header; otherwise the first offered representation.</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="k">assert</span> <span class="n">negotiate</span><span class="p">([</span><span class="n">JSON</span><span class="p">,</span> <span class="n">HTML</span><span class="p">],</span> <span class="n">f</span><span class="o">=</span><span class="s1">&#39;html&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="n">HTML</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="k">assert</span> <span class="n">negotiate</span><span class="p">([</span><span class="n">JSON</span><span class="p">,</span> <span class="n">HTML</span><span class="p">],</span> <span class="n">accept</span><span class="o">=</span><span class="s1">&#39;text/html;q=0.9, application/json;q=0.1&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="n">HTML</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="k">assert</span> <span class="n">negotiate</span><span class="p">([</span><span class="n">JSON</span><span class="p">,</span> <span class="n">HTML</span><span class="p">])</span> <span class="ow">is</span> <span class="n">JSON</span>
+</span></code></pre></div>
+<p>A <code>?f=</code> naming a format that isn't offered is a client error
+(<a href="../params/"><code>ParamError</code></a> → <code>400</code>); an <code>Accept</code> that lists nothing on offer is a <code>406</code>
+(<a href="../problems/"><code>ProblemException</code></a>). Both already render as problem+json through the
+FastAPI glue, so a failed negotiation needs no extra handler.</p>
+<h2 id="in-a-route">In a route<a class="headerlink" href="#in-a-route" title="Permanent link">&para;</a></h2>
+<p>The glue's <code>Negotiate([...])</code> dependency resolves the representation from the request
+(<code>?f=</code> query + <code>Accept</code> header). The endpoint branches on it — render HTML or return the
+model — and attaches <code>alternate_links()</code> so each representation advertises the others.
+Inject <code>Response</code> semantics by returning an <code>HTMLResponse</code> for the HTML branch while
+keeping a <code>response_model</code> for the JSON one:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">gazebo</span><span class="w"> </span><span class="kn">import</span> <span class="n">Link</span><span class="p">,</span> <span class="n">OmitNullModel</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">gazebo.ext.fastapi</span><span class="w"> </span><span class="kn">import</span> <span class="n">GazeboApp</span><span class="p">,</span> <span class="n">Negotiate</span><span class="p">,</span> <span class="n">Providers</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">gazebo.negotiation</span><span class="w"> </span><span class="kn">import</span> <span class="n">HTML</span><span class="p">,</span> <span class="n">JSON</span><span class="p">,</span> <span class="n">Representation</span><span class="p">,</span> <span class="n">alternate_links</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">app</span> <span class="o">=</span> <span class="n">GazeboApp</span><span class="p">(</span><span class="n">Providers</span><span class="p">())</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="k">class</span><span class="w"> </span><span class="nc">Doc</span><span class="p">(</span><span class="n">OmitNullModel</span><span class="p">):</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    <span class="nb">id</span><span class="p">:</span> <span class="nb">str</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    <span class="n">links</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Link</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/collections/</span><span class="si">{cid}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">response_model</span><span class="o">=</span><span class="n">Doc</span><span class="p">)</span>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">collection</span><span class="p">(</span>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>    <span class="n">cid</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>    <span class="n">rep</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">Representation</span><span class="p">,</span> <span class="n">Negotiate</span><span class="p">([</span><span class="n">JSON</span><span class="p">,</span> <span class="n">HTML</span><span class="p">])],</span>
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Doc</span> <span class="o">|</span> <span class="n">Response</span><span class="p">:</span>
+</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>    <span class="c1"># self for the current representation, alternate links to the others</span>
+</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>    <span class="n">links</span> <span class="o">=</span> <span class="p">[</span><span class="n">Link</span><span class="o">.</span><span class="n">self_link</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="n">rep</span><span class="o">.</span><span class="n">media_type</span><span class="p">),</span> <span class="o">*</span><span class="n">alternate_links</span><span class="p">(</span><span class="n">rep</span><span class="p">,</span> <span class="p">[</span><span class="n">JSON</span><span class="p">,</span> <span class="n">HTML</span><span class="p">])]</span>
+</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>    <span class="k">if</span> <span class="n">rep</span><span class="o">.</span><span class="n">key</span> <span class="o">==</span> <span class="s1">&#39;html&#39;</span><span class="p">:</span>
+</span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>        <span class="k">return</span> <span class="n">HTMLResponse</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;&lt;h1&gt;</span><span class="si">{</span><span class="n">cid</span><span class="si">}</span><span class="s1">&lt;/h1&gt;&#39;</span><span class="p">)</span>
+</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>    <span class="k">return</span> <span class="n">Doc</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="n">cid</span><span class="p">,</span> <span class="n">links</span><span class="o">=</span><span class="n">links</span><span class="p">)</span>
+</span></code></pre></div>
+<p><code>alternate_links(current, available)</code> returns one deferred <code>alternate</code> link per <em>other</em>
+representation, each pointing at the current URL with <code>?f=</code> switched — so a client on
+the JSON view can discover and follow the HTML one. Pair it with a normal <code>self</code> link
+for the current representation.</p>
+<h2 id="reference">Reference<a class="headerlink" href="#reference" title="Permanent link">&para;</a></h2>
+<p>See <a href="../../reference/#gazebo.negotiation"><code>gazebo.negotiation</code></a> (<code>Representation</code>,
+<code>negotiate</code>, <code>alternate_links</code>) and the glue's
+<a href="../../reference/#fastapi-integration"><code>Negotiate</code></a> dependency.</p>
 
 
 
@@ -1514,15 +1467,31 @@ mature container could be adopted later without changing user code.</p>
       
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
+          
+          <a href="../params/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Query parameters">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Query parameters
+              </div>
+            </div>
+          </a>
+        
         
           
-          <a href="./getting-started/" class="md-footer__link md-footer__link--next" aria-label="Next: Getting started">
+          <a href="../geojson/" class="md-footer__link md-footer__link--next" aria-label="Next: GeoJSON">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Getting started
+                GeoJSON
               </div>
             </div>
             <div class="md-footer__button md-icon">
@@ -1563,10 +1532,10 @@ mature container could be adopted later without changing user code.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate":null,"base":".","features":["content.action.edit","content.code.annotate","content.code.copy","navigation.footer","navigation.indexes","navigation.sections","navigation.top","navigation.tracking","search.highlight","toc.follow"],"search":"./assets/javascripts/workers/search.b6b7e04f.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":{"provider":"mike"}}</script>
+      <script id="__config" type="application/json">{"annotate":null,"base":"../..","features":["content.action.edit","content.code.annotate","content.code.copy","navigation.footer","navigation.indexes","navigation.sections","navigation.top","navigation.tracking","search.highlight","toc.follow"],"search":"../../assets/javascripts/workers/search.b6b7e04f.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":{"provider":"mike"}}</script>
     
     
-      <script src="./assets/javascripts/bundle.ee611ef6.min.js"></script>
+      <script src="../../assets/javascripts/bundle.ee611ef6.min.js"></script>
       
     
   </body>

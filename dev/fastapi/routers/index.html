@@ -16,7 +16,7 @@
         <link rel="prev" href="../app/">
       
       
-        <link rel="next" href="../proxy/">
+        <link rel="next" href="../caching/">
       
       
         
@@ -322,6 +322,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -470,6 +476,87 @@
     
   
   Problems
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../core/params/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Query parameters
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../core/negotiation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Content negotiation
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../core/geojson/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  GeoJSON
 
     
   </span>
@@ -723,6 +810,8 @@
       
         
       
+        
+      
     
     
     
@@ -938,6 +1027,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../caching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Conditional requests
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../proxy/" class="md-nav__link">
         
   
@@ -946,6 +1062,165 @@
     
   
   Proxy, context & health
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../testing/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Testing
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+  Testing
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/assertions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Assertions
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/pagination/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Pagination driver
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/fixtures/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Fixtures
 
     
   </span>
@@ -1201,7 +1476,7 @@ at boot, not in production.</p>
 <code>title</code>/<code>description</code> plus self and root links). Include one <code>LinkedRouter</code> into
 another and — if the child declares a <code>rel</code> — a link to the child's landing page
 is added to the parent automatically. So the landing hierarchy falls out of how
-you nest routers, with no hand-maintained link list. <code>link_to(endpoint_or_name,
+you nest routers, with no hand-maintained link list. <code>Link.to_route(name,
 rel=...)</code> builds an ad-hoc deferred link to any route when you need one outside
 this scheme.</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">gazebo.ext.fastapi</span><span class="w"> </span><span class="kn">import</span> <span class="n">LinkedRouter</span>
@@ -1218,7 +1493,7 @@ this scheme.</p>
 </span></code></pre></div>
 <h2 id="reference">Reference<a class="headerlink" href="#reference" title="Permanent link">&para;</a></h2>
 <p>See <a href="../../reference/#fastapi-integration"><code>gazebo.ext.fastapi</code></a>
-(<code>GazeboRouter</code>, <code>LinkedRouter</code>, <code>Inject</code>, <code>link_to</code>).</p>
+(<code>GazeboRouter</code>, <code>LinkedRouter</code>, <code>Inject</code>).</p>
 
 
 
@@ -1273,13 +1548,13 @@ this scheme.</p>
         
         
           
-          <a href="../proxy/" class="md-footer__link md-footer__link--next" aria-label="Next: Proxy, context &amp; health">
+          <a href="../caching/" class="md-footer__link md-footer__link--next" aria-label="Next: Conditional requests">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Proxy, context & health
+                Conditional requests
               </div>
             </div>
             <div class="md-footer__button md-icon">

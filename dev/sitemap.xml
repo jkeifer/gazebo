@@ -22,6 +22,15 @@
         <loc>https://teotl.dev/gazebo/dev/core/problems/</loc>
       </url>
       <url>
+        <loc>https://teotl.dev/gazebo/dev/core/params/</loc>
+      </url>
+      <url>
+        <loc>https://teotl.dev/gazebo/dev/core/negotiation/</loc>
+      </url>
+      <url>
+        <loc>https://teotl.dev/gazebo/dev/core/geojson/</loc>
+      </url>
+      <url>
         <loc>https://teotl.dev/gazebo/dev/core/ogc/</loc>
       </url>
       <url>
@@ -49,7 +58,22 @@
         <loc>https://teotl.dev/gazebo/dev/fastapi/routers/</loc>
       </url>
       <url>
+        <loc>https://teotl.dev/gazebo/dev/fastapi/caching/</loc>
+      </url>
+      <url>
         <loc>https://teotl.dev/gazebo/dev/fastapi/proxy/</loc>
+      </url>
+      <url>
+        <loc>https://teotl.dev/gazebo/dev/testing/</loc>
+      </url>
+      <url>
+        <loc>https://teotl.dev/gazebo/dev/testing/assertions/</loc>
+      </url>
+      <url>
+        <loc>https://teotl.dev/gazebo/dev/testing/pagination/</loc>
+      </url>
+      <url>
+        <loc>https://teotl.dev/gazebo/dev/testing/fixtures/</loc>
       </url>
       <url>
         <loc>https://teotl.dev/gazebo/dev/example/</loc>
