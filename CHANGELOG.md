@@ -81,6 +81,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `headers`, `**link_fields`, and `method`/`body`; with `method='POST'` the token rides
   in the request body for stateless POST-search pagination. `paginate`'s existing
   `next`/`prev` output is unchanged.
+- `gazebo.pagination.last_page_offset(total, limit)`: the zero-based offset of the
+  last page for a given total and page size — the rounding helper `paginate_offset`
+  uses internally, exposed so callers deriving their own `last` cursor don't re-spell
+  the math.
+- `parse_annotation` (exported from `gazebo.di`): splits a type annotation into
+  `(base type, Qualify qualifier, Annotated metadata)` — the shared parser the DI
+  container and the FastAPI injection glue both use to read injectable parameters.
+- `ScopeState.health_probes()`: yields `(label, probe)` for each resolved value in a
+  scope that carries a `__health__` callable. The FastAPI health endpoint uses it to
+  discover probes rather than reaching into the resolution cache.
+
+### Changed
+
+- `gazebo.ext.fastapi` is organized as a package — one module per concern (injection,
+  OGC param adapters, CORS, caching/headers, routers, app wiring) — rather than a
+  single module. The public import surface is flat and unchanged: keep importing from
+  `gazebo.ext.fastapi`. The `Cors` type alias is now exported.
 
 ### Fixed
 

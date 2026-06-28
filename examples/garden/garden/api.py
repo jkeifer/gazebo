@@ -38,7 +38,13 @@ from gazebo.ogc import (
     TemporalExtent,
 )
 from gazebo.params import CRS84, BBox, DatetimeInterval, ParamError
-from gazebo.pagination import decode_cursor, encode_cursor, paginate, paginate_offset
+from gazebo.pagination import (
+    decode_cursor,
+    encode_cursor,
+    last_page_offset,
+    paginate,
+    paginate_offset,
+)
 from gazebo.problems import ProblemException
 from gazebo.rels import MediaType, Rel
 
@@ -96,7 +102,7 @@ async def list_plants(
     offset = _offset_from_cursor(cursor)
     total = catalog.read.count(tenant.id)
     rows = catalog.read.list(tenant.id, limit, offset)
-    last_offset = ((total - 1) // limit) * limit if total else 0
+    last_offset = last_page_offset(total, limit)
     links = [
         Link.root_link(),
         *paginate(

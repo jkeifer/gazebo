@@ -74,7 +74,7 @@ class Link(OmitNullModel):
     title: str | None = None
     method: str | None = None
     headers: dict[str, str | list[str]] | None = None
-    body: Any | None = None
+    body: Any = None
 
     # --- factories (framework-agnostic; resolve via RequestContext) -------
 
