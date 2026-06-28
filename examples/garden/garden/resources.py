@@ -14,6 +14,7 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from itertools import count
 from typing import Annotated
 
@@ -24,10 +25,16 @@ from gazebo.problems import ProblemException
 
 log = logging.getLogger('garden')
 
+UTC = timezone.utc
+
 # A toy in-memory store shared by the "primary" and "replica" handles, keyed by
 # tenant. Reset between tests via reset_store().
 _STORE: dict[str, dict[str, dict]] = {}
 _IDS = count(100)
+
+# A second, geospatial store: garden beds as GeoJSON-feature rows (lon/lat + a
+# planted date) used by the OGC Features-style /collections/beds endpoints.
+_BEDS: list[dict] = []
 
 
 def reset_store() -> None:
@@ -38,6 +45,41 @@ def reset_store() -> None:
         '3': {'id': '3', 'name': 'Moss'},
     }
     _STORE['acme'] = {'10': {'id': '10', 'name': 'Bonsai'}}
+
+    _BEDS.clear()
+    _BEDS.extend(
+        [
+            {
+                'id': 'roses',
+                'name': 'Rose Bed',
+                'lon': -122.6,
+                'lat': 45.5,
+                'planted': datetime(2021, 4, 1, tzinfo=UTC),
+            },
+            {
+                'id': 'herbs',
+                'name': 'Herb Spiral',
+                'lon': 2.35,
+                'lat': 48.85,
+                'planted': datetime(2022, 6, 15, tzinfo=UTC),
+            },
+            {
+                'id': 'orchard',
+                'name': 'Orchard',
+                'lon': 139.7,
+                'lat': 35.68,
+                'planted': datetime(2020, 3, 10, tzinfo=UTC),
+            },
+        ],
+    )
+
+
+def all_beds() -> list[dict]:
+    return list(_BEDS)
+
+
+def get_bed_row(bed_id: str) -> dict | None:
+    return next((b for b in _BEDS if b['id'] == bed_id), None)
 
 
 reset_store()

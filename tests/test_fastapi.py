@@ -13,6 +13,10 @@ from fastapi.testclient import TestClient
 from gazebo.asgi import trust_all
 from gazebo.collection import LinkedCollection
 from gazebo.ext.fastapi import (
+    BBoxParam,
+    CorsConfig,
+    CrsParam,
+    DatetimeParam,
     GazeboApp,
     GazeboRouter,
     Inject,
@@ -23,6 +27,7 @@ from gazebo.ext.fastapi import (
     upgrade,
 )
 from gazebo.link import Link
+from gazebo.params import CRS84, BBox, DatetimeInterval
 from gazebo.problems import ProblemException
 from gazebo.rels import Rel
 
@@ -283,3 +288,192 @@ def test_linked_router_hierarchy():
         child = client.get('/things').json()
         child_rels = {link['rel'] for link in child['links']}
         assert 'self' in child_rels
+
+
+def _cors_app(cors) -> GazeboApp:
+    app = GazeboApp(Providers(), cors=cors)
+
+    @app.get('/ping')
+    async def ping():
+        return {'ok': True}
+
+    return app
+
+
+def test_cors_config_fields_are_middleware_kwargs():
+    # CorsConfig.apply() splats asdict(self) straight into CORSMiddleware, so every
+    # field name MUST be a CORSMiddleware parameter — otherwise apply() raises
+    # TypeError at app startup. (CORSMiddleware may carry extra params CorsConfig
+    # deliberately doesn't expose, e.g. allow_private_network; those just take the
+    # middleware default, so the guard is a subset, not equality.)
+    import inspect
+
+    from dataclasses import fields
+
+    from starlette.middleware.cors import CORSMiddleware
+
+    mw_params = set(inspect.signature(CORSMiddleware).parameters)
+    unknown = {f.name for f in fields(CorsConfig)} - mw_params
+    assert not unknown, f'CorsConfig fields not accepted by CORSMiddleware: {unknown}'
+
+
+def test_no_cors_by_default(client):
+    # the default fixture app sets no cors; no CORS headers should appear.
+    r = client.get('/things', headers={'authorization': 'a', 'origin': 'http://x.test'})
+    assert 'access-control-allow-origin' not in r.headers
+
+
+def test_cors_true_is_permissive():
+    with TestClient(_cors_app(True)) as client:
+        r = client.get('/ping', headers={'origin': 'http://anywhere.test'})
+        assert r.headers['access-control-allow-origin'] == '*'
+        # a preflight is answered without reaching the route
+        pre = client.options(
+            '/ping',
+            headers={
+                'origin': 'http://anywhere.test',
+                'access-control-request-method': 'GET',
+            },
+        )
+        assert pre.status_code == 200
+        assert pre.headers['access-control-allow-origin'] == '*'
+
+
+def test_cors_origin_allowlist():
+    with TestClient(_cors_app(['http://good.test'])) as client:
+        ok = client.get('/ping', headers={'origin': 'http://good.test'})
+        assert ok.headers['access-control-allow-origin'] == 'http://good.test'
+        # a disallowed origin gets no allow-origin header echoed back
+        bad = client.get('/ping', headers={'origin': 'http://evil.test'})
+        assert 'access-control-allow-origin' not in bad.headers
+
+
+def test_cors_config_credentials():
+    config = CorsConfig(allow_origins=['http://app.test'], allow_credentials=True)
+    with TestClient(_cors_app(config)) as client:
+        r = client.get('/ping', headers={'origin': 'http://app.test'})
+        assert r.headers['access-control-allow-origin'] == 'http://app.test'
+        assert r.headers['access-control-allow-credentials'] == 'true'
+
+
+def test_cors_headers_on_problem_response():
+    # CORS is outermost, so even a problem+json error carries the allow-origin header.
+    app = _cors_app(True)
+
+    @app.get('/boom')
+    async def boom():
+        raise ProblemException(404, detail='nope')
+
+    with TestClient(app) as client:
+        r = client.get('/boom', headers={'origin': 'http://anywhere.test'})
+        assert r.status_code == 404
+        assert r.headers['content-type'] == 'application/problem+json'
+        assert r.headers['access-control-allow-origin'] == '*'
+
+
+def _params_app() -> GazeboApp:
+    app = GazeboApp(Providers())
+
+    @app.get('/search')
+    async def search(
+        bbox: Annotated[BBox | None, BBoxParam] = None,
+        datetime: Annotated[DatetimeInterval | None, DatetimeParam] = None,
+        crs: Annotated[str, CrsParam(allowed=[CRS84])] = CRS84,
+    ) -> dict:
+        return {
+            'bbox': None if bbox is None else [bbox.minx, bbox.miny, bbox.maxx, bbox.maxy],
+            'has_datetime': datetime is not None,
+            'crs': crs,
+        }
+
+    return app
+
+
+@pytest.fixture
+def params_client():
+    with TestClient(_params_app()) as c:
+        yield c
+
+
+def test_param_adapters_parse(params_client):
+    r = params_client.get('/search?bbox=-1,-2,3,4&datetime=2020-01-01T00:00:00Z')
+    assert r.status_code == 200
+    body = r.json()
+    assert body['bbox'] == [-1, -2, 3, 4]
+    assert body['has_datetime'] is True
+    assert body['crs'] == CRS84
+
+
+def test_param_adapters_absent_are_none(params_client):
+    body = params_client.get('/search').json()
+    assert body['bbox'] is None
+    assert body['has_datetime'] is False
+
+
+def test_bad_bbox_is_400_problem(params_client):
+    r = params_client.get('/search?bbox=1,2,3')
+    assert r.status_code == 400
+    assert r.headers['content-type'] == 'application/problem+json'
+    body = r.json()
+    assert body['parameter'] == 'bbox'
+    assert body['status'] == 400
+
+
+def test_bad_datetime_is_400_problem(params_client):
+    r = params_client.get('/search?datetime=not-a-date')
+    assert r.status_code == 400
+    assert r.json()['parameter'] == 'datetime'
+
+
+def test_disallowed_crs_is_400_problem(params_client):
+    r = params_client.get('/search?crs=http://example.com/crs/nope')
+    assert r.status_code == 400
+    assert r.json()['parameter'] == 'crs'
+
+
+# module-level so get_type_hints can resolve them inside the route annotations below
+EPSG3857 = 'http://www.opengis.net/def/crs/EPSG/0/3857'
+
+
+def test_crs_absent_defaults_to_crs84_when_allowed():
+    app = GazeboApp(Providers())
+
+    @app.get('/q')
+    async def q(crs: Annotated[str, CrsParam(allowed=[CRS84, EPSG3857])]) -> dict:
+        return {'crs': crs}
+
+    with TestClient(app) as client:
+        # CRS84 is allowed, so an absent crs defaults to it (the OGC default CRS)
+        assert client.get('/q').json()['crs'] == CRS84
+
+
+def test_crs_required_when_no_default_and_no_crs84():
+    app = GazeboApp(Providers())
+
+    @app.get('/q2')
+    async def q2(crs: Annotated[str, CrsParam(allowed=[EPSG3857])]) -> dict:
+        return {'crs': crs}
+
+    with TestClient(app) as client:
+        # no default and CRS84 not allowed -> there's no safe default -> crs is required
+        absent = client.get('/q2')
+        assert absent.status_code == 400
+        assert absent.json()['parameter'] == 'crs'
+        # supplying an allowed value still works
+        assert client.get('/q2', params={'crs': EPSG3857}).json()['crs'] == EPSG3857
+
+
+def test_crs_explicit_default_when_no_crs84():
+    app = GazeboApp(Providers())
+
+    @app.get('/q3')
+    async def q3(crs: Annotated[str, CrsParam(allowed=[EPSG3857], default=EPSG3857)]) -> dict:
+        return {'crs': crs}
+
+    with TestClient(app) as client:
+        assert client.get('/q3').json()['crs'] == EPSG3857
+
+
+def test_crs_default_outside_allowed_raises_at_construction():
+    with pytest.raises(ValueError, match='not in allowed'):
+        CrsParam(allowed=[CRS84], default='http://example.com/crs/nope')

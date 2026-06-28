@@ -236,10 +236,17 @@ dependencies = [
 fastapi = [
     { name = "fastapi" },
 ]
+geojson = [
+    { name = "geojson-pydantic" },
+]
+test = [
+    { name = "pytest" },
+]
 
 [package.dev-dependencies]
 dev = [
     { name = "fastapi" },
+    { name = "geojson-pydantic" },
     { name = "httpx2" },
     { name = "mypy" },
     { name = "pre-commit" },
@@ -260,13 +267,16 @@ docs = [
 [package.metadata]
 requires-dist = [
     { name = "fastapi", marker = "extra == 'fastapi'" },
+    { name = "geojson-pydantic", marker = "extra == 'geojson'", specifier = ">=1" },
     { name = "pydantic", specifier = ">=2" },
+    { name = "pytest", marker = "extra == 'test'", specifier = ">=8.3.5" },
 ]
-provides-extras = ["fastapi"]
+provides-extras = ["fastapi", "geojson", "test"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "fastapi" },
+    { name = "geojson-pydantic", specifier = ">=1" },
     { name = "httpx2", specifier = ">=2.5.0" },
     { name = "mypy", specifier = ">=1.15.0" },
     { name = "pre-commit", specifier = ">=4.2.0" },
@@ -289,7 +299,7 @@ name = "gazebo-garden-example"
 version = "0.0.0"
 source = { editable = "examples/garden" }
 dependencies = [
-    { name = "gazebo", extra = ["fastapi"] },
+    { name = "gazebo", extra = ["fastapi", "geojson"] },
     { name = "uvicorn" },
 ]
 
@@ -302,7 +312,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "gazebo", extras = ["fastapi"], editable = "." },
+    { name = "gazebo", extras = ["fastapi", "geojson"], editable = "." },
     { name = "uvicorn", specifier = ">=0.30" },
 ]
 
@@ -311,6 +321,18 @@ dev = [
     { name = "httpx2", specifier = ">=2.5.0" },
     { name = "pytest", specifier = ">=8.3.5" },
     { name = "pytest-asyncio", specifier = ">=0.24" },
+]
+
+[[package]]
+name = "geojson-pydantic"
+version = "2.1.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d9/76/77c6f2e608028a2885e4d9d9a28cb6801879972d4bb3106c1dca02201df6/geojson_pydantic-2.1.1.tar.gz", hash = "sha256:3b64fa2dcd98108ff8a19bfb01eee3dab41bc230be2481804aefd7c1659d1c23", size = 8156, upload-time = "2026-04-07T09:48:07.252Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/95/97/d59d999f00aec90fc7a4efb742fc11e6c160552aa1b313438d3497998644/geojson_pydantic-2.1.1-py3-none-any.whl", hash = "sha256:55354f22ededc3c070e3210fec6f518d784b65c4368c1763f2c6dc4bab79b898", size = 9456, upload-time = "2026-04-07T09:48:05.772Z" },
 ]
 
 [[package]]

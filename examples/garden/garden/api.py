@@ -10,21 +10,40 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from gazebo.ext.fastapi import GazeboRouter, Inject, LinkedRouter
+from gazebo.ext.fastapi import (
+    BBoxParam,
+    CrsParam,
+    DatetimeParam,
+    GazeboRouter,
+    Inject,
+    LinkedRouter,
+)
 from gazebo.link import Link
-from gazebo.ogc import Conformance, ConformanceDeclaration
+from gazebo.ogc import (
+    Collection,
+    Collections,
+    Conformance,
+    ConformanceDeclaration,
+    Extent,
+    SpatialExtent,
+    TemporalExtent,
+)
+from gazebo.params import CRS84, BBox, DatetimeInterval
 from gazebo.pagination import paginate
 from gazebo.problems import ProblemException
-from gazebo.rels import Rel
+from gazebo.rels import MediaType, Rel
 
-from .models import Plant, PlantCollection, PlantCreate, to_plant
-from .resources import Catalog, Session, Tenant, User
+from .models import Bed, BedCollection, Plant, PlantCollection, PlantCreate, to_bed, to_plant
+from .resources import Catalog, Session, Tenant, User, all_beds, get_bed_row
 
 CONFORMANCE = Conformance(
     Conformance.CORE,
     Conformance.LANDING_PAGE,
     Conformance.JSON,
     Conformance.OAS30,
+    # The geospatial beds collection exercises OGC API Features core + GeoJSON.
+    'http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/core',
+    'http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/geojson',
 )
 
 plants_router = GazeboRouter(tags=['plants'])
@@ -92,15 +111,87 @@ async def conformance() -> ConformanceDeclaration:
     return CONFORMANCE.declaration()
 
 
-collections_router = LinkedRouter(
-    rel=Rel.DATA,
-    title='Collections',
-    description='Collections offered by this service.',
-    landing_name='collections',
-)
-collections_router.add_link(Rel.ITEMS, 'list_plants', title='Plants')
+# The OGC Features-style geospatial collection: garden beds as GeoJSON features,
+# with bbox/datetime/crs filtering and Collection/Extent metadata.
+collections_router = GazeboRouter(tags=['collections'])
+
+BEDS_ALLOWED_CRS = [CRS84]
+
+
+def build_beds_collection() -> Collection:
+    """Collection metadata (id/title/extent/links) derived from the beds data."""
+    rows = all_beds()
+    # An empty store has no spatial/temporal extent to compute — omit it rather than
+    # calling min()/max() over an empty sequence.
+    extent: Extent | None = None
+    if rows:
+        lons = [r['lon'] for r in rows]
+        lats = [r['lat'] for r in rows]
+        first_planted = min(r['planted'] for r in rows)
+        extent = Extent(
+            spatial=SpatialExtent(bbox=[[min(lons), min(lats), max(lons), max(lats)]]),
+            temporal=TemporalExtent(interval=[[first_planted, None]]),
+        )
+    return Collection(
+        id='beds',
+        title='Garden Beds',
+        description='Planting beds as GeoJSON point features.',
+        extent=extent,
+        links=[
+            Link.to_route('beds_collection', rel=Rel.SELF, type=MediaType.JSON),
+            Link.to_route(
+                'list_beds', rel=Rel.ITEMS, type=MediaType.GEOJSON, title='Bed features'
+            ),
+            Link.root_link(),
+        ],
+    )
+
+
+@collections_router.get('', response_model=Collections, name='collections')
+async def list_collections() -> Collections:
+    return Collections(
+        items=[build_beds_collection()],
+        links=[Link.self_link(), Link.root_link()],
+    )
+
+
+@collections_router.get('/beds', response_model=Collection, name='beds_collection')
+async def beds_collection() -> Collection:
+    return build_beds_collection()
+
+
+@collections_router.get('/beds/items', response_model=BedCollection, name='list_beds')
+async def list_beds(
+    bbox: Annotated[BBox | None, BBoxParam] = None,
+    datetime: Annotated[DatetimeInterval | None, DatetimeParam] = None,
+    crs: Annotated[str, CrsParam(allowed=BEDS_ALLOWED_CRS)] = CRS84,
+) -> BedCollection:
+    rows = all_beds()
+    if bbox is not None:
+        rows = [r for r in rows if bbox.contains(r['lon'], r['lat'])]
+    if datetime is not None:
+        rows = [r for r in rows if datetime.contains(r['planted'])]
+    return BedCollection(
+        items=[to_bed(r) for r in rows],
+        links=[Link.self_link(type=MediaType.GEOJSON), Link.root_link()],
+        number_matched=len(rows),
+    )
+
+
+@collections_router.get('/beds/items/{bed_id}', response_model=Bed, name='get_bed')
+async def get_bed(bed_id: str) -> Bed:
+    row = get_bed_row(bed_id)
+    if row is None:
+        raise ProblemException(
+            404,
+            detail=f'bed {bed_id!r} not found',
+            instance=f'/collections/beds/items/{bed_id}',
+        )
+    return to_bed(row)
+
 
 root_router.include_router(collections_router, prefix='/collections')
 root_router.include_router(plants_router, prefix='/plants')
 root_router.add_link(Rel.CONFORMANCE, 'conformance', title='Conformance')
 root_router.add_link(Rel.ITEMS, 'list_plants', title='Plants')
+root_router.add_link(Rel.DATA, 'collections', title='Collections')

@@ -44,3 +44,21 @@ assert dumped['numberReturned'] == 2
 assert dumped['numberMatched'] == 42
 assert [item['id'] for item in dumped['features']] == [1, 2]
 assert any('token=abc' in link['href'] for link in dumped['links'])
+
+
+# --8<-- [start:omit_null]
+from gazebo import OmitNullModel
+
+
+class Style(OmitNullModel):
+    name: str
+    description: str | None = None
+
+
+# an unset optional member is omitted on the wire, not emitted as null
+basic = Style(name='basic').model_dump_json()
+# --8<-- [end:omit_null]
+
+import json
+
+assert json.loads(basic) == {'name': 'basic'}  # no "description": null

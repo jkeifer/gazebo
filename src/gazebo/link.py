@@ -16,17 +16,15 @@ from typing import Annotated, Any, Self
 from pydantic import (
     AfterValidator,
     AnyUrl,
-    BaseModel,
     ConfigDict,
     Field,
     FieldSerializationInfo,
     PlainSerializer,
-    SerializerFunctionWrapHandler,
     WithJsonSchema,
-    model_serializer,
 )
 
 from gazebo.context import RequestContext, resolve_context
+from gazebo.jsonschema import OmitNullModel
 from gazebo.rels import MediaType, Rel
 
 type UrlResolver = Callable[[RequestContext], object]
@@ -65,7 +63,7 @@ type Url = Annotated[
 """A URL field that accepts either a resolver callable or a concrete URL value."""
 
 
-class Link(BaseModel):
+class Link(OmitNullModel):
     """An OGC-style link. Null fields are omitted on JSON serialization."""
 
     model_config = ConfigDict(extra='allow')
@@ -77,11 +75,6 @@ class Link(BaseModel):
     method: str | None = None
     headers: dict[str, str | list[str]] | None = None
     body: Any | None = None
-
-    @model_serializer(mode='wrap', when_used='json')
-    def _drop_none(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
-        data = handler(self)
-        return {k: v for k, v in data.items() if v is not None}
 
     # --- factories (framework-agnostic; resolve via RequestContext) -------
 
@@ -130,12 +123,23 @@ class Link(BaseModel):
         *,
         rel: str,
         type: str | None = MediaType.JSON,
+        path: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> Self:
-        """Link to a named route (resolved via ``ctx.url_for(name)``)."""
+        """Link to a named route (resolved via ``ctx.url_for(name, **path)``).
+
+        Args:
+            name: The route name to resolve.
+            rel: The link relation.
+            type: The target media type.
+            path: Path parameters for the route. Bound into the deferred
+                resolver; not stored on the link itself.
+            **kwargs: Extra link fields (e.g. ``title``).
+        """
+        path = path or {}
         return cls.model_validate(
             {
-                'href': lambda ctx: ctx.url_for(name, **kwargs.pop('path', {})),
+                'href': lambda ctx: ctx.url_for(name, **path),
                 'rel': rel,
                 'type': type,
                 **kwargs,

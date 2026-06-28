@@ -65,6 +65,9 @@ def create_app(*, overrides: Overrides | None = None) -> GazeboApp:
         # DEMO ONLY: trust every client's forwarded headers. In production use
         # TrustedClient(...) and/or SharedSecret(...).
         trust=trust_all,
+        # DEMO ONLY: permissive CORS so a browser app can call from any origin.
+        # In production pass an explicit origin list, e.g. cors=['https://app.example'].
+        cors=True,
         title='Gazebo Gardens',
         description='A tiny OGC-style plant catalog built with gazebo.',
         openapi_tags=tags_metadata(*TAGS),
