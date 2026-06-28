@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
-## [0.2.0] - 2026-06-27
+## [0.2.0] - 2026-06-28
 
 ### Added
 
@@ -56,6 +56,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `drive_pagination` driver (envelope invariants per page, loop guard, GET/POST, and a
   `request_kwargs` passthrough for authenticated clients), and the opt-in
   `gazebo_link_context` and `gazebo_overrides` fixtures.
+- `gazebo.negotiation` (core): content negotiation in OGC order — `Representation`
+  (with `JSON`/`GEOJSON`/`HTML` constants), `negotiate` (`?f=` wins, then the `Accept`
+  header with full q-value/specificity matching, then a default; unknown `f=` →
+  `ParamError`/400, unsatisfiable `Accept` → `ProblemException`/406), and
+  `alternate_links`. The FastAPI `Negotiate([...])` dependency resolves it from the
+  request; HTML rendering stays the app's job (no templating dependency added).
+- `gazebo.caching` (core): conditional-request primitives — `etag_for` (weak ETags by
+  default), `http_date`/`parse_http_date`, and the RFC 7232 precondition logic
+  (`is_not_modified`, `if_none_match_satisfied`). FastAPI helpers `not_modified()` (a
+  ready `304` when preconditions match, carrying the validators and an optional
+  `cache_control` so the `304` refreshes the cache's freshness directives) and
+  `set_cache_headers()`; opt-in.
+- `gazebo.linkheader` (core) and a `set_link_header()` FastAPI helper: mirror a
+  response's navigational links as an RFC 8288 `Link:` header. Call it inside an
+  endpoint with the links you're returning (the companion to `set_cache_headers()`);
+  it resolves the deferred hrefs against the active request. Narrowed to a rel
+  allow-list (`NAV_RELS`) and capped (`DEFAULT_MAX_LINKS`) so per-item-heavy
+  collections can't bloat the header.
+- `gazebo.pagination` conveniences: `encode_cursor`/`decode_cursor` (opaque base64-JSON
+  cursors; a bad cursor raises `ParamError` → 400), `paginate_offset` (derives
+  `self`/`first`/`prev`/`next`/`last` from offset/limit/total), and `first`/`last_token`/
+  `self_` on `paginate`. Both builders now take the full `Link` surface — `type`,
+  `headers`, `**link_fields`, and `method`/`body`; with `method='POST'` the token rides
+  in the request body for stateless POST-search pagination. `paginate`'s existing
+  `next`/`prev` output is unchanged.
 
 ### Fixed
 

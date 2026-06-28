@@ -10,11 +10,17 @@ Auto-generated from the source docstrings and type hints.
 
 ::: gazebo.pagination
 
+::: gazebo.linkheader
+
+::: gazebo.caching
+
 ::: gazebo.context
 
 ::: gazebo.problems
 
 ::: gazebo.params
+
+::: gazebo.negotiation
 
 ::: gazebo.geojson
 

@@ -46,6 +46,50 @@ assert [item['id'] for item in dumped['features']] == [1, 2]
 assert any('token=abc' in link['href'] for link in dumped['links'])
 
 
+# --8<-- [start:cursor]
+from gazebo.pagination import decode_cursor, encode_cursor, paginate
+
+# Wrap an arbitrary token payload in one opaque, URL-safe cursor instead of
+# hand-rolling a token format. encode/decode round-trip; a malformed cursor raises a
+# ParamError (which the FastAPI glue renders as a 400 problem).
+cursor = encode_cursor({'offset': 20})
+assert decode_cursor(cursor) == {'offset': 20}
+
+# paginate() also emits first/last/self when asked (token_param renames the param).
+cursor_links = paginate(next_token=cursor, first=True, self_=True, token_param='cursor', limit=10)
+# --8<-- [end:cursor]
+
+assert {link.rel for link in cursor_links} >= {'next', 'first', 'self'}
+
+
+# --8<-- [start:offset]
+from gazebo.pagination import paginate_offset
+
+# Offset/limit pagination: say where you are (and the total, if known) and the
+# self/first/prev/next/last links are derived from the page position.
+offset_links = paginate_offset(offset=20, limit=10, total=55)
+# --8<-- [end:offset]
+
+assert {link.rel for link in offset_links} == {'self', 'first', 'prev', 'next', 'last'}
+
+
+# --8<-- [start:post]
+# POST pagination for a *stateless* server: the token rides in the request body (merged
+# with the original criteria) rather than the query, so each `next` re-states the whole
+# search. Any Link member (here `type`) can be set on every emitted link.
+post_links = paginate(
+    next_token='page-2',
+    method='POST',
+    body={'filter': {'collection': 'plants'}},
+    type='application/json',
+)
+next_link = post_links[0]
+# --8<-- [end:post]
+
+assert next_link.method == 'POST'
+assert next_link.body == {'filter': {'collection': 'plants'}, 'token': 'page-2'}
+
+
 # --8<-- [start:omit_null]
 from gazebo import OmitNullModel
 

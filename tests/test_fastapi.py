@@ -7,7 +7,7 @@ from typing import Annotated
 
 import pytest
 
-from fastapi import Request
+from fastapi import Request, Response
 from fastapi.testclient import TestClient
 
 from gazebo.asgi import trust_all
@@ -21,12 +21,15 @@ from gazebo.ext.fastapi import (
     GazeboRouter,
     Inject,
     LinkedRouter,
+    Negotiate,
     Overrides,
     Providers,
     forward_lifespans,
+    set_link_header,
     upgrade,
 )
 from gazebo.link import Link
+from gazebo.negotiation import HTML, JSON, Representation
 from gazebo.params import CRS84, BBox, DatetimeInterval
 from gazebo.problems import ProblemException
 from gazebo.rels import Rel
@@ -477,3 +480,179 @@ def test_crs_explicit_default_when_no_crs84():
 def test_crs_default_outside_allowed_raises_at_construction():
     with pytest.raises(ValueError, match='not in allowed'):
         CrsParam(allowed=[CRS84], default='http://example.com/crs/nope')
+
+
+# --- Link: response header via set_link_header helper ---------------------
+
+
+def test_set_link_header_from_model_links():
+    # No link_header middleware: the helper alone sets the header.
+    app = GazeboApp(Providers())
+
+    @app.get('/things', response_model=ThingCollection)
+    async def things(response: Response) -> ThingCollection:
+        coll = ThingCollection(
+            items=[{'id': 1}],
+            links=[
+                Link.self_link(),
+                Link(href=lambda ctx: ctx.url + '?page=2', rel=Rel.NEXT),
+                Link(href='https://x/detail/1', rel=Rel.ITEM),  # non-nav, filtered out
+            ],
+        )
+        set_link_header(response, coll.links)
+        return coll
+
+    with TestClient(app) as client:
+        header = client.get('/things').headers['link']
+        assert 'rel="self"' in header
+        assert 'rel="next"' in header
+        assert 'http://testserver/things' in header  # deferred href resolved in-endpoint
+        assert 'rel="item"' not in header
+
+
+def test_set_link_header_accepts_a_plain_link_list():
+    # Not tied to an envelope: a bare list of Links works (and on a non-model response).
+    app = GazeboApp(Providers())
+
+    @app.get('/x')
+    async def x(response: Response) -> dict:
+        set_link_header(
+            response,
+            [Link.self_link(), Link(href='https://x/next', rel=Rel.NEXT)],
+        )
+        return {'ok': True}
+
+    with TestClient(app) as client:
+        header = client.get('/x').headers['link']
+        assert 'rel="self"' in header
+        assert 'rel="next"' in header
+
+
+def test_set_link_header_respects_rels_filter():
+    app = GazeboApp(Providers())
+
+    @app.get('/x')
+    async def x(response: Response) -> dict:
+        set_link_header(
+            response,
+            [Link.self_link(), Link(href='https://x/next', rel=Rel.NEXT)],
+            rels=['next'],
+        )
+        return {'ok': True}
+
+    with TestClient(app) as client:
+        header = client.get('/x').headers['link']
+        assert 'rel="next"' in header
+        assert 'rel="self"' not in header
+
+
+def test_set_link_header_sets_nothing_when_no_nav_links():
+    app = GazeboApp(Providers())
+
+    @app.get('/x')
+    async def x(response: Response) -> dict:
+        set_link_header(response, [Link(href='https://x/i/1', rel=Rel.ITEM)])  # non-nav only
+        return {'ok': True}
+
+    with TestClient(app) as client:
+        assert 'link' not in client.get('/x').headers
+
+
+# --- conditional requests / caching (#6) ----------------------------------
+
+
+def _caching_app():
+    from gazebo.ext.fastapi import etag_for, not_modified, set_cache_headers
+
+    app = GazeboApp(Providers())
+    data = {'value': 1}
+
+    @app.get('/thing')
+    async def thing(request: Request, response: Response):
+        etag = etag_for(data)
+        nm = not_modified(request, etag=etag, cache_control='max-age=60')
+        if nm is not None:
+            return nm
+        set_cache_headers(response, etag=etag, cache_control='max-age=60')
+        return data
+
+    return app, data
+
+
+def test_etag_set_on_first_response():
+    app, _ = _caching_app()
+    with TestClient(app) as client:
+        resp = client.get('/thing')
+        assert resp.status_code == 200
+        assert resp.headers['etag'].startswith('W/"')
+        assert resp.headers['cache-control'] == 'max-age=60'
+
+
+def test_conditional_get_returns_304():
+    app, _ = _caching_app()
+    with TestClient(app) as client:
+        etag = client.get('/thing').headers['etag']
+        again = client.get('/thing', headers={'if-none-match': etag})
+        assert again.status_code == 304
+        assert again.headers['etag'] == etag
+        # the 304 refreshes cache freshness directives (RFC 9111 §4.3.4)
+        assert again.headers['cache-control'] == 'max-age=60'
+        assert again.content == b''
+
+
+def test_changed_resource_is_not_304():
+    app, data = _caching_app()
+    with TestClient(app) as client:
+        etag = client.get('/thing').headers['etag']
+        data['value'] = 2  # resource changed -> old etag no longer matches
+        again = client.get('/thing', headers={'if-none-match': etag})
+        assert again.status_code == 200
+        assert again.headers['etag'] != etag
+
+
+# --- content negotiation (#4) ---------------------------------------------
+
+
+def _negotiation_app():
+    app = GazeboApp(Providers())
+
+    @app.get('/res')
+    async def res(rep: Annotated[Representation, Negotiate([JSON, HTML])]) -> dict:
+        return {'format': rep.key, 'media_type': rep.media_type}
+
+    return app
+
+
+def test_negotiate_f_param_wins():
+    with TestClient(_negotiation_app()) as client:
+        assert client.get('/res?f=html').json()['format'] == 'html'
+        # f beats a conflicting Accept
+        r = client.get('/res?f=json', headers={'accept': 'text/html'})
+        assert r.json()['format'] == 'json'
+
+
+def test_negotiate_accept_header():
+    with TestClient(_negotiation_app()) as client:
+        r = client.get('/res', headers={'accept': 'text/html'})
+        assert r.json()['format'] == 'html'
+
+
+def test_negotiate_default_is_first():
+    with TestClient(_negotiation_app()) as client:
+        # TestClient sends Accept: */* by default -> first offered (json)
+        assert client.get('/res').json()['format'] == 'json'
+
+
+def test_negotiate_unknown_f_is_400_problem():
+    with TestClient(_negotiation_app()) as client:
+        r = client.get('/res?f=xml')
+        assert r.status_code == 400
+        assert r.headers['content-type'] == 'application/problem+json'
+        assert r.json()['parameter'] == 'f'
+
+
+def test_negotiate_unacceptable_is_406_problem():
+    with TestClient(_negotiation_app()) as client:
+        r = client.get('/res', headers={'accept': 'application/xml'})
+        assert r.status_code == 406
+        assert r.headers['content-type'] == 'application/problem+json'
