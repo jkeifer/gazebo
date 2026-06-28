@@ -10,7 +10,8 @@ re-implemented per project:
 - **Deferred links** — a `Link` model whose `href` can be a callable resolved at
   serialization time, so links are built without a request in hand.
 - **Collection envelopes** — `LinkedCollection[T]`: items + links + counts, with a
-  configurable items alias (`features`, `records`, ...).
+  configurable items alias (`features`, `records`, ...), plus first-class GeoJSON
+  `Feature`/`FeatureCollection` for OGC API Features.
 - **Typed injection & state** — a small, framework-agnostic DI container
   (`gazebo.di`) plus a FastAPI app (`GazeboApp`) that delivers app- and
   request-scoped resources as typed parameters, with teardown and
@@ -18,10 +19,15 @@ re-implemented per project:
 - **Proxy-aware URLs** — pure-ASGI middleware that honors
   `X-Forwarded-Proto/Host/Prefix` (with pluggable trust), so generated links are
   correct behind a load balancer.
-- **OGC bits** — RFC 7807 problem responses, landing pages + conformance,
-  pagination links, and typed `Rel`/`MediaType` constants.
+- **The OGC request/response surface** — RFC 7807 problems, landing pages +
+  conformance, pagination, content negotiation (`?f=` then `Accept`), typed OGC
+  query params (`bbox`/`datetime`/`crs`), conditional requests (ETag / 304),
+  RFC 8288 `Link:` headers, and typed `Rel`/`MediaType` constants.
+- **A pytest plugin** — opt-in helpers that assert the OGC-ness of your service:
+  link/problem assertions and a pagination driver that walks `next` to exhaustion.
 
-The core (`gazebo`) depends only on `pydantic`. Framework integration is opt-in.
+The core (`gazebo`) depends only on `pydantic`. Framework integration, GeoJSON, and
+the test helpers are opt-in extras.
 
 > [!NOTE]
 > This is an experiment using AI to refine a number of patterns I've
@@ -43,11 +49,14 @@ The core (`gazebo`) depends only on `pydantic`. Framework integration is opt-in.
 ## Install
 
 ```sh
-pip install gazebo            # core: pydantic only
-pip install 'gazebo[fastapi]' # + the GazeboApp / FastAPI glue
+pip install gazebo             # core: pydantic only
+pip install 'gazebo[fastapi]'  # + the GazeboApp / FastAPI glue
+pip install 'gazebo[geojson]'  # + GeoJSON Feature / FeatureCollection
+pip install 'gazebo[test]'     # + the pytest plugin
 ```
 
-Requires Python 3.12+.
+Requires Python 3.12+. Full documentation lives at
+[teotl.dev/gazebo](https://teotl.dev/gazebo/).
 
 ## Quickstart
 
@@ -61,7 +70,7 @@ from fastapi import Request
 
 from gazebo.collection import LinkedCollection
 from gazebo.link import Link
-from gazebo.ext.fastapi import GazeboApp, GazeboRouter, Inject, Overrides, Providers
+from gazebo.ext.fastapi import GazeboApp, GazeboRouter, Overrides, Providers
 
 
 @dataclass
@@ -138,61 +147,10 @@ def test_things():
         assert body['numberReturned'] == 2
 ```
 
-External types you can't add `__provide__` to are bound with a standalone
-provider and injected with `Annotated[T, Inject]`:
-
-```python
-@asynccontextmanager
-async def provide_session(database: Database) -> AsyncIterator[Session]:
-    async with database.session() as s:
-        yield s
-
-providers.request(Session, provide_session)
-
-@router.get('/x')
-async def handler(session: Annotated[Session, Inject]): ...
-```
-
-## Composition
-
-gazebo's request machinery (typed injection + proxy-correct link context) lives in
-`GazeboApp`; routes that use bare-type injection live on a `GazeboRouter`. They are
-a pair — use both. Beyond that, you can mix and match:
-
-| Combination | Works? |
-|---|---|
-| `GazeboApp` + `GazeboRouter` (injection) | ✅ the intended pairing |
-| `GazeboApp` + plain/external `APIRouter` (no injection) | ✅ |
-| plain `FastAPI` + `GazeboRouter` with injection | ❌ needs `GazeboApp`'s middleware |
-| root `FastAPI` mounting a `GazeboApp` | ✅ forward the sub-app's lifespan |
-
-**External / third-party routers** that don't use gazebo injection can be included
-into a `GazeboApp` unchanged. If you accidentally put an injectable-typed route on a
-plain `APIRouter`, the app fails loudly at startup naming the route (rather than
-silently treating the parameter as a request body).
-
-**Upgrade an existing app** you didn't construct (created by a framework, or with
-custom config) instead of subclassing:
-
-```python
-from fastapi import FastAPI
-from gazebo.ext.fastapi import upgrade, GazeboRouter, Providers
-
-app = FastAPI(...)              # someone else's app
-app.include_router(my_gazebo_router)
-upgrade(app, providers)         # adds the middleware, lifespan, handlers, health
-```
-
-**Mount a `GazeboApp` under a root app.** A mounted sub-app's lifespan isn't run
-automatically, so forward it (this is general framework behavior, not
-gazebo-specific):
-
-```python
-from gazebo.ext.fastapi import forward_lifespans
-
-root = FastAPI(lifespan=forward_lifespans(sub_app))
-root.mount('/api', sub_app)     # sub_app is a GazeboApp
-```
+`GazeboApp` and `GazeboRouter` are an intended pair, but you can mix in plain or
+third-party routers, `upgrade()` an app you didn't construct, and mount a `GazeboApp`
+under a root app. The [documentation](https://teotl.dev/gazebo/) covers composition,
+injecting external types, content negotiation, conditional requests, and the rest.
 
 ## Example app
 
@@ -212,17 +170,7 @@ uv run pytest          # its test suite
 See [`examples/garden/README.md`](examples/garden/README.md) for a feature map and
 `curl` recipes.
 
-## Design docs
+## Docs
 
-- `docs/design.md` — the OGC/web shapes (links, collections, pagination,
-  problems, landing pages, proxy headers).
-- `docs/design-di.md` — the injection & state system (providers, recipes,
-  scopes, `GazeboApp`).
-- `docs/examples/` — `wiring.py` (stock FastAPI baseline) and
-  `wiring_gazeboapp.py` (the gazebo version).
-
-## Status
-
-Early / pre-1.0. The `gazebo.di` container is intentionally minimal and
-extraction-ready (stdlib only); it sits behind a `Providers` interface so a
-mature container could be adopted later without changing user code.
+Full documentation — guides, how-tos, and the generated API reference — lives at
+**[teotl.dev/gazebo](https://teotl.dev/gazebo/)**.
