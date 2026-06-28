@@ -17,6 +17,7 @@ nav = [
     { Collections = "core/collections.md" },
     { Problems = "core/problems.md" },
     { "Query parameters" = "core/params.md" },
+    { "Content negotiation" = "core/negotiation.md" },
     { GeoJSON = "core/geojson.md" },
     { "Landing & conformance" = "core/ogc.md" },
     { "Constants & tags" = "core/constants.md" },
@@ -31,6 +32,7 @@ nav = [
     { Overview = "fastapi/index.md" },
     { "GazeboApp & upgrade" = "fastapi/app.md" },
     { "Routers & injection" = "fastapi/routers.md" },
+    { "Conditional requests" = "fastapi/caching.md" },
     { "Proxy, context & health" = "fastapi/proxy.md" },
   ] },
   { Testing = [

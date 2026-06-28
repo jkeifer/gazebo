@@ -31,6 +31,18 @@ class PlantCreate(BaseModel):
     name: str
 
 
+class PlantSearch(BaseModel):
+    """The POST-search body: a name filter plus offset/limit paging.
+
+    Because the server is stateless, the ``next`` link must repeat the whole search
+    body (criteria + the advanced offset) — see ``search_plants``.
+    """
+
+    name: str | None = None
+    limit: int = Field(10, ge=1, le=10_000)
+    offset: int = Field(0, ge=0)
+
+
 class BedProperties(BaseModel):
     """Non-spatial attributes of a garden bed (a GeoJSON Feature's ``properties``)."""
 

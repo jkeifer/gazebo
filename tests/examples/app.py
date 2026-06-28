@@ -122,3 +122,34 @@ with TestClient(prod_app) as client:
     r = client.get('/ping', headers={'origin': 'https://app.example.com'})
     assert r.headers['access-control-allow-origin'] == 'https://app.example.com'
     assert r.headers['access-control-allow-credentials'] == 'true'
+
+
+# --8<-- [start:link_header]
+from fastapi import Response
+
+from gazebo.collection import LinkedCollection
+from gazebo.ext.fastapi import GazeboApp, Providers, set_link_header
+from gazebo.link import Link
+
+hdr_app = GazeboApp(Providers())
+
+
+class Items(LinkedCollection[dict], items_alias='items'):
+    pass
+
+
+@hdr_app.get('/items', response_model=Items)
+async def list_items(response: Response) -> Items:
+    links = [Link.self_link()]
+    # Mirror the navigational links into an RFC 8288 Link: header. Pass a rel list
+    # (e.g. rels=['self', 'next', 'prev']) to narrow it further.
+    set_link_header(response, links)
+    return Items(items=[{'id': 1}], links=links)
+
+
+# --8<-- [end:link_header]
+
+
+with TestClient(hdr_app) as client:
+    resp = client.get('/items')
+    assert 'rel="self"' in resp.headers['link']

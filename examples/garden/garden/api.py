@@ -10,6 +10,10 @@ from __future__ import annotations
 
 from typing import Annotated
 
+from fastapi import Query, Request, Response
+from fastapi.responses import HTMLResponse
+
+from gazebo.caching import etag_for
 from gazebo.ext.fastapi import (
     BBoxParam,
     CrsParam,
@@ -17,7 +21,12 @@ from gazebo.ext.fastapi import (
     GazeboRouter,
     Inject,
     LinkedRouter,
+    Negotiate,
+    not_modified,
+    set_cache_headers,
+    set_link_header,
 )
+from gazebo.negotiation import HTML, JSON, Representation, alternate_links
 from gazebo.link import Link
 from gazebo.ogc import (
     Collection,
@@ -28,12 +37,21 @@ from gazebo.ogc import (
     SpatialExtent,
     TemporalExtent,
 )
-from gazebo.params import CRS84, BBox, DatetimeInterval
-from gazebo.pagination import paginate
+from gazebo.params import CRS84, BBox, DatetimeInterval, ParamError
+from gazebo.pagination import decode_cursor, encode_cursor, paginate, paginate_offset
 from gazebo.problems import ProblemException
 from gazebo.rels import MediaType, Rel
 
-from .models import Bed, BedCollection, Plant, PlantCollection, PlantCreate, to_bed, to_plant
+from .models import (
+    Bed,
+    BedCollection,
+    Plant,
+    PlantCollection,
+    PlantCreate,
+    PlantSearch,
+    to_bed,
+    to_plant,
+)
 from .resources import Catalog, Session, Tenant, User, all_beds, get_bed_row
 
 CONFORMANCE = Conformance(
@@ -49,32 +67,54 @@ CONFORMANCE = Conformance(
 plants_router = GazeboRouter(tags=['plants'])
 
 
+def _offset_from_cursor(cursor: str | None) -> int:
+    """Decode the opaque page cursor into a validated, non-negative offset.
+
+    The cursor is opaque but *not trusted* (see ``decode_cursor``): a crafted cursor
+    could carry a missing, non-integer, or negative ``offset``, so validate it and
+    surface a bad one as a ``400`` problem rather than letting it 500.
+    """
+    if not cursor:
+        return 0
+    offset = decode_cursor(cursor).get('offset', 0)
+    if isinstance(offset, bool) or not isinstance(offset, int) or offset < 0:
+        raise ParamError('cursor', 'cursor offset must be a non-negative integer')
+    return offset
+
+
 @plants_router.get('', response_model=PlantCollection, name='list_plants')
 async def list_plants(
     catalog: Catalog,
     user: User,
     tenant: Tenant,
-    limit: int = 10,
-    token: str | None = None,
+    response: Response,
+    limit: int = Query(10, ge=1, le=10_000),
+    cursor: str | None = None,
 ) -> PlantCollection:
-    offset = int(token) if token and token.isdigit() else 0
-    rows = catalog.read.list(tenant.id, limit + 1, offset)
-    has_more = len(rows) > limit
-    rows = rows[:limit]
+    # Opaque cursor pagination: the page offset is wrapped in a base64-JSON cursor, so
+    # clients treat it as a token. A malformed cursor decodes to a 400 problem.
+    offset = _offset_from_cursor(cursor)
+    total = catalog.read.count(tenant.id)
+    rows = catalog.read.list(tenant.id, limit, offset)
+    last_offset = ((total - 1) // limit) * limit if total else 0
     links = [
-        Link.self_link(),
         Link.root_link(),
         *paginate(
-            next_token=str(offset + limit) if has_more else None,
-            prev_token=str(max(0, offset - limit)) if offset else None,
+            next_token=encode_cursor({'offset': offset + limit})
+            if offset + limit < total
+            else None,
+            prev_token=encode_cursor({'offset': max(0, offset - limit)}) if offset else None,
+            first=offset > 0,
+            last_token=encode_cursor({'offset': last_offset}) if last_offset > offset else None,
+            self_=True,
+            token_param='cursor',
             limit=limit,
         ),
     ]
-    return PlantCollection(
-        items=[to_plant(r) for r in rows],
-        links=links,
-        number_matched=catalog.read.count(tenant.id),
-    )
+    # Mirror the navigational links into an RFC 8288 Link: header so crawlers and
+    # non-JSON clients can follow self/next/prev/... without parsing the body.
+    set_link_header(response, links)
+    return PlantCollection(items=[to_plant(r) for r in rows], links=links, number_matched=total)
 
 
 @plants_router.get('/{plant_id}', response_model=Plant, name='get_plant')
@@ -87,6 +127,41 @@ async def get_plant(plant_id: str, catalog: Catalog, user: User, tenant: Tenant)
             instance=f'/plants/{plant_id}',
         )
     return to_plant(row)
+
+
+@plants_router.post('/search', response_model=PlantCollection, name='search_plants')
+async def search_plants(
+    body: PlantSearch,
+    catalog: Catalog,
+    user: User,
+    tenant: Tenant,
+) -> PlantCollection:
+    # A stateless POST search: the pagination links travel as method=POST with a body
+    # that re-states the whole search (criteria + the advanced offset), since the
+    # server keeps no per-query state. `base` is the current request body; paginate
+    # overrides only the offset token per link.
+    rows = catalog.read.list(tenant.id, 1000, 0)
+    if body.name:
+        rows = [r for r in rows if body.name.lower() in r['name'].lower()]
+    total = len(rows)
+    page = rows[body.offset : body.offset + body.limit]
+    base: dict = {'offset': body.offset, 'limit': body.limit}
+    if body.name:
+        base['name'] = body.name
+    links = [
+        Link.root_link(),
+        *paginate(
+            next_token=str(body.offset + body.limit) if body.offset + body.limit < total else None,
+            prev_token=str(max(0, body.offset - body.limit)) if body.offset else None,
+            limit=body.limit,
+            first=body.offset > 0,
+            self_=True,
+            method='POST',
+            body=base,
+            token_param='offset',
+        ),
+    ]
+    return PlantCollection(items=[to_plant(r) for r in page], links=links, number_matched=total)
 
 
 @plants_router.post('', response_model=Plant, status_code=201, name='create_plant')
@@ -148,38 +223,54 @@ def build_beds_collection() -> Collection:
 
 
 @collections_router.get('', response_model=Collections, name='collections')
-async def list_collections() -> Collections:
-    return Collections(
-        items=[build_beds_collection()],
-        links=[Link.self_link(), Link.root_link()],
-    )
+async def list_collections(response: Response) -> Collections:
+    links = [Link.self_link(), Link.root_link()]
+    set_link_header(response, links)
+    return Collections(items=[build_beds_collection()], links=links)
 
 
 @collections_router.get('/beds', response_model=Collection, name='beds_collection')
-async def beds_collection() -> Collection:
-    return build_beds_collection()
+async def beds_collection(
+    rep: Annotated[Representation, Negotiate([JSON, HTML])],
+) -> Collection | Response:
+    # Content negotiation: ?f=json|html (then the Accept header) picks the
+    # representation; gazebo adds the `alternate` link to the other one. HTML rendering
+    # is the app's job — gazebo ships no templating opinion.
+    coll = build_beds_collection()
+    coll.links.extend(alternate_links(rep, [JSON, HTML]))
+    if rep.key == 'html':
+        return HTMLResponse(f'<h1>{coll.title}</h1>\n<p>{coll.description}</p>')
+    return coll
 
 
 @collections_router.get('/beds/items', response_model=BedCollection, name='list_beds')
 async def list_beds(
+    response: Response,
     bbox: Annotated[BBox | None, BBoxParam] = None,
     datetime: Annotated[DatetimeInterval | None, DatetimeParam] = None,
     crs: Annotated[str, CrsParam(allowed=BEDS_ALLOWED_CRS)] = CRS84,
+    limit: int = Query(10, ge=1, le=10_000),
+    offset: int = Query(0, ge=0),
 ) -> BedCollection:
     rows = all_beds()
     if bbox is not None:
         rows = [r for r in rows if bbox.contains(r['lon'], r['lat'])]
     if datetime is not None:
         rows = [r for r in rows if datetime.contains(r['planted'])]
-    return BedCollection(
-        items=[to_bed(r) for r in rows],
-        links=[Link.self_link(type=MediaType.GEOJSON), Link.root_link()],
-        number_matched=len(rows),
-    )
+    total = len(rows)
+    page = rows[offset : offset + limit]
+    # self is the geo+json representation; paginate_offset derives first/prev/next/last.
+    links = [
+        Link.self_link(type=MediaType.GEOJSON),
+        Link.root_link(),
+        *paginate_offset(offset=offset, limit=limit, total=total, self_=False),
+    ]
+    set_link_header(response, links)
+    return BedCollection(items=[to_bed(r) for r in page], links=links, number_matched=total)
 
 
 @collections_router.get('/beds/items/{bed_id}', response_model=Bed, name='get_bed')
-async def get_bed(bed_id: str) -> Bed:
+async def get_bed(bed_id: str, request: Request, response: Response) -> Bed | Response:
     row = get_bed_row(bed_id)
     if row is None:
         raise ProblemException(
@@ -187,6 +278,12 @@ async def get_bed(bed_id: str) -> Bed:
             detail=f'bed {bed_id!r} not found',
             instance=f'/collections/beds/items/{bed_id}',
         )
+    # Conditional GET: a weak ETag over the row data lets a client revalidate cheaply
+    # (If-None-Match -> 304) without us re-sending the feature.
+    etag = etag_for(row)
+    if (cached := not_modified(request, etag=etag, cache_control='max-age=300')) is not None:
+        return cached
+    set_cache_headers(response, etag=etag, cache_control='max-age=300')
     return to_bed(row)
 
 

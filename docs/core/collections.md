@@ -71,6 +71,44 @@ underlying `with_query` helper is public if you need to rewrite a URL yourself.
 --8<-- "tests/examples/collections.py:pagination"
 ```
 
+### Opaque cursors
+
+When you'd rather not invent a token format, `encode_cursor`/`decode_cursor` pack an
+arbitrary payload into one opaque, URL-safe string. The cursor is *encoded, not
+signed* — so it's opaque to clients, but always validate the decoded contents. A
+malformed cursor raises a [`ParamError`](params.md) (a `400` problem via the glue).
+`paginate()` also emits `first`/`last`/`self` links on request:
+
+```python
+--8<-- "tests/examples/collections.py:cursor"
+```
+
+### Offset/limit
+
+For classic offset paging, `paginate_offset()` derives the whole
+`self`/`first`/`prev`/`next`/`last` set from the current page position (and the
+`total`, when known) — so `prev`/`first` appear only past the first page, and `next`/
+`last` only when another page follows:
+
+```python
+--8<-- "tests/examples/collections.py:offset"
+```
+
+### POST-body pagination (stateless servers)
+
+The builders are a thin convenience over [`Link`](links.md), not a lossy wrapper: every
+generated link can carry the full `Link` surface — a `type`, `headers`, a `title` (or
+any extra member, via `**link_fields`), and a `method`/`body`. That last pair is what
+makes pagination work for a **POST** search on a *stateless* server: with
+`method='POST'` the page token rides in the request **body** (merged into the `body` you
+pass) instead of the query string, so each `next` link re-states the whole search the
+server doesn't remember. The companion [`drive_pagination`](../testing/pagination.md)
+test driver follows these POST `next` links by reposting that body.
+
+```python
+--8<-- "tests/examples/collections.py:post"
+```
+
 ## Reference
 
 See [`gazebo.collection`](../reference.md#gazebo.collection),

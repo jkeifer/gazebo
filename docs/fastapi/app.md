@@ -81,6 +81,27 @@ carries the CORS headers.
 --8<-- "tests/examples/app.py:cors"
 ```
 
+## `Link:` response header
+
+The same navigational links gazebo resolves into a JSON body can also be emitted as
+an [RFC 8288](https://www.rfc-editor.org/rfc/rfc8288) `Link:` header, so crawlers and
+non-JSON clients can follow `self`/`next`/`prev`/`alternate` without parsing the body.
+Call [`set_link_header`](../reference.md#gazebo.ext.fastapi.set_link_header) inside an
+endpoint with the links you're returning — it's the companion to
+[`set_cache_headers`](../reference.md#gazebo.ext.fastapi.set_cache_headers), stamping a
+header onto the injected `Response`.
+
+It takes any sequence of [`Link`](../reference.md#gazebo.link.Link) (a collection's
+`.links`, or a hand-built list) and resolves the deferred hrefs against the active
+request. By default only *navigational* rels
+([`NAV_RELS`](../reference.md#gazebo.linkheader.NAV_RELS)) are emitted, capped at
+`max_links`, so a large collection can't produce an oversized header; pass `rels=` to
+narrow further (e.g. `rels=['self', 'next', 'prev']`) or `rels=None` for every rel.
+
+```python
+--8<-- "tests/examples/app.py:link_header"
+```
+
 ## Mounting under a root app
 
 A mounted sub-app's lifespan isn't run automatically, so a mounted `GazeboApp`

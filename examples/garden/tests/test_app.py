@@ -59,6 +59,86 @@ def test_pagination_follows_next(client):
     assert len(plants) == 3
 
 
+def test_plants_cursor_pagination_links(client):
+    from gazebo.pagination import encode_cursor
+
+    # a middle page (offset 1 of 3) carries the full set of navigational links
+    cursor = encode_cursor({'offset': 1})
+    body = client.get(f'/plants?limit=1&cursor={cursor}', headers=AUTH).json()
+    rels = {link['rel'] for link in body['links']}
+    assert {'self', 'first', 'prev', 'next', 'last'} <= rels
+    # the next/first links carry an opaque cursor, not a raw offset
+    nxt = next(link for link in body['links'] if link['rel'] == 'next')
+    assert 'cursor=' in nxt['href'] and 'offset=' not in nxt['href']
+
+
+def test_plants_malformed_cursor_is_problem(client):
+    # a bad cursor decodes to a ParamError -> 400 problem+json, not a 500
+    resp = client.get('/plants?cursor=%21%21not-base64', headers=AUTH)
+    assert_problem(resp, status=400)
+
+
+def test_plants_cursor_with_bad_offset_is_problem(client):
+    from gazebo.pagination import encode_cursor
+
+    # a well-formed but untrusted cursor carrying a non-integer offset is a client
+    # error (400), not a 500 from int()/division on garbage.
+    cursor = encode_cursor({'offset': 'not-a-number'})
+    assert_problem(client.get(f'/plants?cursor={cursor}', headers=AUTH), status=400)
+    negative = encode_cursor({'offset': -5})
+    assert_problem(client.get(f'/plants?cursor={negative}', headers=AUTH), status=400)
+
+
+def test_plants_limit_zero_is_validation_problem(client):
+    # an out-of-range limit is rejected at the boundary (422), never a divide-by-zero 500
+    assert_problem(client.get('/plants?limit=0', headers=AUTH), status=422)
+
+
+def test_beds_offset_pagination(client):
+    beds = drive_pagination(
+        client, '/collections/beds/items?limit=1', items_key='features', limit=1
+    )
+    assert len(beds) == 3
+
+
+def test_beds_out_of_range_paging_is_validation_problem(client):
+    # bad limit/offset are rejected (422) before reaching paginate_offset's ValueError
+    assert_problem(client.get('/collections/beds/items?limit=0'), status=422)
+    assert_problem(client.get('/collections/beds/items?offset=-1'), status=422)
+
+
+def test_post_search_limit_zero_is_validation_problem(client):
+    # limit=0 would otherwise emit a self-referential next link (infinite paging loop)
+    resp = client.post('/plants/search', json={'limit': 0}, headers=AUTH)
+    assert_problem(resp, status=422)
+
+
+def test_post_search_pagination_is_stateless(client):
+    # the POST-search next link carries method=POST and a body that re-states the
+    # search; drive_pagination follows it by reposting that body.
+    first = client.post('/plants/search', json={'limit': 1}, headers=AUTH).json()
+    nxt = next(link for link in first['links'] if link['rel'] == 'next')
+    assert nxt['method'] == 'POST'
+    assert nxt['body']['offset'] == '1'
+
+    plants = drive_pagination(
+        client,
+        '/plants/search',
+        items_key='plants',
+        method='POST',
+        body={'limit': 1},
+        limit=1,
+        request_kwargs={'headers': AUTH},
+    )
+    assert len(plants) == 3
+
+
+def test_post_search_name_filter(client):
+    body = client.post('/plants/search', json={'name': 'a'}, headers=AUTH).json()
+    # only plants whose name contains 'a' come back (case-insensitive)
+    assert all('a' in p['name'].lower() for p in body['plants'])
+
+
 def test_get_plant_self_link_resolves_path_param(client):
     body = client.get('/plants/1', headers=AUTH).json()
     self_link = next(link for link in body['links'] if link['rel'] == 'self')
@@ -136,6 +216,29 @@ def test_collection_metadata_has_extent(client):
     assert body['extent']['temporal']['interval']  # temporal extent present
 
 
+def test_beds_collection_negotiates_html(client):
+    # ?f=html selects the HTML representation; the JSON one carries an alternate link.
+    html = client.get('/collections/beds?f=html')
+    assert html.status_code == 200
+    assert html.headers['content-type'].startswith('text/html')
+    assert '<h1>Garden Beds</h1>' in html.text
+
+    js = client.get('/collections/beds?f=json').json()
+    alt = next(link for link in js['links'] if link['rel'] == 'alternate')
+    assert alt['type'] == 'text/html'
+    assert 'f=html' in alt['href']
+
+
+def test_beds_collection_accept_header_html(client):
+    html = client.get('/collections/beds', headers={'accept': 'text/html'})
+    assert html.headers['content-type'].startswith('text/html')
+
+
+def test_beds_collection_unknown_format_is_400(client):
+    r = client.get('/collections/beds?f=xml')
+    assert_problem(r, status=400)
+
+
 def test_empty_store_collection_omits_extent(client):
     # an empty store has no extent to compute: the endpoints must still serve 200
     # with the extent omitted, not 500 on min() of an empty sequence
@@ -200,3 +303,23 @@ def test_override_seam():
     overrides = Overrides().set(Settings, Settings(replica_dsn='memory://test'))
     with TestClient(create_app(overrides=overrides)) as c:
         assert c.get('/plants', headers=AUTH).status_code == 200
+
+
+def test_link_header_mirrors_nav_links(client):
+    # set_link_header mirrors the navigational body links as an RFC 8288 header.
+    resp = client.get('/plants', headers=AUTH)
+    header = resp.headers['link']
+    assert 'rel="self"' in header
+    assert 'rel="root"' in header
+
+
+def test_bed_conditional_get(client):
+    first = client.get('/collections/beds/items/roses')
+    assert first.status_code == 200
+    etag = first.headers['etag']
+    assert first.headers['cache-control'] == 'max-age=300'
+    # a revalidation with the same etag short-circuits to 304, which still refreshes
+    # the cache's freshness directives (RFC 9111 §4.3.4)
+    again = client.get('/collections/beds/items/roses', headers={'if-none-match': etag})
+    assert again.status_code == 304
+    assert again.headers['cache-control'] == 'max-age=300'
