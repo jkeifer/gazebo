@@ -18,7 +18,16 @@ from contextlib import (
     contextmanager,
 )
 from dataclasses import dataclass, field
-from typing import Any, Protocol, Self, overload, runtime_checkable
+from typing import (
+    Annotated,
+    Any,
+    Protocol,
+    Self,
+    get_args,
+    get_origin,
+    overload,
+    runtime_checkable,
+)
 
 type Recipe[T] = Callable[
     ...,
@@ -48,6 +57,23 @@ class Qualify:
     """
 
     qualifier: str
+
+
+def parse_annotation(ann: Any) -> tuple[type | None, str | None, tuple[Any, ...]]:
+    """Split a type annotation into ``(base type, Qualify qualifier, metadata)``.
+
+    For ``Annotated[T, ...]`` returns ``T`` (when it is a class), the qualifier from
+    any :class:`Qualify` marker, and the remaining ``Annotated`` metadata. For a plain
+    annotation the metadata tuple is empty. A non-class base resolves to ``None`` so
+    callers can treat it as unresolvable.
+    """
+    if get_origin(ann) is Annotated:
+        args = get_args(ann)
+        base = args[0]
+        meta = args[1:]
+        qualifier = next((m.qualifier for m in meta if isinstance(m, Qualify)), None)
+        return (base if isinstance(base, type) else None), qualifier, meta
+    return (ann if isinstance(ann, type) else None), None, ()
 
 
 @dataclass(frozen=True, slots=True)

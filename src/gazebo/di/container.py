@@ -10,18 +10,18 @@ from __future__ import annotations
 
 import inspect
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass
-from typing import Annotated, Any, get_args, get_origin, get_type_hints
+from typing import Any, get_type_hints
 
 from gazebo.di.providers import (
     Binding,
     Key,
     Overrides,
     Providers,
-    Qualify,
     normalize_recipe,
+    parse_annotation,
 )
 
 
@@ -67,15 +67,6 @@ class Dep:
     type: type | None
     qualifier: str | None
     has_default: bool
-
-
-def _parse_annotation(ann: Any) -> tuple[type | None, str | None]:
-    if get_origin(ann) is Annotated:
-        args = get_args(ann)
-        base = args[0]
-        qualifier = next((m.qualifier for m in args[1:] if isinstance(m, Qualify)), None)
-        return (base if isinstance(base, type) else None), qualifier
-    return (ann if isinstance(ann, type) else None), None
 
 
 def _hint_source(recipe: Any) -> Any:
@@ -124,7 +115,7 @@ def deps_of(recipe: Any) -> list[Dep]:
                     ann = None
         if ann is inspect.Parameter.empty:
             ann = None
-        typ, qualifier = _parse_annotation(ann)
+        typ, qualifier, _ = parse_annotation(ann)
         deps.append(Dep(name, typ, qualifier, param.default is not inspect.Parameter.empty))
     return deps
 
@@ -146,6 +137,21 @@ class ScopeState:
         self.root = root
         self.cache: dict[Key, Any] = {}
         self.stack = AsyncExitStack()
+
+    def health_probes(self) -> Iterator[tuple[str, Callable[[], Any]]]:
+        """Yield ``(label, probe)`` for every resolved value carrying a ``__health__``.
+
+        A value's ``__health__`` is its health-check callable (sync or async, returning
+        a truthy "ok"). Only values **already resolved** in this scope are probed — for
+        an app scope that is everything eagerly built at startup (see
+        :meth:`Container.open_app_scope`). Exposed here so callers (e.g. the FastAPI
+        health endpoint) ask the scope for its probes rather than reaching into the
+        resolution cache.
+        """
+        for key, value in list(self.cache.items()):
+            probe = getattr(value, '__health__', None)
+            if probe is not None:
+                yield str(key), probe
 
     def _scope_named(self, name: str) -> ScopeState:
         state: ScopeState | None = self

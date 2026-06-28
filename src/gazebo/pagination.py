@@ -38,6 +38,15 @@ from gazebo.params import ParamError
 from gazebo.rels import MediaType, Rel
 
 
+def last_page_offset(total: int, limit: int) -> int:
+    """The zero-based offset of the last page for ``total`` items at page size ``limit``.
+
+    Zero when there are no items. ``limit`` must be positive. Shared so callers
+    deriving their own ``last`` cursor don't re-spell the rounding math.
+    """
+    return ((total - 1) // limit) * limit if total > 0 else 0
+
+
 def with_query(ctx: RequestContext, **overrides: object) -> str:
     """Return the current URL with ``overrides`` merged into the query string.
 
@@ -218,7 +227,7 @@ def paginate_offset(
     if total is None or offset + limit < total:
         links.append(at(Rel.NEXT, offset + limit))
     if total is not None:
-        last_offset = ((total - 1) // limit) * limit if total > 0 else 0
+        last_offset = last_page_offset(total, limit)
         if last_offset != offset:
             links.append(at(Rel.LAST, last_offset))
     return links
@@ -258,6 +267,7 @@ def decode_cursor(token: str, *, parameter: str = 'cursor') -> dict[str, Any]:
 __all__ = [
     'decode_cursor',
     'encode_cursor',
+    'last_page_offset',
     'paginate',
     'paginate_offset',
     'with_query',
