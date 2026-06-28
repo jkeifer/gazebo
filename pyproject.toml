@@ -21,6 +21,12 @@ Repository = 'https://github.com/jkeifer/gazebo'
 fastapi = [
     "fastapi",
 ]
+geojson = [
+    "geojson-pydantic>=1",
+]
+test = [
+    "pytest>=8.3.5",
+]
 
 [tool.uv.workspace]
 members = ["examples/garden"]
@@ -80,6 +86,9 @@ select = [
 
 [tool.ruff.lint.per-file-ignores]
 '__init__.py' = ['E402']
+# The testing helpers are assertion utilities: `assert` is their product (and pytest
+# rewrites them), so S101 (no-assert) and PT018 (split compound assert) don't apply.
+'src/gazebo/testing.py' = ['S101', 'PT018']
 'tests/**/*' = ['T201', 'S101', 'S105', 'S106', 'S107', 'INP001']
 # Doc-snippet modules are split into self-contained regions that each re-import
 # what they show, so imports land after code (E402), repeat names (F811), and
@@ -93,9 +102,23 @@ lines-between-types = 1
 disable_error_code = ['prop-decorator']
 ignore_missing_imports = true
 scripts_are_modules = true
+# Check the whole repo (so new top-level code — scripts, etc. — is covered without
+# editing an allowlist) except the example, which is a separate workspace member
+# type-checked by its own hook. ``mypy_path``/``explicit_package_bases`` keep the
+# src-layout package and the several top-level ``conftest.py`` modules distinct.
+mypy_path = "src"
+explicit_package_bases = true
+namespace_packages = true
+exclude = '^examples/'
+
+[tool.pyright]
+# Same intent as mypy: check the repo (auto-covering future top-level code), minus
+# the example (its own hook). ``src`` is on the path for the src-layout package.
+extraPaths = ["src"]
+exclude = ["examples", "**/node_modules", "**/__pycache__", "**/.*"]
 
 [tool.pytest.ini_options]
-addopts="--cov=gazebo"
+addopts = "--cov=gazebo"
 filterwarnings = ['error']
 pythonpath = ["src"]
 asyncio_mode = "auto"
@@ -126,6 +149,7 @@ dev = [
     "pytest-coverage>=0.0",
     "ruff>=0.11.6",
     "fastapi",
+    "geojson-pydantic>=1",
 ]
 
 [tool.uv.sources]

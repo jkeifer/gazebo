@@ -19,9 +19,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
-## [0.1.0] - XXXX-XX-XX
+## [0.2.0] - 2026-06-27
+
+### Added
+
+- CORS support: `GazeboApp` and `upgrade()` accept `cors=` (off by default;
+  `True` for a permissive dev policy, a list of origins for an allow-list, or a
+  `CorsConfig` for full control). Added `CorsConfig`, with `resolve()` to normalize
+  the argument and `apply()` to install the `CORSMiddleware`; it is installed
+  outermost so CORS headers ride on every response, including problems.
+- `gazebo.params` (core, pydantic-only): typed parsers for the standard OGC query
+  parameters — `BBox`, `DatetimeInterval`, `validate_crs`, the `CRS84` constant, and
+  the `ParamError` exception. `bbox` allows antimeridian-crossing boxes (and answers
+  `BBox.contains(lon, lat)` accordingly); `datetime` accepts RFC 3339 instants and
+  open/closed intervals, treating a naive value as UTC.
+- `gazebo.jsonschema`: pure-pydantic helpers for OGC-style serialization —
+  `OmitNullModel`, a base model that omits absent (`None`) members on the JSON wire
+  while keeping an honest (non-opaque) OpenAPI response schema, plus the underlying
+  `faithful_serialization_schema` and `drop_none`. `OmitNullModel` is re-exported from
+  the top-level `gazebo` package.
+- FastAPI query-parameter adapters `BBoxParam`, `DatetimeParam`, and the
+  `CrsParam(allowed=[...])` factory, plus a `ParamError` handler that renders parse
+  failures as `400 application/problem+json` (registered automatically by `upgrade()`
+  / `GazeboApp`).
+- `gazebo.geojson` (new `gazebo[geojson]` extra): GeoJSON `Feature[P]` and
+  `FeatureCollection[P]` with gazebo's deferred links, building on `geojson-pydantic`
+  for coordinate validation; the geometry types and `Position2D`/`Position3D` are
+  re-exported.
+- OGC collection-metadata models in `gazebo.ogc`: `Collection`, `Extent`,
+  `SpatialExtent`, `TemporalExtent`, the `Collections` envelope, and the `DEFAULT_TRS`
+  constant.
+- `LinkedCollection` gained a `number_returned` class keyword to omit the computed
+  `numberReturned` member (the OGC `/collections` envelope `Collections` uses it).
+- `gazebo.testing` (new `gazebo[test]` extra): a pytest plugin for asserting a
+  service's OGC shapes — `assert_problem`, `assert_has_link`, `find_link`, the
+  `drive_pagination` driver (envelope invariants per page, loop guard, GET/POST, and a
+  `request_kwargs` passthrough for authenticated clients), and the opt-in
+  `gazebo_link_context` and `gazebo_overrides` fixtures.
+
+### Fixed
+
+- `Link.to_route` no longer leaks the `path` mapping as a stored link field, and
+  no longer mutates its captured path params — repeated serializations of a
+  link to a route with path parameters now resolve to the same correct URL.
+  `path` is now an explicit keyword argument.
+- `LinkedCollection`'s `items_alias` now survives generic parametrization (e.g.
+  `FeatureCollection[P]`) and is applied in both python and JSON dump modes. It
+  previously mutated `model_fields`, which pydantic rebuilds for each generic
+  specialization, so a generic subclass serialized `items` instead of the alias.
+- The OpenAPI/serialization JSON schema for `Link` and `LinkedCollection` (and their
+  subclasses) is faithful again. The null-dropping `@model_serializer` made the
+  serialization schema collapse to `{"additionalProperties": true}`, so FastAPI's
+  documented response shape was an opaque object; it now reflects the real fields,
+  the items alias, the computed `numberReturned`, and non-opaque `links`.
+
+## [0.1.0] - 2026-06-27
 
 Initial release 🎉
 
-[unreleased]: https://github.com/jkeifer/gazebo/compare/v0.1.0...HEAD
+[unreleased]: https://github.com/jkeifer/gazebo/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.2.0
 [0.1.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.1.0

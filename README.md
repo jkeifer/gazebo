@@ -32,10 +32,13 @@ The core (`gazebo`) depends only on `pydantic`. Framework integration is opt-in.
 >
 > I acknowledge the documentation is AI slop and does not clearly express the
 > value of these abstractions, but I think the code, while an early version and
-> subject to change, is solid and solves some key problems in convenient and
-> clever ways. The primary goals are to reduce boilerplate and make
+> subject to change, is mostly solid and solves some key problems in convenient
+> and clever ways. The primary goals are to reduce boilerplate and make
 > implementing more robust patterns easier, and I think those goals are
-> realized here.
+> realized here. Some features are more experimental than others, but I think
+> everything in here is potentially useful. If not, let me know why. If
+> problems arise, tell me. Issues and pull requests are excellent vehicles for
+> feedback.
 
 ## Install
 

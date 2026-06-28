@@ -61,6 +61,26 @@ A bad request then yields:
 }
 ```
 
+## CORS
+
+OGC APIs are usually consumed from a browser, so cross-origin requests matter.
+CORS is **off by default** (an open policy is a security smell to ship silently);
+opt in with the `cors=` argument to `GazeboApp`/`upgrade()`:
+
+- `cors=True` — a permissive policy (any origin, no credentials), fine for local
+  development.
+- `cors=['https://app.example.com', ...]` — restrict to an explicit origin list.
+- `cors=CorsConfig(...)` — full control (methods, headers, credentials, `max_age`).
+  Note that `allow_origins=['*']` with `allow_credentials=True` is rejected by
+  browsers, so credentials default off.
+
+The middleware is installed outermost, so even a problem+json error response
+carries the CORS headers.
+
+```python
+--8<-- "tests/examples/app.py:cors"
+```
+
 ## Mounting under a root app
 
 A mounted sub-app's lifespan isn't run automatically, so a mounted `GazeboApp`

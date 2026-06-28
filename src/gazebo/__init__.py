@@ -10,6 +10,7 @@ from gazebo.context import (
     resolve_context,
     use_context,
 )
+from gazebo.jsonschema import OmitNullModel
 from gazebo.link import Link, Url, UrlResolver
 from gazebo.rels import MediaType, Rel
 
@@ -17,6 +18,7 @@ __all__ = [
     'Link',
     'LinkedCollection',
     'MediaType',
+    'OmitNullModel',
     'Rel',
     'RequestContext',
     'Url',

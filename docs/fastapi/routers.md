@@ -41,7 +41,7 @@ A `LinkedRouter` mounts a landing endpoint at its own root (its
 `title`/`description` plus self and root links). Include one `LinkedRouter` into
 another and — if the child declares a `rel` — a link to the child's landing page
 is added to the parent automatically. So the landing hierarchy falls out of how
-you nest routers, with no hand-maintained link list. `link_to(endpoint_or_name,
+you nest routers, with no hand-maintained link list. `Link.to_route(name,
 rel=...)` builds an ad-hoc deferred link to any route when you need one outside
 this scheme.
 
@@ -52,4 +52,4 @@ this scheme.
 ## Reference
 
 See [`gazebo.ext.fastapi`](../reference.md#fastapi-integration)
-(`GazeboRouter`, `LinkedRouter`, `Inject`, `link_to`).
+(`GazeboRouter`, `LinkedRouter`, `Inject`).

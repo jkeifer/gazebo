@@ -15,13 +15,14 @@ from __future__ import annotations
 
 import inspect
 
-from collections.abc import AsyncIterator, Callable, Iterator, Mapping
+from collections.abc import AsyncIterator, Callable, Iterator, Mapping, Sequence
 from contextlib import AsyncExitStack, asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Annotated, Any, get_args, get_origin, get_type_hints
 
-from fastapi import APIRouter, Depends, FastAPI, Request, Response
+from fastapi import APIRouter, Depends, FastAPI, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
+from starlette.middleware.cors import CORSMiddleware
 
 from gazebo.asgi import (
     ProxyHeadersMiddleware,
@@ -35,6 +36,7 @@ from gazebo.context import RequestContext, use_context
 from gazebo.di import Container, Key, Overrides, Providers, Qualify, ScopeState
 from gazebo.link import Link
 from gazebo.ogc import LandingPage
+from gazebo.params import CRS84, BBox, DatetimeInterval, ParamError, validate_crs
 from gazebo.problems import ProblemDetail, ProblemException
 from gazebo.rels import MediaType
 
@@ -204,6 +206,77 @@ async def validation_exception_handler(
     return _problem_response(problem)
 
 
+async def param_exception_handler(request: Request, exc: ParamError) -> Response:
+    problem = ProblemDetail(
+        title='Bad Request',
+        status=400,
+        detail=exc.detail,
+        parameter=exc.parameter,  # type: ignore[call-arg]  # RFC 9457 extension member
+    )
+    return _problem_response(problem)
+
+
+# --- OGC query-parameter adapters -----------------------------------------
+#
+# Each adapter is a ready-made ``Depends`` that parses a standard OGC query value
+# into a typed model, raising ``ParamError`` (-> 400 problem) on bad input. Drop
+# one into a route signature as ``Annotated[BBox | None, BBoxParam] = None``.
+
+
+async def _bbox_dep(bbox: Annotated[str | None, Query()] = None) -> BBox | None:
+    return BBox.parse(bbox) if bbox is not None else None
+
+
+BBoxParam = Depends(_bbox_dep)
+"""Parses the OGC ``bbox`` query value into a :class:`~gazebo.params.BBox`."""
+
+
+async def _datetime_dep(
+    datetime: Annotated[str | None, Query()] = None,
+) -> DatetimeInterval | None:
+    return DatetimeInterval.parse(datetime) if datetime is not None else None
+
+
+DatetimeParam = Depends(_datetime_dep)
+"""Parses the OGC ``datetime`` query value into a :class:`~gazebo.params.DatetimeInterval`."""
+
+
+def CrsParam(  # noqa: N802  (factory returning a Depends, named like one)
+    allowed: Sequence[str] = (CRS84,),
+    *,
+    name: str = 'crs',
+    default: str | None = None,
+) -> Any:
+    """Build a ``Depends`` validating a ``crs``/``bbox-crs`` URI against an allow-list.
+
+    Pass ``name='bbox-crs'`` for the companion parameter. A value outside ``allowed``
+    raises ``ParamError`` (-> 400). When the parameter is **absent**, it resolves to:
+
+    - the explicit ``default`` (which must be in ``allowed``), if given; else
+    - :data:`~gazebo.params.CRS84` — the OGC default output CRS — if it is allowed; else
+    - nothing: with a non-default allow-list and no marked default there is no safe
+      assumption, so the parameter is **required** and an absent value is a 400.
+    """
+    allowed_uris = tuple(allowed)
+    if not allowed_uris:
+        raise ValueError('CrsParam requires at least one allowed CRS')
+    if default is not None and default not in allowed_uris:
+        raise ValueError(f'CrsParam default {default!r} is not in allowed')
+    resolved_default = default or (CRS84 if CRS84 in allowed_uris else None)
+
+    # ``Query`` is passed as the runtime default (not embedded in the annotation):
+    # under ``from __future__ import annotations`` an ``Annotated[..., Query(alias=name)]``
+    # string can't be resolved by ``get_type_hints`` because ``name`` is a closure
+    # variable, which silently drops the query binding.
+    async def _crs_dep(value: str | None = Query(default=None, alias=name)) -> str:
+        # validate_crs owns the full resolution: an absent value resolves to
+        # resolved_default (or 400s when that is None), a present one is checked
+        # against the allow-list.
+        return validate_crs(value, allowed_uris, parameter=name, default=resolved_default)
+
+    return Depends(_crs_dep)
+
+
 # --- runtime + request-scope middleware -----------------------------------
 
 
@@ -237,6 +310,59 @@ class _RequestScopeMiddleware:
             ctx = await state.get(RequestContext)
             with use_context(ctx):
                 await self.app(scope, receive, send)
+
+
+# --- CORS ------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class CorsConfig:
+    """A CORS policy for a gazebo app, mirroring Starlette's ``CORSMiddleware``.
+
+    The permissive defaults (``allow_origins=['*']`` with credentials off) are what
+    ``cors=True`` selects — fine for local development, but tighten ``allow_origins``
+    for anything browser-facing in production. ``allow_origins=['*']`` with
+    ``allow_credentials=True`` is rejected by browsers, so credentials default off.
+    """
+
+    allow_origins: Sequence[str] = ('*',)
+    allow_methods: Sequence[str] = ('*',)
+    allow_headers: Sequence[str] = ('*',)
+    allow_credentials: bool = False
+    allow_origin_regex: str | None = None
+    expose_headers: Sequence[str] = field(default_factory=tuple)
+    max_age: int = 600
+
+    @classmethod
+    def resolve(cls, cors: Cors) -> CorsConfig | None:
+        """Normalize a loose ``cors=`` argument into a config (``None`` means off).
+
+        ``None``/``False`` → off, ``True`` → permissive defaults, a string or list →
+        an allow-list of origins, a :class:`CorsConfig` → itself.
+        """
+        if cors is None or cors is False:
+            return None
+        if cors is True:
+            return cls()
+        if isinstance(cors, CorsConfig):
+            return cors
+        origins = (cors,) if isinstance(cors, str) else tuple(cors)
+        return cls(allow_origins=origins)
+
+    def apply(self, app: FastAPI) -> None:
+        """Install this policy on ``app`` as a ``CORSMiddleware`` layer.
+
+        The field names mirror ``CORSMiddleware``'s parameters one-for-one, so the
+        config *is* the keyword set — ``asdict`` keeps the two in sync with no
+        hand-maintained mapping. Call it last in ``upgrade`` so CORS ends up the
+        outermost middleware (headers ride on every response, including problems).
+        """
+        app.add_middleware(CORSMiddleware, **asdict(self))
+
+
+type Cors = bool | str | Sequence[str] | CorsConfig | None
+"""How to configure CORS: ``None``/``False`` off, ``True`` permissive, a list of
+allowed origins, or a full :class:`CorsConfig`."""
 
 
 # --- routers --------------------------------------------------------------
@@ -369,6 +495,7 @@ def upgrade(
     *,
     overrides: Overrides | None = None,
     trust: TrustPolicy = trust_none,
+    cors: Cors = None,
     health_path: str | None = '/health',
 ) -> FastAPI:
     """Add gazebo's injection/context machinery to an *existing* FastAPI app.
@@ -399,8 +526,13 @@ def upgrade(
 
     app.add_middleware(ProxyHeadersMiddleware, trust=trust)
     app.add_middleware(_RequestScopeMiddleware, runtime=runtime)
+    # Added last so it is the outermost middleware: CORS then handles preflight
+    # requests and attaches headers to every response, including problem responses.
+    if (cors_config := CorsConfig.resolve(cors)) is not None:
+        cors_config.apply(app)
     app.add_exception_handler(ProblemException, problem_exception_handler)  # type: ignore[arg-type]
     app.add_exception_handler(RequestValidationError, validation_exception_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(ParamError, param_exception_handler)  # type: ignore[arg-type]
 
     previous_lifespan = app.router.lifespan_context
 
@@ -441,6 +573,7 @@ class GazeboApp(FastAPI):
         *,
         overrides: Overrides | None = None,
         trust: TrustPolicy = trust_none,
+        cors: Cors = None,
         health_path: str | None = '/health',
         **fastapi_kwargs: Any,
     ) -> None:
@@ -450,6 +583,7 @@ class GazeboApp(FastAPI):
             providers,
             overrides=overrides,
             trust=trust,
+            cors=cors,
             health_path=health_path,
         )
 
@@ -485,13 +619,11 @@ def forward_lifespans(*subapps: FastAPI) -> Callable[[FastAPI], Any]:
     return lifespan
 
 
-def link_to(endpoint: Callable[..., Any] | str, *, rel: str, **kwargs: Any) -> Link:
-    """Build a deferred link to a route, by endpoint callable or route name."""
-    name = endpoint if isinstance(endpoint, str) else endpoint.__name__
-    return Link.to_route(name, rel=rel, **kwargs)
-
-
 __all__ = [
+    'BBoxParam',
+    'CorsConfig',
+    'CrsParam',
+    'DatetimeParam',
     'GazeboApp',
     'GazeboRouter',
     'Inject',
@@ -501,7 +633,7 @@ __all__ = [
     'RequestContextAdapter',
     'forward_lifespans',
     'inject_signature',
-    'link_to',
+    'param_exception_handler',
     'problem_exception_handler',
     'upgrade',
     'validation_exception_handler',

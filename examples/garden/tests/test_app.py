@@ -5,6 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from gazebo.ext.fastapi import Overrides
+from gazebo.testing import assert_has_link, assert_problem, drive_pagination
 
 from garden.app import create_app
 from garden.resources import Settings, reset_store
@@ -36,24 +37,34 @@ def test_conformance(client):
 
 
 def test_auth_required_returns_problem(client):
-    r = client.get('/plants')
-    assert r.status_code == 401
-    assert r.headers['content-type'] == 'application/problem+json'
+    # assert_problem (from gazebo.testing) checks the content-type *and* the shape.
+    assert_problem(client.get('/plants'), status=401)
 
 
 def test_list_plants(client):
     body = client.get('/plants?limit=2', headers=AUTH).json()
     assert body['numberReturned'] == 2
     assert body['numberMatched'] == 3
-    assert 'next' in {link['rel'] for link in body['links']}
-    assert any(link['rel'] == 'self' for link in body['plants'][0]['links'])
+    assert_has_link(body, 'next')
+    assert_has_link(body['plants'][0], 'self')
 
 
 def test_pagination_follows_next(client):
-    page1 = client.get('/plants?limit=2', headers=AUTH).json()
-    next_href = next(link['href'] for link in page1['links'] if link['rel'] == 'next')
-    page2 = client.get(next_href, headers=AUTH).json()
-    assert page2['numberReturned'] == 1
+    # drive_pagination follows `next` to exhaustion, checking envelope invariants
+    # on every page (numberReturned == len(items), each page <= limit) and guarding
+    # against a runaway/looping `next` link.
+    plants = drive_pagination(
+        client, '/plants?limit=2', items_key='plants', limit=2, request_kwargs={'headers': AUTH}
+    )
+    assert len(plants) == 3
+
+
+def test_get_plant_self_link_resolves_path_param(client):
+    body = client.get('/plants/1', headers=AUTH).json()
+    self_link = next(link for link in body['links'] if link['rel'] == 'self')
+    # The path param is bound into the deferred href, not leaked as a link field.
+    assert self_link['href'].endswith('/plants/1')
+    assert 'path' not in self_link
 
 
 def test_get_missing_plant_is_404_problem(client):
@@ -102,6 +113,87 @@ def test_proxy_headers_make_links_https(client):
 
 def test_health(client):
     assert client.get('/health').json()['status'] == 'healthy'
+
+
+def test_cors_enabled(client):
+    # the garden app enables permissive CORS so a browser can call it cross-origin.
+    r = client.get('/plants', headers={**AUTH, 'origin': 'http://browser.test'})
+    assert r.headers['access-control-allow-origin'] == '*'
+
+
+# --- OGC Features: the geospatial beds collection --------------------------
+
+
+def test_collections_envelope(client):
+    body = client.get('/collections').json()
+    assert [c['id'] for c in body['collections']] == ['beds']
+
+
+def test_collection_metadata_has_extent(client):
+    body = client.get('/collections/beds').json()
+    assert body['itemType'] == 'feature'
+    assert body['extent']['spatial']['bbox']  # spatial extent present
+    assert body['extent']['temporal']['interval']  # temporal extent present
+
+
+def test_empty_store_collection_omits_extent(client):
+    # an empty store has no extent to compute: the endpoints must still serve 200
+    # with the extent omitted, not 500 on min() of an empty sequence
+    from garden import resources
+
+    resources._BEDS.clear()
+    listing = client.get('/collections')
+    assert listing.status_code == 200
+    beds = client.get('/collections/beds')
+    assert beds.status_code == 200
+    assert 'extent' not in beds.json()
+
+
+def test_beds_items_is_feature_collection(client):
+    body = client.get('/collections/beds/items').json()
+    assert body['type'] == 'FeatureCollection'
+    assert body['numberReturned'] == 3
+    assert body['features'][0]['geometry']['type'] == 'Point'
+    # deferred GeoJSON media-type self link resolves
+    self_link = next(link for link in body['features'][0]['links'] if link['rel'] == 'self')
+    assert self_link['href'].endswith('/collections/beds/items/roses')
+
+
+def test_beds_bbox_filter(client):
+    # a box over western Europe keeps only the Herb Spiral (lon 2.35, lat 48.85)
+    body = client.get('/collections/beds/items?bbox=-10,40,20,55').json()
+    assert [f['id'] for f in body['features']] == ['herbs']
+
+
+def test_beds_datetime_filter(client):
+    body = client.get('/collections/beds/items?datetime=2021-01-01T00:00:00Z/..').json()
+    assert sorted(f['id'] for f in body['features']) == ['herbs', 'roses']
+
+
+def test_beds_date_only_datetime_is_handled(client):
+    # a valid date-only value (no time/offset) must not 500 against tz-aware data
+    r = client.get('/collections/beds/items?datetime=2021-01-01/..')
+    assert r.status_code == 200
+    assert sorted(f['id'] for f in r.json()['features']) == ['herbs', 'roses']
+
+
+def test_beds_bad_bbox_is_400_problem(client):
+    r = client.get('/collections/beds/items?bbox=1,2,3')
+    assert r.status_code == 400
+    assert r.headers['content-type'] == 'application/problem+json'
+    assert r.json()['parameter'] == 'bbox'
+
+
+def test_beds_disallowed_crs_is_400_problem(client):
+    r = client.get('/collections/beds/items?crs=http://example.com/crs/nope')
+    assert r.status_code == 400
+    assert r.json()['parameter'] == 'crs'
+
+
+def test_missing_bed_is_404_problem(client):
+    r = client.get('/collections/beds/items/nope')
+    assert r.status_code == 404
+    assert r.json()['detail'].startswith('bed')
 
 
 def test_override_seam():

@@ -44,3 +44,32 @@ declaration = conformance.declaration()
 
 assert Conformance.CORE in declaration.conforms_to
 assert declaration.model_dump(by_alias=True)['conformsTo'] == conformance.uris
+
+
+# --8<-- [start:collection]
+from datetime import datetime, UTC
+
+from gazebo.ogc import Collection, Collections, Extent, SpatialExtent, TemporalExtent
+
+beds = Collection(
+    id='beds',
+    title='Garden Beds',
+    extent=Extent(
+        spatial=SpatialExtent(bbox=[[-123.0, 35.0, 140.0, 49.0]]),
+        # null on either side of an interval means open/unbounded
+        temporal=TemporalExtent(interval=[[datetime(2020, 1, 1, tzinfo=UTC), None]]),
+    ),
+)
+
+# `/collections` is the envelope around the collection list.
+catalog = Collections(items=[beds], links=[Link.self_link()])
+# --8<-- [end:collection]
+
+beds_json = beds.model_dump(by_alias=True)
+assert beds_json['itemType'] == 'feature'  # serialization alias
+assert (
+    catalog.model_dump(mode='json', by_alias=True, context={'request': _Ctx()})['collections'][0][
+        'id'
+    ]
+    == 'beds'
+)

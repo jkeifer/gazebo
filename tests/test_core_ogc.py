@@ -2,11 +2,24 @@ from __future__ import annotations
 
 import json
 
+from datetime import UTC, datetime
+
 from pydantic import HttpUrl
 
+from gazebo.collection import LinkedCollection
 from gazebo.context import use_context
-from gazebo.ogc import Conformance, ConformanceDeclaration, LandingPage
+from gazebo.ogc import (
+    Collection,
+    Collections,
+    Conformance,
+    ConformanceDeclaration,
+    Extent,
+    LandingPage,
+    SpatialExtent,
+    TemporalExtent,
+)
 from gazebo.pagination import paginate, with_query
+from gazebo.params import CRS84
 from gazebo.problems import ProblemDetail, ProblemException
 from gazebo.rels import Rel
 from gazebo.tags import Tag, TagDocs, tags_metadata
@@ -77,6 +90,63 @@ def test_landing_page(ctx):
     data = json.loads(page.model_dump_json())
     assert data['title'] == 'T'
     assert data['links'] == []
+
+
+def test_collection_aliases_and_defaults():
+    coll = Collection(id='plants', title='Plants')
+    data = json.loads(coll.model_dump_json(by_alias=True))
+    assert data['itemType'] == 'feature'  # serialization alias
+    assert data['crs'] == [CRS84]  # defaults to CRS84
+    assert data['id'] == 'plants'
+    # an unset extent is omitted, not emitted as null (OGC optional member)
+    assert 'extent' not in data
+
+
+def test_extent_omits_unset_member():
+    # only spatial is set: the absent temporal must be omitted, not null
+    data = json.loads(Extent(spatial=SpatialExtent()).model_dump_json(by_alias=True))
+    assert 'spatial' in data
+    assert 'temporal' not in data
+
+
+def test_extent_serializes_temporal_null_as_open():
+    extent = Extent(
+        spatial=SpatialExtent(bbox=[[-10, -10, 10, 10]]),
+        temporal=TemporalExtent(
+            interval=[[datetime(2020, 1, 1, tzinfo=UTC), None]],
+        ),
+    )
+    data = json.loads(extent.model_dump_json(by_alias=True))
+    assert data['spatial']['crs'] == CRS84
+    assert data['temporal']['interval'][0][0] == '2020-01-01T00:00:00Z'
+    assert data['temporal']['interval'][0][1] is None  # open end
+
+
+def test_collections_envelope_alias():
+    envelope = Collections(items=[Collection(id='a'), Collection(id='b')])
+    data = json.loads(envelope.model_dump_json(by_alias=True))
+    assert [c['id'] for c in data['collections']] == ['a', 'b']
+    # the /collections envelope omits numberReturned (not defined by OGC there)
+    assert 'numberReturned' not in data
+
+
+def test_linked_collection_number_returned_toggle():
+    class Plain(LinkedCollection[int]):
+        pass
+
+    class NoCount(LinkedCollection[int], number_returned=False):
+        pass
+
+    assert json.loads(Plain(items=[1, 2]).model_dump_json(by_alias=True))['numberReturned'] == 2
+    assert 'numberReturned' not in json.loads(NoCount(items=[1, 2]).model_dump_json(by_alias=True))
+    # the toggle also omits the count under the python field name (by_alias=False),
+    # where the computed member serializes as `number_returned`, not `numberReturned`.
+    assert 'number_returned' not in NoCount(items=[1, 2]).model_dump()
+    assert 'numberReturned' not in NoCount(items=[1, 2]).model_dump(mode='json')
+    assert Plain(items=[1, 2]).model_dump()['number_returned'] == 2
+    # numberMatched still works independently
+    matched = NoCount(items=[1], number_matched=5).model_dump_json(by_alias=True)
+    assert json.loads(matched)['numberMatched'] == 5
 
 
 def test_tags_metadata_json_native():

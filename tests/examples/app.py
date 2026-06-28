@@ -87,3 +87,38 @@ with TestClient(vapp) as client:
     problem = resp.json()
     assert problem['status'] == 422
     assert problem['errors'][0]['loc'] == ['query', 'limit']
+
+
+# --8<-- [start:cors]
+from gazebo.ext.fastapi import CorsConfig, GazeboApp, Providers
+
+# cors=True is permissive (allow all origins) — handy for local development.
+dev_app = GazeboApp(Providers(), cors=True)
+
+# A list restricts to specific origins; a CorsConfig gives full control (here,
+# allowing credentialed requests, which `*` cannot).
+prod_app = GazeboApp(
+    Providers(),
+    cors=CorsConfig(
+        allow_origins=['https://app.example.com'],
+        allow_credentials=True,
+    ),
+)
+# --8<-- [end:cors]
+
+
+for cors_app in (dev_app, prod_app):
+
+    @cors_app.get('/ping')
+    async def _ping() -> dict[str, bool]:
+        return {'ok': True}
+
+
+with TestClient(dev_app) as client:
+    r = client.get('/ping', headers={'origin': 'http://anywhere.test'})
+    assert r.headers['access-control-allow-origin'] == '*'
+
+with TestClient(prod_app) as client:
+    r = client.get('/ping', headers={'origin': 'https://app.example.com'})
+    assert r.headers['access-control-allow-origin'] == 'https://app.example.com'
+    assert r.headers['access-control-allow-credentials'] == 'true'

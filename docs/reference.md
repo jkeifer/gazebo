@@ -14,13 +14,21 @@ Auto-generated from the source docstrings and type hints.
 
 ::: gazebo.problems
 
+::: gazebo.params
+
+::: gazebo.geojson
+
 ::: gazebo.ogc
 
 ::: gazebo.rels
 
+::: gazebo.jsonschema
+
 ::: gazebo.tags
 
 ::: gazebo.asgi
+
+::: gazebo.testing
 
 ## Dependency injection
 

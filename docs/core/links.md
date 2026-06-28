@@ -37,6 +37,12 @@ common links, each deferred so it resolves against the live request:
 --8<-- "tests/examples/links.py:factories"
 ```
 
+For a route with path parameters, pass them as the `path` mapping
+(`Link.to_route('plant', rel=Rel.ITEM, path={'id': 1})`). Those values are bound
+into the deferred resolver and handed to `ctx.url_for` at serialization time —
+they are *not* stored as fields on the link, so they never appear in the emitted
+JSON.
+
 ## Resolving without a request
 
 A link only serializes to a real URL when a context is available. Under the

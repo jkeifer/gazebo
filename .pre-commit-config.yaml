@@ -41,12 +41,18 @@ repos:
         language: system
         types: [text]
         stages: [pre-commit, pre-push, manual]
+      # Type-check the whole repo (so future top-level code is covered without
+      # editing an allowlist) except the example. The example is a separate
+      # workspace member with its own top-level ``conftest`` and package, so it is
+      # excluded here (via tool config) and checked by its own hooks below, run from
+      # inside its directory so the root exclude doesn't reach it.
       - id: mypy
         name: mypy
         entry: mypy
         language: python
         'types_or': [python, pyi]
-        args: []
+        pass_filenames: false
+        args: ['.']
         require_serial: true
       - id: pyright
         name: pyright
@@ -54,5 +60,19 @@ repos:
         language: system
         'types_or': [python, pyi]
         pass_filenames: false
-        args: [src, tests]
+        args: []
+        require_serial: true
+      - id: mypy-garden
+        name: mypy (garden)
+        entry: bash -c 'cd examples/garden && exec mypy garden tests'
+        language: system
+        'types_or': [python, pyi]
+        pass_filenames: false
+        require_serial: true
+      - id: pyright-garden
+        name: pyright (garden)
+        entry: bash -c 'cd examples/garden && exec pyright garden tests'
+        language: system
+        'types_or': [python, pyi]
+        pass_filenames: false
         require_serial: true
