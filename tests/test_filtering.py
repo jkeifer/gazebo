@@ -103,7 +103,8 @@ def test_compile_cql2_json() -> None:
 
 def test_compile_cql2_json_dict_input() -> None:
     compiled = ENGINE.compile(
-        {'op': '=', 'args': [{'property': 'sun'}, 'full']}, FilterLang.CQL2_JSON,
+        {'op': '=', 'args': [{'property': 'sun'}, 'full']},
+        FilterLang.CQL2_JSON,
     )
     assert compiled.properties() == {'sun'}
     assert compiled.matches({'sun': 'full'}) is True
