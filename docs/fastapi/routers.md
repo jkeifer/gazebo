@@ -59,7 +59,31 @@ this scheme.
 --8<-- "tests/examples/routers.py:linked_router"
 ```
 
+## The service root: RootRouter
+
+The landing page at the *top* of the tree is special: it describes the whole
+service, so OGC puts the API-definition links and the conformance declaration there.
+`RootRouter` is the `LinkedRouter` for that spot — it keeps the hierarchical wiring
+and adds the service-level concerns that only make sense at the root, all derived
+from the running app rather than hand-maintained:
+
+- **`service-desc` / `service-doc` links** to the app's OpenAPI document and its docs
+  UI (each omitted when the app has that URL disabled, so the links never dangle).
+- **Title/description fallback** to the app's, so the service name lives in one place
+  — on the app — and an explicit router `title` still wins when you set one.
+- **An auto-mounted `/conformance`** whose baseline (`core`/`landing-page`/`json`,
+  plus `oas30` when the app exposes OpenAPI) is read from the live app and merged with
+  the feature classes you contribute via `conformance=`. The declaration tracks what's
+  actually wired instead of drifting from it.
+
+```python
+--8<-- "tests/examples/routers.py:root_router"
+```
+
+Contribute feature-level classes as a list or a [`Conformance`](../core/ogc.md#conformance),
+e.g. `conformance=[*filter_conformance_classes()]` for CQL2.
+
 ## Reference
 
 See [`gazebo.ext.fastapi`](../reference.md#fastapi-integration)
-(`GazeboRouter`, `LinkedRouter`, `Inject`).
+(`GazeboRouter`, `LinkedRouter`, `RootRouter`, `Inject`).

@@ -25,6 +25,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   typed `Filter`/`SortBy` values, rendering a parse failure, an unknown filter language,
   an unsupported CRS, a non-queryable property, or a non-sortable field as a
   `400 application/problem+json`.
+- `gazebo.problems` `ProblemType` and `ProblemRegistry` (core, pydantic-only): a
+  documented, reusable kind of problem — a stable `type` URI plus a title/status/default
+  detail — that you define once and raise by reference (`problem_type.exception(...)`),
+  so a service's `type` URIs stop defaulting to `about:blank` and stay stable/linkable.
+  `ProblemRegistry` keys them by a short name, rejects duplicate keys, and hands back the
+  whole set via `catalog()` to serve from an endpoint so a client can resolve a received
+  `type` to its meaning.
+- FastAPI `RootRouter`: the service-root `LinkedRouter`. Beyond the hierarchical landing
+  page, it emits `service-desc`/`service-doc` links to the app's OpenAPI document and
+  docs UI (each omitted when that URL is disabled), falls its `title`/`description` back
+  to the app's, and auto-mounts a `/conformance` declaration whose baseline
+  (`core`/`landing-page`/`json`, plus `oas30` when OpenAPI is exposed) is derived from
+  the running app and merged with the feature classes contributed via `conformance=`, so
+  the declaration can't drift from what's actually wired.
 
 ### Changed
 

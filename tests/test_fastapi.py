@@ -26,6 +26,7 @@ from gazebo.ext.fastapi import (
     Negotiate,
     Overrides,
     Providers,
+    RootRouter,
     SortByParam,
     forward_lifespans,
     set_link_header,
@@ -360,6 +361,50 @@ def test_linked_router_hierarchy():
         child = client.get('/things').json()
         child_rels = {link['rel'] for link in child['links']}
         assert 'self' in child_rels
+
+
+def _root_app(*, conformance=None, **app_kwargs) -> GazeboApp:
+    app = GazeboApp(Providers(), trust=trust_all, **app_kwargs)
+    app.include_router(RootRouter(landing_name='landing', conformance=conformance))
+    return app
+
+
+def test_root_router_landing_has_service_and_conformance_links():
+    app = _root_app(title='Demo', description='A demo service.')
+    with TestClient(app) as client:
+        home = client.get('/').json()
+        # title/description fall back to the app's (RootRouter set neither).
+        assert home['title'] == 'Demo'
+        assert home['description'] == 'A demo service.'
+        links = {link['rel']: link['href'] for link in home['links']}
+        assert links['service-desc'].endswith('/openapi.json')
+        assert links['service-doc'].endswith('/docs')
+        assert links['conformance'].endswith('/conformance')
+
+
+def test_root_router_conformance_baseline_from_app_plus_extras():
+    app = _root_app(conformance=['https://example.com/conf/features'])
+    with TestClient(app) as client:
+        conforms = client.get('/conformance').json()['conformsTo']
+    assert 'https://example.com/conf/features' in conforms
+    # Derived baseline: core/landing-page/json, plus oas30 because OpenAPI is exposed.
+    assert {
+        'http://www.opengis.net/spec/ogcapi-common-1/1.0/conf/core',
+        'http://www.opengis.net/spec/ogcapi-common-1/1.0/conf/landing-page',
+        'http://www.opengis.net/spec/ogcapi-common-1/1.0/conf/json',
+        'http://www.opengis.net/spec/ogcapi-common-1/1.0/conf/oas30',
+    } <= set(conforms)
+
+
+def test_root_router_omits_service_links_and_oas30_when_openapi_disabled():
+    app = _root_app(openapi_url=None)
+    with TestClient(app) as client:
+        rels = {link['rel'] for link in client.get('/').json()['links']}
+        conforms = client.get('/conformance').json()['conformsTo']
+    # No OpenAPI document -> no service-desc/service-doc and no oas30 conformance class.
+    assert 'service-desc' not in rels
+    assert 'service-doc' not in rels
+    assert 'http://www.opengis.net/spec/ogcapi-common-1/1.0/conf/oas30' not in conforms
 
 
 def _cors_app(cors) -> GazeboApp:

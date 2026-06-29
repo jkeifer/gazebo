@@ -93,3 +93,34 @@ def _build_linked() -> GazeboApp:
 with TestClient(_build_linked()) as client:
     rels = [link['rel'] for link in client.get('/').json()['links']]
     assert 'data' in rels
+
+
+# --8<-- [start:root_router]
+from gazebo.ext.fastapi import RootRouter
+
+service = RootRouter(
+    landing_name='landing',
+    # Contribute feature-level conformance classes; the baseline
+    # (core/landing-page/json, plus oas30 when OpenAPI is on) is derived from the
+    # running app — so the declaration can't drift from what's actually mounted.
+    conformance=['http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/core'],
+)
+# --8<-- [end:root_router]
+
+
+def _build_root() -> GazeboApp:
+    # The service title/description live on the app; the RootRouter landing page falls
+    # back to them, adds service-desc/service-doc links to the OpenAPI document and the
+    # docs UI, and auto-mounts /conformance.
+    app = GazeboApp(Providers(), title='Demo API', description='An OGC-style service.')
+    app.include_router(service)
+    return app
+
+
+with TestClient(_build_root()) as client:
+    landing = client.get('/').json()
+    assert landing['title'] == 'Demo API'  # fell back to the app's title
+    root_rels = {link['rel'] for link in landing['links']}
+    assert {'service-desc', 'service-doc', 'conformance'} <= root_rels
+    conforms = client.get('/conformance').json()['conformsTo']
+    assert 'http://www.opengis.net/spec/ogcapi-common-1/1.0/conf/oas30' in conforms

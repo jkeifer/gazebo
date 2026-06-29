@@ -30,7 +30,7 @@ from gazebo.ext.fastapi.problems import (
     validation_exception_handler,
 )
 from gazebo.ext.fastapi.responses import not_modified, set_cache_headers, set_link_header
-from gazebo.ext.fastapi.routers import GazeboRouter, LinkedRouter
+from gazebo.ext.fastapi.routers import GazeboRouter, LinkedRouter, RootRouter
 
 __all__ = [
     'BBoxParam',
@@ -47,6 +47,7 @@ __all__ = [
     'Overrides',
     'Providers',
     'RequestContextAdapter',
+    'RootRouter',
     'SortByParam',
     'etag_for',
     'forward_lifespans',
