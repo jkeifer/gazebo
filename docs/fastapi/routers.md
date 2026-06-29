@@ -35,6 +35,16 @@ the offending route**, if an injectable parameter wasn't rewritten. This is the
 safety net behind the [composition rules](index.md#composition) — mistakes surface
 at boot, not in production.
 
+A related sharp edge lives one level down, in Python's annotations. gazebo decides
+what to inject by resolving each parameter's annotation — and an annotation referring
+to a name importable only under `if TYPE_CHECKING:` can't be resolved at runtime. To
+keep one such parameter from poisoning the others, gazebo resolves annotations
+**per-parameter and leniently** (the way FastAPI itself does), so an injectable
+parameter still wires even when a sibling annotation is unresolvable. The unresolvable
+parameter is left for FastAPI to interpret, and gazebo **warns, naming that
+parameter** — heed it by importing the annotated type at runtime rather than only
+under `TYPE_CHECKING` (FastAPI can't type it either otherwise).
+
 ## Hierarchical landing pages: LinkedRouter
 
 A `LinkedRouter` mounts a landing endpoint at its own root (its
