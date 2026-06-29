@@ -18,13 +18,26 @@ from gazebo.ext.fastapi import (
     BBoxParam,
     CrsParam,
     DatetimeParam,
+    FilterParam,
     GazeboRouter,
     Inject,
     LinkedRouter,
     Negotiate,
+    SortByParam,
     not_modified,
     set_cache_headers,
     set_link_header,
+)
+from gazebo.filtering import (
+    REL_QUERYABLES,
+    REL_SORTABLES,
+    Filter,
+    Queryables,
+    SortBy,
+    Sortables,
+    filter_conformance_classes,
+    queryables_from_model,
+    sortables_from_model,
 )
 from gazebo.negotiation import HTML, JSON, Representation, alternate_links
 from gazebo.link import Link
@@ -51,6 +64,7 @@ from gazebo.rels import MediaType, Rel
 from .models import (
     Bed,
     BedCollection,
+    BedProperties,
     Plant,
     PlantCollection,
     PlantCreate,
@@ -68,6 +82,8 @@ CONFORMANCE = Conformance(
     # The geospatial beds collection exercises OGC API Features core + GeoJSON.
     'http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/core',
     'http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/geojson',
+    # ...plus CQL2 filtering + queryables/sortables on the beds items.
+    *filter_conformance_classes(),
 )
 
 plants_router = GazeboRouter(tags=['plants'])
@@ -198,6 +214,12 @@ collections_router = GazeboRouter(tags=['collections'])
 
 BEDS_ALLOWED_CRS = [CRS84]
 
+# Derived once from the feature-properties model: the queryables resource doubles as the
+# filter allow-list, and the sortables as the sortby allow-list (module-level so the
+# FilterParam/SortByParam markers in the route annotations resolve under get_type_hints).
+BED_QUERYABLES = queryables_from_model(BedProperties, id='beds', title='Garden bed queryables')
+BED_SORTABLES = sortables_from_model(BedProperties, id='beds', title='Garden bed sortables')
+
 
 def build_beds_collection() -> Collection:
     """Collection metadata (id/title/extent/links) derived from the beds data."""
@@ -222,6 +244,12 @@ def build_beds_collection() -> Collection:
             Link.to_route('beds_collection', rel=Rel.SELF, type=MediaType.JSON),
             Link.to_route(
                 'list_beds', rel=Rel.ITEMS, type=MediaType.GEOJSON, title='Bed features'
+            ),
+            Link.to_route(
+                'beds_queryables', rel=REL_QUERYABLES, type=MediaType.JSON, title='Queryables'
+            ),
+            Link.to_route(
+                'beds_sortables', rel=REL_SORTABLES, type=MediaType.JSON, title='Sortables'
             ),
             Link.root_link(),
         ],
@@ -249,12 +277,26 @@ async def beds_collection(
     return coll
 
 
+@collections_router.get('/beds/queryables', response_model=Queryables, name='beds_queryables')
+async def beds_queryables() -> Queryables:
+    # The queryables resource is just the model-derived schema; clients read it to learn
+    # which properties a `filter` may reference (here: name, planted).
+    return BED_QUERYABLES
+
+
+@collections_router.get('/beds/sortables', response_model=Sortables, name='beds_sortables')
+async def beds_sortables() -> Sortables:
+    return BED_SORTABLES
+
+
 @collections_router.get('/beds/items', response_model=BedCollection, name='list_beds')
 async def list_beds(
     response: Response,
     bbox: Annotated[BBox | None, BBoxParam] = None,
     datetime: Annotated[DatetimeInterval | None, DatetimeParam] = None,
     crs: Annotated[str, CrsParam(allowed=BEDS_ALLOWED_CRS)] = CRS84,
+    filter: Annotated[Filter | None, FilterParam(BED_QUERYABLES)] = None,
+    sortby: Annotated[SortBy | None, SortByParam(BED_SORTABLES)] = None,
     limit: int = Query(10, ge=1, le=10_000),
     offset: int = Query(0, ge=0),
 ) -> BedCollection:
@@ -263,6 +305,16 @@ async def list_beds(
         rows = [r for r in rows if bbox.contains(r['lon'], r['lat'])]
     if datetime is not None:
         rows = [r for r in rows if datetime.contains(r['planted'])]
+    if filter is not None:
+        # CQL2 filtering: evaluate against a JSON-safe view of each row (the `planted`
+        # datetime as an RFC 3339 string), so cql2 can compare it to TIMESTAMP/DATE.
+        rows = [
+            r
+            for r in rows
+            if filter.matches({'name': r['name'], 'planted': r['planted'].isoformat()})
+        ]
+    if sortby is not None:
+        rows = sortby.apply(rows)
     total = len(rows)
     page = rows[offset : offset + limit]
     # self is the geo+json representation; paginate_offset derives first/prev/next/last.

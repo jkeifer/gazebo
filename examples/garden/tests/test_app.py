@@ -107,6 +107,53 @@ def test_beds_out_of_range_paging_is_validation_problem(client):
     assert_problem(client.get('/collections/beds/items?offset=-1'), status=422)
 
 
+def test_beds_queryables_and_sortables(client):
+    q = client.get('/collections/beds/queryables').json()
+    assert q['$schema'].startswith('https://json-schema.org/')
+    assert set(q['properties']) == {'name', 'planted'}
+    s = client.get('/collections/beds/sortables').json()
+    assert set(s['properties']) == {'name', 'planted'}
+    # the collection advertises both as links
+    rels = {link['rel'] for link in client.get('/collections/beds').json()['links']}
+    assert {'http://www.opengis.net/def/rel/ogc/1.0/queryables'} <= rels
+
+
+def test_beds_cql2_text_filter(client):
+    body = client.get("/collections/beds/items?filter=name = 'Rose Bed'").json()
+    assert [f['properties']['name'] for f in body['features']] == ['Rose Bed']
+
+
+def test_beds_cql2_temporal_filter(client):
+    # planted is advertised as a date-time queryable; cql2 compares it to a TIMESTAMP
+    url = "/collections/beds/items?filter=planted >= TIMESTAMP('2021-06-01T00:00:00Z')"
+    names = {f['properties']['name'] for f in client.get(url).json()['features']}
+    assert names == {'Herb Spiral'}  # only the 2022 bed
+
+
+def test_beds_sortby(client):
+    body = client.get('/collections/beds/items?sortby=-planted').json()
+    names = [f['properties']['name'] for f in body['features']]
+    assert names == ['Herb Spiral', 'Rose Bed', 'Orchard']  # 2022, 2021, 2020
+
+
+def test_beds_bad_filter_is_400_problem(client):
+    assert_problem(client.get('/collections/beds/items?filter=%3F%3F nope %3F%3F'), status=400)
+
+
+def test_beds_unknown_filter_property_is_400_problem(client):
+    # `color` is not a queryable -> rejected before evaluation
+    assert_problem(client.get("/collections/beds/items?filter=color = 'red'"), status=400)
+
+
+def test_beds_non_sortable_field_is_400_problem(client):
+    assert_problem(client.get('/collections/beds/items?sortby=color'), status=400)
+
+
+def test_beds_conformance_advertises_cql2(client):
+    conforms = client.get('/conformance').json()['conformsTo']
+    assert 'http://www.opengis.net/spec/cql2/1.0/conf/cql2-text' in conforms
+
+
 def test_post_search_limit_zero_is_validation_problem(client):
     # limit=0 would otherwise emit a self-referential next link (infinite paging loop)
     resp = client.post('/plants/search', json={'limit': 0}, headers=AUTH)

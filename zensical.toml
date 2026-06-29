@@ -18,6 +18,7 @@ nav = [
     { Problems = "core/problems.md" },
     { "Query parameters" = "core/params.md" },
     { "Content negotiation" = "core/negotiation.md" },
+    { Filtering = "core/filtering.md" },
     { GeoJSON = "core/geojson.md" },
     { "Landing & conformance" = "core/ogc.md" },
     { "Constants & tags" = "core/constants.md" },

@@ -18,6 +18,9 @@ dynamic = [
 Repository = 'https://github.com/jkeifer/gazebo'
 
 [project.optional-dependencies]
+cql2 = [
+    "cql2>=0.3",
+]
 fastapi = [
     "fastapi",
 ]
