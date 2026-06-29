@@ -2,8 +2,9 @@
 
 Demonstrates: bare-type injection (``catalog``/``user``/``tenant``), an external
 type via ``Annotated[Session, Inject]`` alongside a real request body, deferred
-self/root/collection links, pagination links, RFC 7807 problems, hierarchical
-landing pages (``LinkedRouter``), and a conformance declaration.
+self/root/collection links, pagination links, RFC 7807 problems raised from a
+registered problem-type catalog, and a ``RootRouter`` whose landing page carries the
+service-desc/service-doc links and an app-derived conformance declaration.
 """
 
 from __future__ import annotations
@@ -21,8 +22,8 @@ from gazebo.ext.fastapi import (
     FilterParam,
     GazeboRouter,
     Inject,
-    LinkedRouter,
     Negotiate,
+    RootRouter,
     SortByParam,
     not_modified,
     set_cache_headers,
@@ -45,7 +46,6 @@ from gazebo.ogc import (
     Collection,
     Collections,
     Conformance,
-    ConformanceDeclaration,
     Extent,
     SpatialExtent,
     TemporalExtent,
@@ -58,7 +58,7 @@ from gazebo.pagination import (
     paginate,
     paginate_offset,
 )
-from gazebo.problems import ProblemException
+from gazebo.problems import ProblemRegistry, ProblemType
 from gazebo.rels import MediaType, Rel
 
 from .models import (
@@ -74,16 +74,31 @@ from .models import (
 )
 from .resources import Catalog, Session, Tenant, User, all_beds, get_bed_row
 
+# The service-level baseline (core/landing-page/json/oas30) is derived from the running
+# app by RootRouter; here we contribute only the feature classes the beds collection adds.
 CONFORMANCE = Conformance(
-    Conformance.CORE,
-    Conformance.LANDING_PAGE,
-    Conformance.JSON,
-    Conformance.OAS30,
     # The geospatial beds collection exercises OGC API Features core + GeoJSON.
     'http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/core',
     'http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/geojson',
     # ...plus CQL2 filtering + queryables/sortables on the beds items.
     *filter_conformance_classes(),
+)
+
+# The service's error catalog: documented problem kinds with stable, linkable `type`
+# URIs. Raise them by reference (filling in the per-occurrence detail/instance) and serve
+# the whole set from `/problems`, so a client can resolve a `type` URI to its meaning.
+PROBLEMS = ProblemRegistry()
+PLANT_NOT_FOUND = PROBLEMS.define(
+    'plant-not-found',
+    type='https://gazebo.example/problems/plant-not-found',
+    title='Plant not found',
+    status=404,
+)
+BED_NOT_FOUND = PROBLEMS.define(
+    'bed-not-found',
+    type='https://gazebo.example/problems/bed-not-found',
+    title='Garden bed not found',
+    status=404,
 )
 
 plants_router = GazeboRouter(tags=['plants'])
@@ -143,8 +158,7 @@ async def list_plants(
 async def get_plant(plant_id: str, catalog: Catalog, user: User, tenant: Tenant) -> Plant:
     row = catalog.read.get(tenant.id, plant_id)
     if row is None:
-        raise ProblemException(
-            404,
+        raise PLANT_NOT_FOUND.exception(
             detail=f'plant {plant_id!r} not found',
             instance=f'/plants/{plant_id}',
         )
@@ -196,16 +210,16 @@ async def create_plant(
     return to_plant(session.create_plant(tenant.id, body.name))
 
 
-root_router = LinkedRouter(
-    title='Gazebo Gardens',
-    description='A tiny OGC-style plant catalog built with gazebo.',
-    landing_name='landing',
-)
+# RootRouter: title/description fall back to the app's, the landing page gains
+# service-desc/service-doc links to the OpenAPI doc + docs UI, and /conformance is
+# auto-mounted with an app-derived baseline merged with the feature classes we pass.
+root_router = RootRouter(landing_name='landing', conformance=CONFORMANCE)
 
 
-@root_router.get('/conformance', response_model=ConformanceDeclaration, name='conformance')
-async def conformance() -> ConformanceDeclaration:
-    return CONFORMANCE.declaration()
+@root_router.get('/problems', response_model=dict[str, ProblemType], name='problems')
+async def problems_catalog() -> dict[str, ProblemType]:
+    # The error catalog: a client resolves a problem `type` URI to its documented kind.
+    return PROBLEMS.catalog()
 
 
 # The OGC Features-style geospatial collection: garden beds as GeoJSON features,
@@ -331,8 +345,7 @@ async def list_beds(
 async def get_bed(bed_id: str, request: Request, response: Response) -> Bed | Response:
     row = get_bed_row(bed_id)
     if row is None:
-        raise ProblemException(
-            404,
+        raise BED_NOT_FOUND.exception(
             detail=f'bed {bed_id!r} not found',
             instance=f'/collections/beds/items/{bed_id}',
         )
@@ -347,6 +360,6 @@ async def get_bed(bed_id: str, request: Request, response: Response) -> Bed | Re
 
 root_router.include_router(collections_router, prefix='/collections')
 root_router.include_router(plants_router, prefix='/plants')
-root_router.add_link(Rel.CONFORMANCE, 'conformance', title='Conformance')
+# The conformance + service-desc/service-doc links are added by RootRouter itself.
 root_router.add_link(Rel.ITEMS, 'list_plants', title='Plants')
 root_router.add_link(Rel.DATA, 'collections', title='Collections')

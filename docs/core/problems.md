@@ -26,6 +26,24 @@ auth dependency that raises `401` when a token is missing).
 --8<-- "tests/examples/problems.py:raise"
 ```
 
+## A catalog of problem types
+
+`type` defaults to `about:blank`, which says nothing. For the error kinds your
+service raises repeatedly, define them once as `ProblemType`s — a stable `type` URI,
+a title, a default status — and raise them *by reference*, supplying only the
+per-occurrence `detail`/`instance` (and any extension members). A `ProblemRegistry`
+keys them by a short name and hands back the whole set as a catalog, so the `type`
+URIs become linkable: serve `registry.catalog()` from an endpoint and a client can
+resolve a `type` it received back to its documented meaning.
+
+```python
+--8<-- "tests/examples/problems.py:registry"
+```
+
+`ProblemType` is frozen (a shared constant you reference, never mutate); `.problem()`
+builds a `ProblemDetail` and `.exception()` builds the `ProblemException` to raise. A
+catalog endpoint is just an ordinary route returning `registry.catalog()`.
+
 ## How it becomes a response
 
 `ProblemDetail` is pure pydantic — turning it into an HTTP response is the

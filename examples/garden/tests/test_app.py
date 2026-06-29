@@ -27,13 +27,31 @@ def client():
 def test_landing(client):
     body = client.get('/').json()
     rels = {link['rel'] for link in body['links']}
-    assert {'self', 'root', 'conformance', 'items', 'data'} <= rels
+    # RootRouter adds service-desc/service-doc (to the OpenAPI doc + docs UI) alongside
+    # the hierarchical/conformance links.
+    assert {'self', 'root', 'conformance', 'items', 'data', 'service-desc', 'service-doc'} <= rels
+    # title/description fall back to the app's (the RootRouter sets neither).
     assert body['title'] == 'Gazebo Gardens'
 
 
+def test_landing_service_desc_points_at_openapi(client):
+    links = {link['rel']: link['href'] for link in client.get('/').json()['links']}
+    assert links['service-desc'].endswith('/openapi.json')
+    assert links['service-doc'].endswith('/docs')
+
+
 def test_conformance(client):
-    body = client.get('/conformance').json()
-    assert 'http://www.opengis.net/spec/ogcapi-common-1/1.0/conf/core' in body['conformsTo']
+    conforms = client.get('/conformance').json()['conformsTo']
+    # The baseline is derived from the running app: core/landing-page/json, plus oas30
+    # because the app exposes an OpenAPI document.
+    assert 'http://www.opengis.net/spec/ogcapi-common-1/1.0/conf/core' in conforms
+    assert 'http://www.opengis.net/spec/ogcapi-common-1/1.0/conf/oas30' in conforms
+
+
+def test_problems_catalog(client):
+    catalog = client.get('/problems').json()
+    assert catalog['plant-not-found']['status'] == 404
+    assert catalog['plant-not-found']['type'].endswith('/plant-not-found')
 
 
 def test_auth_required_returns_problem(client):
@@ -198,6 +216,8 @@ def test_get_missing_plant_is_404_problem(client):
     r = client.get('/plants/999', headers=AUTH)
     assert r.status_code == 404
     assert r.json()['detail'].startswith('plant')
+    # The problem carries the registered type's stable URI, not the about:blank default.
+    assert r.json()['type'].endswith('/plant-not-found')
 
 
 def test_bad_body_is_422_problem(client):
