@@ -17,6 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- FastAPI injection now resolves each route-handler parameter's type annotation
+  independently and leniently (the way FastAPI itself does) instead of resolving the
+  whole signature at once. Previously a single unresolvable annotation — typically a
+  name imported only under `if TYPE_CHECKING:` — made `get_type_hints` fail for the
+  entire handler, silently un-wiring *every* injectable parameter on it (which then
+  surfaced as a request-time 500, the type treated as a request body). The injectable
+  parameters next to an unresolvable one now wire correctly, and gazebo warns once,
+  naming the parameter it could not resolve.
+
 ### Security
 
 ## [0.2.0] - 2026-06-28
