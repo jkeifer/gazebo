@@ -330,6 +330,8 @@
       
         
       
+        
+      
     
     
     
@@ -551,6 +553,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#a-catalog-of-problem-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        A catalog of problem types
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#how-it-becomes-a-response" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -623,6 +636,33 @@
     
   
   Content negotiation
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../filtering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Filtering
 
     
   </span>
@@ -1344,6 +1384,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#a-catalog-of-problem-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        A catalog of problem types
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#how-it-becomes-a-response" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -1418,6 +1469,41 @@ auth dependency that raises <code>401</code> when a token is missing).</p>
 </span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>        <span class="n">instance</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;/plants/</span><span class="si">{</span><span class="n">plant_id</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
 </span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="p">)</span>
 </span></code></pre></div>
+<h2 id="a-catalog-of-problem-types">A catalog of problem types<a class="headerlink" href="#a-catalog-of-problem-types" title="Permanent link">&para;</a></h2>
+<p><code>type</code> defaults to <code>about:blank</code>, which says nothing. For the error kinds your
+service raises repeatedly, define them once as <code>ProblemType</code>s — a stable <code>type</code> URI,
+a title, a default status — and raise them <em>by reference</em>, supplying only the
+per-occurrence <code>detail</code>/<code>instance</code> (and any extension members). A <code>ProblemRegistry</code>
+keys them by a short name and hands back the whole set as a catalog, so the <code>type</code>
+URIs become linkable: serve <code>registry.catalog()</code> from an endpoint and a client can
+resolve a <code>type</code> it received back to its documented meaning.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">gazebo.problems</span><span class="w"> </span><span class="kn">import</span> <span class="n">ProblemRegistry</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">problems</span> <span class="o">=</span> <span class="n">ProblemRegistry</span><span class="p">()</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="c1"># Define each problem kind once: a stable `type` URI, a title, a default status.</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="n">PLANT_NOT_FOUND</span> <span class="o">=</span> <span class="n">problems</span><span class="o">.</span><span class="n">define</span><span class="p">(</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="s1">&#39;plant-not-found&#39;</span><span class="p">,</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="nb">type</span><span class="o">=</span><span class="s1">&#39;https://errors.example/plant-not-found&#39;</span><span class="p">,</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Plant not found&#39;</span><span class="p">,</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    <span class="n">status</span><span class="o">=</span><span class="mi">404</span><span class="p">,</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="p">)</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_plant_or_404</span><span class="p">(</span><span class="n">plant_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>    <span class="c1"># Raise it by reference; only the per-occurrence detail/instance vary.</span>
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>    <span class="k">raise</span> <span class="n">PLANT_NOT_FOUND</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span>
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>        <span class="n">detail</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;no plant with id </span><span class="si">{</span><span class="n">plant_id</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
+</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>        <span class="n">instance</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;/plants/</span><span class="si">{</span><span class="n">plant_id</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
+</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>    <span class="p">)</span>
+</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>
+</span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>
+</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="c1"># Serve the whole catalog (key -&gt; ProblemType) so a client can resolve a `type` URI.</span>
+</span><span id="__span-1-23"><a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="n">catalog</span> <span class="o">=</span> <span class="n">problems</span><span class="o">.</span><span class="n">catalog</span><span class="p">()</span>
+</span></code></pre></div>
+<p><code>ProblemType</code> is frozen (a shared constant you reference, never mutate); <code>.problem()</code>
+builds a <code>ProblemDetail</code> and <code>.exception()</code> builds the <code>ProblemException</code> to raise. A
+catalog endpoint is just an ordinary route returning <code>registry.catalog()</code>.</p>
 <h2 id="how-it-becomes-a-response">How it becomes a response<a class="headerlink" href="#how-it-becomes-a-response" title="Permanent link">&para;</a></h2>
 <p><code>ProblemDetail</code> is pure pydantic — turning it into an HTTP response is the
 framework glue's job. Under <a href="../../fastapi/app/#problem-validation-responses"><code>GazeboApp</code> / <code>upgrade()</code></a>

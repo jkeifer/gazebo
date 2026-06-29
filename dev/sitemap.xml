@@ -28,6 +28,9 @@
         <loc>https://teotl.dev/gazebo/dev/core/negotiation/</loc>
       </url>
       <url>
+        <loc>https://teotl.dev/gazebo/dev/core/filtering/</loc>
+      </url>
+      <url>
         <loc>https://teotl.dev/gazebo/dev/core/geojson/</loc>
       </url>
       <url>

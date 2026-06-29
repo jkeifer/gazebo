@@ -328,6 +328,8 @@
       
         
       
+        
+      
     
     
     
@@ -530,6 +532,33 @@
     
   
   Content negotiation
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../core/filtering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Filtering
 
     
   </span>
@@ -1001,6 +1030,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-service-root-rootrouter" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        The service root: RootRouter
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#reference" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -1377,6 +1417,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-service-root-rootrouter" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        The service root: RootRouter
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#reference" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -1471,6 +1522,15 @@ against it: at startup the app validates every route and <strong>fails loudly, n
 the offending route</strong>, if an injectable parameter wasn't rewritten. This is the
 safety net behind the <a href="../#composition">composition rules</a> — mistakes surface
 at boot, not in production.</p>
+<p>A related sharp edge lives one level down, in Python's annotations. gazebo decides
+what to inject by resolving each parameter's annotation — and an annotation referring
+to a name importable only under <code>if TYPE_CHECKING:</code> can't be resolved at runtime. To
+keep one such parameter from poisoning the others, gazebo resolves annotations
+<strong>per-parameter and leniently</strong> (the way FastAPI itself does), so an injectable
+parameter still wires even when a sibling annotation is unresolvable. The unresolvable
+parameter is left for FastAPI to interpret, and gazebo <strong>warns, naming that
+parameter</strong> — heed it by importing the annotated type at runtime rather than only
+under <code>TYPE_CHECKING</code> (FastAPI can't type it either otherwise).</p>
 <h2 id="hierarchical-landing-pages-linkedrouter">Hierarchical landing pages: LinkedRouter<a class="headerlink" href="#hierarchical-landing-pages-linkedrouter" title="Permanent link">&para;</a></h2>
 <p>A <code>LinkedRouter</code> mounts a landing endpoint at its own root (its
 <code>title</code>/<code>description</code> plus self and root links). Include one <code>LinkedRouter</code> into
@@ -1491,9 +1551,37 @@ this scheme.</p>
 </span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="p">)</span>
 </span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="n">root</span><span class="o">.</span><span class="n">include_router</span><span class="p">(</span><span class="n">collections</span><span class="p">)</span>  <span class="c1"># adds a link to the child&#39;s landing page</span>
 </span></code></pre></div>
+<h2 id="the-service-root-rootrouter">The service root: RootRouter<a class="headerlink" href="#the-service-root-rootrouter" title="Permanent link">&para;</a></h2>
+<p>The landing page at the <em>top</em> of the tree is special: it describes the whole
+service, so OGC puts the API-definition links and the conformance declaration there.
+<code>RootRouter</code> is the <code>LinkedRouter</code> for that spot — it keeps the hierarchical wiring
+and adds the service-level concerns that only make sense at the root, all derived
+from the running app rather than hand-maintained:</p>
+<ul>
+<li><strong><code>service-desc</code> / <code>service-doc</code> links</strong> to the app's OpenAPI document and its docs
+  UI (each omitted when the app has that URL disabled, so the links never dangle).</li>
+<li><strong>Title/description fallback</strong> to the app's, so the service name lives in one place
+  — on the app — and an explicit router <code>title</code> still wins when you set one.</li>
+<li><strong>An auto-mounted <code>/conformance</code></strong> whose baseline (<code>core</code>/<code>landing-page</code>/<code>json</code>,
+  plus <code>oas30</code> when the app exposes OpenAPI) is read from the live app and merged with
+  the feature classes you contribute via <code>conformance=</code>. The declaration tracks what's
+  actually wired instead of drifting from it.</li>
+</ul>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">gazebo.ext.fastapi</span><span class="w"> </span><span class="kn">import</span> <span class="n">RootRouter</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">service</span> <span class="o">=</span> <span class="n">RootRouter</span><span class="p">(</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="n">landing_name</span><span class="o">=</span><span class="s1">&#39;landing&#39;</span><span class="p">,</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="c1"># Contribute feature-level conformance classes; the baseline</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="c1"># (core/landing-page/json, plus oas30 when OpenAPI is on) is derived from the</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    <span class="c1"># running app — so the declaration can&#39;t drift from what&#39;s actually mounted.</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>    <span class="n">conformance</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/core&#39;</span><span class="p">],</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="p">)</span>
+</span></code></pre></div>
+<p>Contribute feature-level classes as a list or a <a href="../../core/ogc/#conformance"><code>Conformance</code></a>,
+e.g. <code>conformance=[*filter_conformance_classes()]</code> for CQL2.</p>
 <h2 id="reference">Reference<a class="headerlink" href="#reference" title="Permanent link">&para;</a></h2>
 <p>See <a href="../../reference/#fastapi-integration"><code>gazebo.ext.fastapi</code></a>
-(<code>GazeboRouter</code>, <code>LinkedRouter</code>, <code>Inject</code>).</p>
+(<code>GazeboRouter</code>, <code>LinkedRouter</code>, <code>RootRouter</code>, <code>Inject</code>).</p>
 
 
 
