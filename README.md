@@ -19,15 +19,18 @@ re-implemented per project:
 - **Proxy-aware URLs** — pure-ASGI middleware that honors
   `X-Forwarded-Proto/Host/Prefix` (with pluggable trust), so generated links are
   correct behind a load balancer.
-- **The OGC request/response surface** — RFC 7807 problems, landing pages +
-  conformance, pagination, content negotiation (`?f=` then `Accept`), typed OGC
-  query params (`bbox`/`datetime`/`crs`), conditional requests (ETag / 304),
-  RFC 8288 `Link:` headers, and typed `Rel`/`MediaType` constants.
+- **The OGC request/response surface** — RFC 7807 problems (with a reusable
+  `ProblemType`/`ProblemRegistry` catalog of stable, linkable `type` URIs),
+  landing pages + conformance (a `RootRouter` that emits `service-desc`/
+  `service-doc` and derives its conformance declaration from the running app),
+  pagination, content negotiation (`?f=` then `Accept`), typed OGC query params
+  (`bbox`/`datetime`/`crs`), CQL2 filtering + `sortby`, conditional requests
+  (ETag / 304), RFC 8288 `Link:` headers, and typed `Rel`/`MediaType` constants.
 - **A pytest plugin** — opt-in helpers that assert the OGC-ness of your service:
   link/problem assertions and a pagination driver that walks `next` to exhaustion.
 
-The core (`gazebo`) depends only on `pydantic`. Framework integration, GeoJSON, and
-the test helpers are opt-in extras.
+The core (`gazebo`) depends only on `pydantic`. Framework integration, GeoJSON, CQL2
+filtering, and the test helpers are opt-in extras.
 
 > [!NOTE]
 > This is an experiment using AI to refine a number of patterns I've
@@ -52,6 +55,7 @@ the test helpers are opt-in extras.
 pip install gazebo             # core: pydantic only
 pip install 'gazebo[fastapi]'  # + the GazeboApp / FastAPI glue
 pip install 'gazebo[geojson]'  # + GeoJSON Feature / FeatureCollection
+pip install 'gazebo[cql2]'     # + CQL2 filtering (cql2-rs engine)
 pip install 'gazebo[test]'     # + the pytest plugin
 ```
 
@@ -157,8 +161,9 @@ injecting external types, content negotiation, conditional requests, and the res
 [`examples/garden/`](examples/garden/) is **Gazebo Gardens** — a complete,
 standalone OGC-style API (a multi-tenant plant catalog) that exercises every
 feature: injection with app/request scopes and teardown, qualified bindings,
-deferred + paginated links, collection envelopes, RFC 7807 problems, hierarchical
-landing pages, conformance, proxy-aware URLs, health, and request-id logging. It's
+deferred + paginated links, collection envelopes, RFC 7807 problems with a
+`ProblemType` catalog, CQL2 filtering and `sortby`, a `RootRouter` service landing
+with conformance, proxy-aware URLs, health, and request-id logging. It's
 its own project with its own `pyproject.toml`, so:
 
 ```sh
