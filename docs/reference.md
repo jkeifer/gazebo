@@ -22,6 +22,10 @@ Auto-generated from the source docstrings and type hints.
 
 ::: gazebo.negotiation
 
+::: gazebo.filtering
+
+::: gazebo.filtering.cql2
+
 ::: gazebo.geojson
 
 ::: gazebo.ogc

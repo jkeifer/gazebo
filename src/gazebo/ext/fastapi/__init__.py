@@ -21,6 +21,7 @@ from gazebo.di import Overrides, Providers
 from gazebo.ext.fastapi.app import GazeboApp, forward_lifespans, upgrade
 from gazebo.ext.fastapi.context import RequestContextAdapter
 from gazebo.ext.fastapi.cors import Cors, CorsConfig
+from gazebo.ext.fastapi.filtering import FilterParam, SortByParam
 from gazebo.ext.fastapi.injection import Inject, inject_signature
 from gazebo.ext.fastapi.params import BBoxParam, CrsParam, DatetimeParam, Negotiate
 from gazebo.ext.fastapi.problems import (
@@ -37,6 +38,7 @@ __all__ = [
     'CorsConfig',
     'CrsParam',
     'DatetimeParam',
+    'FilterParam',
     'GazeboApp',
     'GazeboRouter',
     'Inject',
@@ -45,6 +47,7 @@ __all__ = [
     'Overrides',
     'Providers',
     'RequestContextAdapter',
+    'SortByParam',
     'etag_for',
     'forward_lifespans',
     'inject_signature',

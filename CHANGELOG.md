@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `gazebo.filtering` (new `gazebo[cql2]` extra): CQL2 filtering with the OGC plumbing
+  around it. Core (pydantic-only): `queryables_from_model`/`sortables_from_model` derive
+  the `Queryables`/`Sortables` JSON-Schema resources — and the filter/sort allow-lists —
+  from a pydantic model, flattening nested models to dotted accessors (`site.coord.lat`)
+  and advertising geometry fields as spatial queryables; `SortBy` parses/validates the
+  OGC/STAC `sortby` value and applies a stable in-memory sort; `validate_properties`
+  rejects a filter that references a non-queryable field; and a `FilterEngine`/`Compiled`
+  Protocol seam (`Filter`, `FilterError`, `FilterLang`) keeps the core free of the CQL2
+  dependency. The bundled `Cql2Engine` (in `gazebo.filtering.cql2`, adapting cql2-rs)
+  parses both encodings and is isolated behind the extra; the seam stays open for a
+  user-supplied engine.
+- FastAPI `FilterParam(queryables)` and `SortByParam(sortables)` adapters: drop the OGC
+  `filter`/`filter-lang`/`filter-crs` and `sortby` parameters into a route signature as
+  typed `Filter`/`SortBy` values, rendering a parse failure, an unknown filter language,
+  an unsupported CRS, a non-queryable property, or a non-sortable field as a
+  `400 application/problem+json`.
+
 ### Changed
 
 ### Deprecated
