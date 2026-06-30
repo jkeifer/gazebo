@@ -1489,9 +1489,15 @@ across the worker boundary. Settings flags are prefixed by the class's <code>env
 (required), so they never collide with uvicorn's options and read as <em>app config</em>
 vs <em>server config</em> in <code>--help</code>. For multiple groups, pass <code>settings=[A, B]</code>; each
 needs a distinct <code>env_prefix</code>.</p>
-<p>Secrets are never placed on the command line: model them as <code>SecretStr</code> (they get
-no flag) and supply them via the settings class's <code>secrets_dir</code> (Docker/k8s
-<code>/run/secrets</code>) and/or env.</p>
+<p>A field with no default is <strong>required</strong>: marked <code>[required]</code> in <code>--help</code> and enforced
+at parse time. Because click reads the env var, it's satisfied by the flag <em>or</em> its
+env var — not forced onto the command line — so the env/file workflow still works. (A
+required secret, having no flag, is instead marked <code>(required)</code> in the Secrets section
+and enforced by pydantic / <code>serve --check</code>.)</p>
+<p>Secrets are never accepted on the command line: model them as <code>SecretStr</code>. They get
+no value flag — but they're still listed in <code>--help</code> (their env var) as a documented
+configuration surface, so they're discoverable without ever landing in shell history.
+Supply them via the settings class's <code>secrets_dir</code> (Docker/k8s <code>/run/secrets</code>) or env.</p>
 <p>The app target must be an importable <code>'module:attr'</code> string or a module-level
 factory — uvicorn's <code>--workers</code>/<code>--reload</code> re-import it by name, so live app objects
 and lambdas are rejected.</p>
