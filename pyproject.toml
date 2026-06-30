@@ -18,6 +18,11 @@ dynamic = [
 Repository = 'https://github.com/jkeifer/gazebo'
 
 [project.optional-dependencies]
+cli = [
+    "click>=8",
+    "uvicorn>=0.30",
+    "pydantic-settings>=2",
+]
 cql2 = [
     "cql2>=0.3",
 ]

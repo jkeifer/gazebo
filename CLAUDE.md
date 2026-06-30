@@ -152,7 +152,7 @@ uv run --group docs zensical serve                     # live preview while writ
 
 ## Landing a feature
 
-A new feature or behavior change is not complete until all three of these land with it:
+A new feature or behavior change is not complete until all of these land with it:
 
 1. **Tests** in `tests/` covering the new behavior (coverage and warnings-as-errors are
    enforced; CI runs the suite on Python 3.12–3.14).
@@ -161,6 +161,10 @@ A new feature or behavior change is not complete until all three of these land w
    garden suite separately, so this is load-bearing, not decorative.
 3. **Documentation** — update the relevant page under `docs/` (and the design spec in
    `working-docs/` if the feature changes a subsystem's rationale or shape).
+4. **Changelog** — add an entry under `## [unreleased]` in `CHANGELOG.md`, in the
+   appropriate Added/Changed/Deprecated/Removed/Fixed/Security subsection.
+5. **README** — update `README.md` (and `examples/garden/README.md` when relevant) if
+   the change adds an extra, a user-facing capability, or changes how the app is run.
 
 ## Conventions
 

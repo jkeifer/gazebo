@@ -5,8 +5,7 @@ description = "Gazebo Gardens — a complete example API built with gazebo"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "gazebo[fastapi,geojson,cql2]",
-    "uvicorn>=0.30",
+    "gazebo[fastapi,geojson,cql2,cli]",
 ]
 
 [project.scripts]

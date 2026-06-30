@@ -19,6 +19,7 @@ from itertools import count
 from typing import Annotated
 
 from fastapi import Request
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from gazebo.di import Qualify
 from gazebo.problems import ProblemException
@@ -85,8 +86,13 @@ def get_bed_row(bed_id: str) -> dict | None:
 reset_store()
 
 
-@dataclass
-class Settings:
+class Settings(BaseSettings):
+    """App settings, sourced from env (``GARDEN_*``) / defaults and surfaced as CLI
+    options by ``garden serve``. The ``__provide__`` recipe makes the injected
+    instance the one the CLI configures (the flags set the env this reads)."""
+
+    model_config = SettingsConfigDict(env_prefix='GARDEN_')
+
     primary_dsn: str = 'memory://primary'
     replica_dsn: str = 'memory://replica'
 
