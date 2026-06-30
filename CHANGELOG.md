@@ -19,6 +19,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+## [v0.4.1] - 2026-06-30
+
+### Changed
+
+- `gazebo.ext.cli` `serve_command`: every non-secret settings field now gets a
+  CLI flag (previously only `str`/`int`/`float`/`bool`/`Enum`) — `Path`,
+  `UUID`, `datetime`, `Optional[...]`, and complex types (passed as a JSON
+  string) included, since a flag just sets the field's env var and pydantic
+  deserializes it as it does for env loading. `bool` (toggle) and `Enum`
+  (`Choice`) keep their widgets. Secret (`SecretStr`) fields are now listed in
+  `--help` as a documented configuration surface (their env var) without a
+  value-accepting flag, so they stay discoverable yet off the command line
+  (shell history / `ps`). Required fields (no default) are now marked `[required]`
+  in `--help` and enforced at parse time — satisfied by the flag *or* its env var,
+  since click reads the env var; a required secret is marked `(required)` in the
+  Secrets section.
+
 ## [v0.4.0] - 2026-06-30
 
 ### Added

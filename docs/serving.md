@@ -32,9 +32,16 @@ across the worker boundary. Settings flags are prefixed by the class's `env_pref
 vs *server config* in `--help`. For multiple groups, pass `settings=[A, B]`; each
 needs a distinct `env_prefix`.
 
-Secrets are never placed on the command line: model them as `SecretStr` (they get
-no flag) and supply them via the settings class's `secrets_dir` (Docker/k8s
-`/run/secrets`) and/or env.
+A field with no default is **required**: marked `[required]` in `--help` and enforced
+at parse time. Because click reads the env var, it's satisfied by the flag *or* its
+env var — not forced onto the command line — so the env/file workflow still works. (A
+required secret, having no flag, is instead marked `(required)` in the Secrets section
+and enforced by pydantic / `serve --check`.)
+
+Secrets are never accepted on the command line: model them as `SecretStr`. They get
+no value flag — but they're still listed in `--help` (their env var) as a documented
+configuration surface, so they're discoverable without ever landing in shell history.
+Supply them via the settings class's `secrets_dir` (Docker/k8s `/run/secrets`) or env.
 
 The app target must be an importable `'module:attr'` string or a module-level
 factory — uvicorn's `--workers`/`--reload` re-import it by name, so live app objects

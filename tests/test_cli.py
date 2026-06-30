@@ -43,6 +43,77 @@ def test_builds_and_composes() -> None:
     assert '--check' in flags
 
 
+def test_non_scalar_and_optional_fields_get_flags(monkeypatch: pytest.MonkeyPatch) -> None:
+    from pathlib import Path
+
+    monkeypatch.setattr(uvicorn.main, 'callback', lambda **kw: None)
+    monkeypatch.delenv('APP_SNOWDB_CONFIG', raising=False)
+
+    class S(BaseSettings):
+        model_config = SettingsConfigDict(env_prefix='APP_')
+        snowdb_config: Path = Path('/etc/snow.cfg')  # scalar, but not str/int/float
+        retries: int | None = None  # Optional unwraps to int
+        tags: list[str] = []  # complex -> string flag (JSON), not skipped
+
+    cmd = serve_command(_factory, settings=S)
+    flags = {o.opts[0] for o in cmd.params if getattr(o, 'opts', None)}
+    assert {'--app-snowdb-config', '--app-retries', '--app-tags'} <= flags
+
+    # the Path flag writes its env var verbatim; pydantic turns it back into a Path
+    CliRunner().invoke(cmd, ['--app-snowdb-config', '/srv/snow.cfg'])
+    assert os.environ['APP_SNOWDB_CONFIG'] == '/srv/snow.cfg'
+    assert S().snowdb_config == Path('/srv/snow.cfg')
+
+
+def test_secrets_documented_in_help_but_not_settable() -> None:
+    from pydantic import SecretStr
+
+    class S(BaseSettings):
+        model_config = SettingsConfigDict(env_prefix='APP_')
+        db_password: SecretStr | None = None
+
+    cmd = serve_command(_factory, settings=S)
+    flags = {o.opts[0] for o in cmd.params if getattr(o, 'opts', None)}
+    assert '--app-db-password' not in flags  # never a value flag (no shell-history leak)
+
+    help_text = CliRunner().invoke(cmd, ['--help']).output
+    assert 'APP_DB_PASSWORD' in help_text  # but documented as a config surface
+
+
+def test_required_field_is_click_required_satisfiable_by_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(uvicorn.main, 'callback', lambda **kw: None)
+    monkeypatch.delenv('APP_API_URL', raising=False)
+
+    class S(BaseSettings):
+        model_config = SettingsConfigDict(env_prefix='APP_')
+        api_url: str  # required (no default)
+
+    cmd = serve_command(_factory, settings=S)
+    opt = next(o for o in cmd.params if getattr(o, 'opts', None) == ['--app-api-url'])
+    assert opt.required is True
+    help_text = CliRunner().invoke(cmd, ['--help']).output
+    api_line = next(line for line in help_text.splitlines() if '--app-api-url' in line)
+    assert 'required' in api_line
+
+    # neither flag nor env -> error; env alone satisfies it (click reads envvar)
+    assert CliRunner().invoke(cmd, []).exit_code != 0
+    assert CliRunner().invoke(cmd, [], env={'APP_API_URL': 'http://x'}).exit_code == 0
+
+
+def test_required_secret_marked_in_help() -> None:
+    from pydantic import SecretStr
+
+    class S(BaseSettings):
+        model_config = SettingsConfigDict(env_prefix='APP_')
+        token: SecretStr  # required secret, no flag
+
+    help_text = CliRunner().invoke(serve_command(_factory, settings=S), ['--help']).output
+    assert 'APP_TOKEN' in help_text
+    assert '(required)' in help_text
+
+
 def test_requires_env_prefix() -> None:
     class NoPrefix(BaseSettings):
         host: str = 'x'

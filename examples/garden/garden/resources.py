@@ -19,6 +19,7 @@ from itertools import count
 from typing import Annotated
 
 from fastapi import Request
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from gazebo.di import Qualify
@@ -93,8 +94,14 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix='GARDEN_')
 
-    primary_dsn: str = 'memory://primary'
-    replica_dsn: str = 'memory://replica'
+    # A SecretStr (DSNs carry credentials): listed in `garden serve --help` under
+    # Secrets, with no value flag — set it via GARDEN_PRIMARY_DSN or a secrets file.
+    primary_dsn: SecretStr = Field(
+        default=SecretStr('memory://primary'),
+        description='Primary database DSN (holds credentials).',
+    )
+    # A plain setting: a normal `--garden-replica-dsn` flag in --help.
+    replica_dsn: str = Field(default='memory://replica', description='Read-replica DSN.')
 
     @classmethod
     def __provide__(cls) -> Settings:
@@ -128,12 +135,12 @@ class Database:
 
 @asynccontextmanager
 async def provide_primary(settings: Settings) -> AsyncIterator[Database]:
-    log.info('opening primary database %s', settings.primary_dsn)
-    db = Database(settings.primary_dsn)
+    log.info('opening primary database %s', settings.primary_dsn)  # SecretStr -> masked
+    db = Database(settings.primary_dsn.get_secret_value())
     try:
         yield db
     finally:
-        log.info('closing primary database %s', db.dsn)
+        log.info('closing primary database')
 
 
 @asynccontextmanager
