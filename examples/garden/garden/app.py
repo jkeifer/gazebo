@@ -7,11 +7,13 @@ middleware feeding gazebo's logging filter.
 
 from __future__ import annotations
 
-import logging
 import uuid
 
+import click
+
 from gazebo.asgi import ASGIApp, Receive, Scope, Send, trust_all
-from gazebo.context import RequestIdFilter, use_request_id
+from gazebo.context import use_request_id
+from gazebo.ext.cli import default_log_config, serve_command
 from gazebo.ext.fastapi import GazeboApp, Overrides, Providers
 from gazebo.tags import Tag, tags_metadata
 
@@ -77,22 +79,17 @@ def create_app(*, overrides: Overrides | None = None) -> GazeboApp:
     return app
 
 
-def configure_logging(level: int = logging.INFO) -> None:
-    handler = logging.StreamHandler()
-    handler.addFilter(RequestIdFilter())
-    handler.setFormatter(
-        logging.Formatter('%(levelname)s [%(request_id)s] %(name)s: %(message)s'),
-    )
-    root = logging.getLogger()
-    root.handlers = [handler]
-    root.setLevel(level)
-
-
-app = create_app()
-
-
+@click.group()
 def main() -> None:
-    import uvicorn
+    """Gazebo Gardens CLI."""
 
-    configure_logging()
-    uvicorn.run('garden.app:app', host='127.0.0.1', port=8000, reload=False)
+
+# `garden serve` documents GARDEN_* settings in --help, runs uvicorn (with
+# --workers/--reload), and wires the request-id into logs via gazebo's filter.
+main.add_command(
+    serve_command(
+        create_app,
+        settings=Settings,
+        log_config=default_log_config(request_id=True),
+    ),
+)

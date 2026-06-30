@@ -47,3 +47,7 @@ Auto-generated from the source docstrings and type hints.
 ## FastAPI integration
 
 ::: gazebo.ext.fastapi
+
+## CLI / serving
+
+::: gazebo.ext.cli

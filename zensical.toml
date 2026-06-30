@@ -36,6 +36,7 @@ nav = [
     { "Conditional requests" = "fastapi/caching.md" },
     { "Proxy, context & health" = "fastapi/proxy.md" },
   ] },
+  { "Serving (CLI)" = "serving.md" },
   { Testing = [
     { Overview = "testing/index.md" },
     { Assertions = "testing/assertions.md" },

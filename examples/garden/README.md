@@ -25,7 +25,8 @@ workspace, so it resolves `gazebo` from one directory up.
 | Conformance declaration | `GET /conformance` |
 | Proxy-aware URLs + pluggable trust | `trust=trust_all` in `create_app` (demo) |
 | OpenAPI tags | `TAGS` + `tags_metadata` in `app.py` |
-| Request-id contextvar + logging filter | `RequestIdMiddleware` + `configure_logging` |
+| Request-id contextvar + logging filter | `RequestIdMiddleware` + `default_log_config(request_id=True)` |
+| Self-documenting CLI / serve command | `serve_command(create_app, settings=Settings)` in `app.py` |
 
 ## Endpoints
 
@@ -50,11 +51,13 @@ workspace's `gazebo` automatically):
 
 ```sh
 cd examples/garden
-uv run garden                 # serves on http://127.0.0.1:8000
+uv run garden serve           # serves on http://127.0.0.1:8000
+uv run garden serve --help    # every GARDEN_* setting + uvicorn options
 ```
 
-`uv run garden` runs the `garden` console script (equivalent to `python -m garden`
-or `uvicorn garden.app:app`).
+`garden` is a `click` group; `garden serve` runs the app via uvicorn (equivalent to
+`uvicorn --factory garden.app:create_app`, but with `--workers`/`--reload` and the
+settings options).
 
 ## Try it
 

@@ -30,7 +30,7 @@ re-implemented per project:
   link/problem assertions and a pagination driver that walks `next` to exhaustion.
 
 The core (`gazebo`) depends only on `pydantic`. Framework integration, GeoJSON, CQL2
-filtering, and the test helpers are opt-in extras.
+filtering, a self-documenting serve CLI, and the test helpers are opt-in extras.
 
 > [!NOTE]
 > This is an experiment using AI to refine a number of patterns I've
@@ -54,6 +54,7 @@ filtering, and the test helpers are opt-in extras.
 ```sh
 pip install gazebo             # core: pydantic only
 pip install 'gazebo[fastapi]'  # + the GazeboApp / FastAPI glue
+pip install 'gazebo[cli]'      # + a self-documenting uvicorn serve CLI
 pip install 'gazebo[geojson]'  # + GeoJSON Feature / FeatureCollection
 pip install 'gazebo[cql2]'     # + CQL2 filtering (cql2-rs engine)
 pip install 'gazebo[test]'     # + the pytest plugin

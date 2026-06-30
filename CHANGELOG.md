@@ -19,6 +19,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+## [v0.4.0] - 2026-06-30
+
+### Added
+
+- `gazebo.ext.cli` (new `gazebo[cli]` extra): `serve_command` builds a
+  self-documenting `click` "serve" command. It composes uvicorn's own options
+  (`--workers`/`--reload`/`--env-file`/...) and generates one documented option
+  per `pydantic-settings` field — each showing its env var, default, and
+  description — so `--help` is the configuration reference. A passed flag
+  simply sets its env var, so values reach uvicorn workers through the
+  environment with no cross-process transport; secrets (`SecretStr`) are kept
+  off the CLI. Includes `default_log_config` (with `json_logs` and `request_id`
+  switches) and a `serve --check` validate-and-exit preflight. Wired into the
+  garden example as `garden serve`.
+
 ## [0.3.0] - 2026-06-29
 
 ### Added
@@ -178,7 +193,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release 🎉
 
-[unreleased]: https://github.com/jkeifer/gazebo/compare/v0.3.0...HEAD
+[unreleased]: https://github.com/jkeifer/gazebo/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.4.0
 [0.3.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.3.0
 [0.2.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.2.0
 [0.1.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.1.0
