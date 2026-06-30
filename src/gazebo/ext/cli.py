@@ -14,9 +14,10 @@ core and **must not be imported by it**. It imports ``click``, ``uvicorn``, and
     value reaches the app and any uvicorn workers through the environment they
     already read. No serialization, no transport across the worker boundary.
 
-Secrets are never placed on the command line: model them as ``SecretStr`` (they get
-no flag) and supply them via the settings class's ``secrets_dir``
-(pydantic-settings reads ``/run/secrets``-style files) and/or env.
+Secrets are never accepted on the command line: model them as ``SecretStr`` and they
+get no value flag, only a documented entry in ``--help`` (their env var), so they stay
+out of shell history / ``ps``. Supply them via the settings class's ``secrets_dir``
+(pydantic-settings reads ``/run/secrets``-style files) or env.
 """
 
 import copy
@@ -27,7 +28,8 @@ import os
 
 from collections.abc import Sequence
 from enum import Enum
-from typing import Any, get_args
+from types import UnionType
+from typing import Any, Union, get_args, get_origin
 
 import click
 import uvicorn
@@ -164,14 +166,28 @@ def _is_secret(anno: Any) -> bool:
     return False
 
 
+def _unwrap_optional(anno: Any) -> Any:
+    """``X | None`` / ``Optional[X]`` -> ``X`` (only for a single non-None arm), so an
+    optional scalar gets the same flag its non-optional twin would."""
+    if get_origin(anno) in (Union, UnionType):
+        non_none = [a for a in get_args(anno) if a is not type(None)]
+        if len(non_none) == 1:
+            return non_none[0]
+    return anno
+
+
 def _settings_options(
     settings_cls: type[BaseSettings],
 ) -> list[tuple[click.Parameter, str, str]]:
-    """One documented click.Option per scalar, non-secret field. Returns
+    """One documented click.Option per non-secret field. Returns
     ``(option, dest, envvar)``. Flags are prefixed by the env_prefix (e.g.
     ``--app-host``) so they never collide with uvicorn's own options and read as
     'app config' vs 'server config' in --help. The option's only runtime effect is
-    to set its env var when passed; everything else is for ``--help``."""
+    to set its env var when passed; everything else is for ``--help``.
+
+    No type gating: a flag just writes a string to the env var, and pydantic
+    deserializes it exactly as it does for env loading — so a flag can carry whatever
+    an env var can (scalars directly; complex types as a JSON string)."""
     opts: list[tuple[click.Parameter, str, str]] = []
     prefix = settings_cls.model_config.get('env_prefix', '')
     case_sensitive = settings_cls.model_config.get('case_sensitive', False)
@@ -180,18 +196,31 @@ def _settings_options(
         anno = field.annotation
         if _is_secret(anno):
             continue  # never put a secret on the command line
+        anno = _unwrap_optional(anno)
         envvar = prefix + name
         envvar = envvar if case_sensitive else envvar.upper()
         dest = f'{group}_{name}' if group else name
         dash = dest.replace('_', '-')
         default = field.default if field.default is not PydanticUndefined else None
+        required = field.is_required()
         kw: dict[str, Any] = {
             'envvar': envvar,
             'show_envvar': True,
             'show_default': True,
             'help': field.description,
-            'default': default,
+            # click reads `envvar`, so a required field is satisfied by the flag OR
+            # the env var (not forced onto the command line) — shown in --help, errors
+            # early only if neither is set. A required option must carry NO default: a
+            # default (even None) suppresses click's required check.
+            'required': required,
         }
+        if not required:
+            kw['default'] = default
+        # Every field gets a flag (no type gating). The default is a plain string
+        # flag: the value is written verbatim to the env var and pydantic deserializes
+        # it exactly as for env loading — scalars (str/int/Path/UUID/...) directly,
+        # complex types (list/dict/model) as JSON. Only bool and enum get a special
+        # widget, for UX and self-documentation — not because of how they parse.
         decls = [f'--{dash}']
         if anno is bool:
             decls = [f'--{dash}/--no-{dash}']
@@ -199,10 +228,6 @@ def _settings_options(
             kw['type'] = click.Choice([e.value for e in anno])
             if isinstance(default, Enum):
                 kw['default'] = default.value
-        elif anno in (str, int, float):
-            kw['type'] = anno
-        else:
-            continue  # complex (list/dict): documented as env-only, no flag
         opts.append((click.Option(decls, **kw), dest, envvar))
     return opts
 
@@ -289,6 +314,33 @@ def _setting_options_and_routing(
     return options, routing
 
 
+def _secrets_epilog(classes: tuple[type[BaseSettings], ...]) -> str | None:
+    """A ``--help`` section documenting secret fields as a configuration surface —
+    their env vars, but no value-accepting flag, so secrets never land in shell
+    history or ``ps``. Supply them via the environment or the class's secrets_dir."""
+    rows: list[tuple[str, str]] = []
+    for cls in classes:
+        prefix = cls.model_config.get('env_prefix', '')
+        case_sensitive = cls.model_config.get('case_sensitive', False)
+        for name, field in cls.model_fields.items():
+            if not _is_secret(field.annotation):
+                continue
+            envvar = prefix + name
+            desc = field.description or ''
+            if field.is_required():  # no flag to mark required, so say so here
+                desc = f'{desc} (required)'.strip()
+            rows.append((envvar if case_sensitive else envvar.upper(), desc))
+    if not rows:
+        return None
+    width = max(len(envvar) for envvar, _ in rows)
+    listing = '\n'.join(f'  {envvar.ljust(width)}  {desc}'.rstrip() for envvar, desc in rows)
+    # the \b marks the listing as preformatted so click doesn't rewrap the columns
+    return (
+        'Secrets (set via the environment or a secrets file, never on the command '
+        'line):\n\n\b\n' + listing
+    )
+
+
 def _uvicorn_passthrough_options(excluded: set[str]) -> list[click.Parameter]:
     """Copies of uvicorn's own CLI options (never the originals), with an env var
     annotated for documentation. Excludes the ones we pin or control."""
@@ -373,6 +425,7 @@ def serve_command(
         name,
         params=[check_opt, *setting_opts, *uvicorn_opts],
         callback=callback,
+        epilog=_secrets_epilog(classes),
         help='Run the server. Settings options set the matching env var; the rest '
         'are uvicorn options.',
     )

@@ -27,6 +27,7 @@ workspace, so it resolves `gazebo` from one directory up.
 | OpenAPI tags | `TAGS` + `tags_metadata` in `app.py` |
 | Request-id contextvar + logging filter | `RequestIdMiddleware` + `default_log_config(request_id=True)` |
 | Self-documenting CLI / serve command | `serve_command(create_app, settings=Settings)` in `app.py` |
+| Secret as a documented config surface | `primary_dsn: SecretStr` — shown under `garden serve --help`'s Secrets, no value flag |
 
 ## Endpoints
 
