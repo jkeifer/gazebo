@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://teotl.dev/gazebo/dev/testing/">
+        <link rel="canonical" href="https://teotl.dev/gazebo/dev/serving/">
       
       
-        <link rel="prev" href="../serving/">
+        <link rel="prev" href="../fastapi/proxy/">
       
       
-        <link rel="next" href="./assertions/">
+        <link rel="next" href="../testing/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>Testing - gazebo</title>
+        <title>Serving (CLI) - gazebo</title>
       
     
     
@@ -83,7 +83,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#testing" class="md-skip">
+        <a href="#serving-cli" class="md-skip">
           Skip to content
         </a>
       
@@ -123,7 +123,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Testing
+              Serving (CLI)
             
           </span>
         </div>
@@ -1010,10 +1010,36 @@
       
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../serving/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Serving (CLI)
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1028,6 +1054,71 @@
   
 
       </a>
+      
+        
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#building-a-serve-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Building a serve command
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-settings-reach-the-app" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        How settings reach the app
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation-and-logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Validation and logging
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Reference
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1036,8 +1127,6 @@
       
   
   
-    
-  
   
   
     
@@ -1062,15 +1151,15 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="././" class="md-nav__link md-nav__link--active">
+            <a href="../testing/" class="md-nav__link ">
               
   
   
@@ -1087,13 +1176,13 @@
             </a>
             
               
-              <label class="md-nav__link md-nav__link--active" for="__nav_7" id="__nav_7_label" tabindex="">
+              <label class="md-nav__link " for="__nav_7" id="__nav_7_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_7">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1112,7 +1201,7 @@
   
   
     <li class="md-nav__item">
-      <a href="./assertions/" class="md-nav__link">
+      <a href="../testing/assertions/" class="md-nav__link">
         
   
   
@@ -1139,7 +1228,7 @@
   
   
     <li class="md-nav__item">
-      <a href="./pagination/" class="md-nav__link">
+      <a href="../testing/pagination/" class="md-nav__link">
         
   
   
@@ -1166,7 +1255,7 @@
   
   
     <li class="md-nav__item">
-      <a href="./fixtures/" class="md-nav__link">
+      <a href="../testing/fixtures/" class="md-nav__link">
         
   
   
@@ -1286,10 +1375,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-the-plugin-provides" class="md-nav__link">
+  <a href="#building-a-serve-command" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        What the plugin provides
+        Building a serve command
       </span>
     </span>
   </a>
@@ -1297,10 +1386,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#opting-in" class="md-nav__link">
+  <a href="#how-settings-reach-the-app" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        Opting in
+        How settings reach the app
       </span>
     </span>
   </a>
@@ -1308,10 +1397,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#in-this-section" class="md-nav__link">
+  <a href="#validation-and-logging" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        In this section
+        Validation and logging
       </span>
     </span>
   </a>
@@ -1344,7 +1433,7 @@
                 
                   
   
-    <a href="https://github.com/jkeifer/gazebo/edit/main/docs/testing/index.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/jkeifer/gazebo/edit/main/docs/serving.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-file-pen" viewBox="0 0 24 24"><path d="M12.659 22H18a2 2 0 0 0 2-2V8a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 14 2H6a2 2 0 0 0-2 2v9.34"/><path d="M14 2v5a1 1 0 0 0 1 1h5M10.378 12.622a1 1 0 0 1 3 3.003L8.36 20.637a2 2 0 0 1-.854.506l-2.867.837a.5.5 0 0 1-.62-.62l.836-2.869a2 2 0 0 1 .506-.853z"/></svg>
     </a>
@@ -1352,59 +1441,67 @@
   
 
 
-<h1 id="testing">Testing<a class="headerlink" href="#testing" title="Permanent link">&para;</a></h1>
+<h1 id="serving-cli">Serving (CLI)<a class="headerlink" href="#serving-cli" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p><code>gazebo.testing</code> — a pytest plugin for asserting the OGC-ness of a service
-declaratively: problem/link assertions, a pagination driver, and fixtures.
-Requires the <code>gazebo[test]</code> extra.</p>
+<p>A self-documenting <code>serve</code> command: run your app with uvicorn, and let <code>--help</code>
+show every setting and the env var that configures it.</p>
 </blockquote>
-<h2 id="what-the-plugin-provides">What the plugin provides<a class="headerlink" href="#what-the-plugin-provides" title="Permanent link">&para;</a></h2>
-<p>Testing an OGC-style service means checking the same shapes over and over: errors
-are problem+json, envelopes carry the right links, pagination follows <code>next</code> to the
-end without looping. <code>gazebo.testing</code> packages those checks so each test states the
-<em>intent</em> instead of re-walking the JSON. It gives you three kinds of thing:</p>
-<ul>
-<li><strong>Assertions</strong> — <a href="assertions/"><code>assert_problem</code></a>, <a href="assertions/"><code>assert_has_link</code></a>,
-  and the non-asserting <a href="assertions/"><code>find_link</code></a>. They check both content-type
-  <em>and</em> document shape, and return the matched value for further assertions.</li>
-<li><strong>A pagination driver</strong> — <a href="pagination/"><code>drive_pagination</code></a> follows <code>next</code> links
-  to exhaustion, accumulates the items, asserts the envelope invariants on <em>every</em>
-  page, and guards against a runaway/looping link. GET and POST.</li>
-<li><strong>Fixtures</strong> — opt-in <a href="fixtures/"><code>gazebo_link_context</code></a> (contextvar isolation)
-  and <a href="fixtures/"><code>gazebo_overrides</code></a> (a fresh <code>Overrides</code>).</li>
-</ul>
-<p>Everything is a plain importable function plus opt-in fixtures — nothing is autouse,
-nothing runs unless you ask for it.</p>
-<h2 id="opting-in">Opting in<a class="headerlink" href="#opting-in" title="Permanent link">&para;</a></h2>
-<p>The helpers would work as ordinary functions, but registering <code>gazebo.testing</code> as a
-pytest plugin buys one thing you can't get otherwise: <strong>pytest rewrites the <code>assert</code>
-statements inside the helpers</strong>. A failed <code>assert_has_link</code> or <code>assert_problem</code> then
-shows pytest's full introspection — the actual links present, the actual status — not
-just a hand-written message string.</p>
-<p>It does <strong>not</strong> auto-register (an entry-point plugin would import gazebo, and impose
-its fixtures, on every downstream pytest session). Opt in with one line in your
-top-level <code>conftest.py</code>:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">pytest_plugins</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;gazebo.testing&#39;</span><span class="p">]</span>
+<p>Most projects hand-roll a CLI that calls <code>uvicorn.run(...)</code>, plus some way for
+operators to discover how the app is configured. <code>serve_command</code> packages both: it
+composes uvicorn's own options (so <code>--workers</code>, <code>--reload</code>, <code>--host</code>, <code>--env-file</code>
+all work) and generates one documented option per settings field, so <code>--help</code>
+<em>becomes</em> the configuration reference.</p>
+<p>It requires the <code>gazebo[cli]</code> extra (<code>click</code>, <code>uvicorn</code>, <code>pydantic-settings</code>).</p>
+<h2 id="building-a-serve-command">Building a serve command<a class="headerlink" href="#building-a-serve-command" title="Permanent link">&para;</a></h2>
+<p>Point it at an importable app factory and your <code>pydantic-settings</code> class, then add
+the result to your <code>click</code> group:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">Settings</span><span class="p">(</span><span class="n">BaseSettings</span><span class="p">):</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">model_config</span> <span class="o">=</span> <span class="n">SettingsConfigDict</span><span class="p">(</span><span class="n">env_prefix</span><span class="o">=</span><span class="s1">&#39;APP_&#39;</span><span class="p">)</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">greeting</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;hello&#39;</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">debug</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="k">def</span><span class="w"> </span><span class="nf">create_app</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">FastAPI</span><span class="p">:</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">settings</span> <span class="o">=</span> <span class="n">Settings</span><span class="p">()</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">app</span> <span class="o">=</span> <span class="n">FastAPI</span><span class="p">()</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">root</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>        <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;greeting&#39;</span><span class="p">:</span> <span class="n">settings</span><span class="o">.</span><span class="n">greeting</span><span class="p">}</span>
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    <span class="k">return</span> <span class="n">app</span>
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="c1"># Add to your click group: cli.add_command(serve)</span>
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="n">serve</span> <span class="o">=</span> <span class="n">serve_command</span><span class="p">(</span>
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>    <span class="n">create_app</span><span class="p">,</span>
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>    <span class="n">settings</span><span class="o">=</span><span class="n">Settings</span><span class="p">,</span>
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>    <span class="n">log_config</span><span class="o">=</span><span class="n">default_log_config</span><span class="p">(</span><span class="n">json_logs</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a><span class="p">)</span>
 </span></code></pre></div>
-<p>That enables the fixtures and the assertion rewriting. (Confirm with
-<code>pytest --fixtures | grep gazebo</code>.) The assertion <em>functions</em> are importable and
-usable without opting in — you just miss the rewritten failure output.</p>
-<div class="admonition warning">
-<p class="admonition-title">Don't run tests under <code>-O</code></p>
-<p>The helpers assert with bare <code>assert</code>, so running pytest under <code>python -O</code> /
-<code>PYTHONOPTIMIZE</code> strips them and they silently become no-ops. Inherent to any
-assertion helper — keep assertions enabled when running tests.</p>
-</div>
-<h2 id="in-this-section">In this section<a class="headerlink" href="#in-this-section" title="Permanent link">&para;</a></h2>
-<ul>
-<li><a href="assertions/">Assertions</a> — <code>assert_problem</code>, <code>assert_has_link</code>, <code>find_link</code>.</li>
-<li><a href="pagination/">Pagination driver</a> — <code>drive_pagination</code> and its invariants.</li>
-<li><a href="fixtures/">Fixtures</a> — <code>gazebo_link_context</code>, <code>gazebo_overrides</code>.</li>
-</ul>
-<p>The <a href="../example/">garden example</a> uses all of these in its own test suite.</p>
+<p><code>yourcli serve --help</code> now lists <code>--app-greeting</code> — with its env var
+(<code>APP_GREETING</code>), default, and description — alongside uvicorn's options.</p>
+<h2 id="how-settings-reach-the-app">How settings reach the app<a class="headerlink" href="#how-settings-reach-the-app" title="Permanent link">&para;</a></h2>
+<p>A settings flag's only job is to <strong>set its env var</strong>; the app (and every uvicorn
+worker) reads configuration from the environment as usual, so nothing is serialized
+across the worker boundary. Settings flags are prefixed by the class's <code>env_prefix</code>
+(required), so they never collide with uvicorn's options and read as <em>app config</em>
+vs <em>server config</em> in <code>--help</code>. For multiple groups, pass <code>settings=[A, B]</code>; each
+needs a distinct <code>env_prefix</code>.</p>
+<p>Secrets are never placed on the command line: model them as <code>SecretStr</code> (they get
+no flag) and supply them via the settings class's <code>secrets_dir</code> (Docker/k8s
+<code>/run/secrets</code>) and/or env.</p>
+<p>The app target must be an importable <code>'module:attr'</code> string or a module-level
+factory — uvicorn's <code>--workers</code>/<code>--reload</code> re-import it by name, so live app objects
+and lambdas are rejected.</p>
+<h2 id="validation-and-logging">Validation and logging<a class="headerlink" href="#validation-and-logging" title="Permanent link">&para;</a></h2>
+<p><code>yourcli serve --check</code> validates settings (including required secrets) and that the
+app imports, then exits — handy for CI and container preflight. <code>default_log_config()</code>
+is pinned by default; pass <code>json_logs=True</code> for one-JSON-object-per-line output, or
+<code>request_id=True</code> to thread gazebo's request id into every line.</p>
 <h2 id="reference">Reference<a class="headerlink" href="#reference" title="Permanent link">&para;</a></h2>
-<p>See <a href="../reference/#gazebo.testing"><code>gazebo.testing</code></a>.
-</content></p>
+<p>See <a href="../reference/#gazebo.ext.cli"><code>gazebo.ext.cli</code></a>.</p>
 
 
 
@@ -1442,7 +1539,7 @@ assertion helper — keep assertions enabled when running tests.</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../serving/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Serving (CLI)">
+          <a href="../fastapi/proxy/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Proxy, context &amp; health">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></svg>
@@ -1452,20 +1549,20 @@ assertion helper — keep assertions enabled when running tests.</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                Serving (CLI)
+                Proxy, context & health
               </div>
             </div>
           </a>
         
         
           
-          <a href="./assertions/" class="md-footer__link md-footer__link--next" aria-label="Next: Assertions">
+          <a href="../testing/" class="md-footer__link md-footer__link--next" aria-label="Next: Overview">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Assertions
+                Overview
               </div>
             </div>
             <div class="md-footer__button md-icon">
