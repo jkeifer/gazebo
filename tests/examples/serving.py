@@ -11,7 +11,7 @@ from click.testing import CliRunner
 from fastapi import FastAPI
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from gazebo.ext.cli import default_log_config, settings_options
+from gazebo.ext.cli import SettingsGroup, default_log_config
 from gazebo.ext.uvicorn import serve, serve_command
 
 
@@ -37,7 +37,7 @@ def create_app() -> FastAPI:
 # Add to your click group: cli.add_command(serve_cmd)
 serve_cmd = serve_command(
     create_app,
-    settings=Settings,
+    settings_group=SettingsGroup(Settings),
     log_config=default_log_config(json_logs=True),
 )
 # --8<-- [end:serve]
@@ -52,14 +52,14 @@ assert '--workers' not in flags  # uvicorn options are forwarded, not our own pa
 
 # --8<-- [start:compose]
 # gazebo.ext.cli imports no server, so the same pieces compose atop any server. Here we
-# hand-roll a command: settings_options() writes each setting's env var when passed
+# hand-roll a command: SettingsGroup(...).options writes each setting's env var when passed
 # (expose_value=False, so the callback never sees them), and ignore_unknown_options +
 # allow_extra_args let every uvicorn flag fall through to ctx.args. We forward those to
 # serve() after our own author defaults (--workers 4), which the operator can override.
 @click.command(
     'serve',
     context_settings={'ignore_unknown_options': True, 'allow_extra_args': True},
-    params=settings_options(Settings, rename={'greeting': '--message'}),
+    params=SettingsGroup(Settings, rename={'--app-greeting': '--message'}).options,
 )
 def custom_serve() -> None:
     ctx = click.get_current_context()

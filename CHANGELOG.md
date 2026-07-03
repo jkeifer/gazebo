@@ -9,11 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `gazebo.ext.cli.SettingsGroup`: a class that composes one or more
+  `pydantic-settings` classes into a validated set of self-documenting CLI
+  options. Construct it with per-group `exclude`/`rename` (keyed by the
+  **generated flag**, e.g. `rename={'--app-config': '--config'}`; a `rename`
+  value may be a sequence like `['-C', '--config']` to add a short option), read
+  `.options` to splat onto any `click` command, and `.secrets_epilog` for the
+  secrets `--help` section. Combine groups with `+`; constructing or combining
+  validates the whole set (distinct `env_prefix` per group, no flag collisions,
+  and every `exclude`/`rename` key must match a generated flag or it raises).
+
 ### Changed
+
+- **Breaking:** `gazebo.ext.uvicorn.serve_command()` now takes a single
+  `settings_group: SettingsGroup` instead of `settings` (a settings class or
+  sequence) plus `exclude`/`rename`. The composition and its checks moved to
+  `SettingsGroup`, keeping `serve_command` focused on the uvicorn boundary.
+  Migration: `serve_command(app, settings=Settings, rename={...})` becomes
+  `serve_command(app, settings_group=SettingsGroup(Settings, rename={...}))`.
 
 ### Deprecated
 
 ### Removed
+
+- **Breaking:** `gazebo.ext.cli.settings_options()` is replaced by
+  `gazebo.ext.cli.SettingsGroup`. Migration: `settings_options(Settings, ...)`
+  becomes `SettingsGroup(Settings, ...).options`, and its `exclude`/`rename` now
+  key by the generated flag (e.g. `--app-greeting`) rather than the bare field
+  name — so a key reads in the same namespace as a `rename` value, stays
+  unambiguous across groups, and a key matching no generated flag raises instead
+  of silently doing nothing (`{'greeting': ...}` -> `{'--app-greeting': ...}`).
 
 ### Fixed
 

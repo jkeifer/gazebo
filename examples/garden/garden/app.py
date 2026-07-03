@@ -13,7 +13,7 @@ import click
 
 from gazebo.asgi import ASGIApp, Receive, Scope, Send, trust_all
 from gazebo.context import use_request_id
-from gazebo.ext.cli import default_log_config
+from gazebo.ext.cli import SettingsGroup, default_log_config
 from gazebo.ext.uvicorn import serve_command
 from gazebo.ext.fastapi import GazeboApp, Overrides, Providers
 from gazebo.tags import Tag, tags_metadata
@@ -87,10 +87,13 @@ def main() -> None:
 
 # `garden serve` documents GARDEN_* settings in --help, runs uvicorn (with
 # --workers/--reload), and wires the request-id into logs via gazebo's filter.
+# The SettingsGroup owns the option composition and its `rename`: it maps the generated
+# `--garden-replica-dsn` flag to a plain `--replica` so it matches the rest of the CLI's
+# naming (the env var, GARDEN_REPLICA_DSN, is unchanged).
 main.add_command(
     serve_command(
         create_app,
-        settings=Settings,
+        settings_group=SettingsGroup(Settings, rename={'--garden-replica-dsn': '--replica'}),
         log_config=default_log_config(request_id=True),
     ),
 )

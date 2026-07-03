@@ -9,11 +9,12 @@ extra.
 
 The building blocks:
 
-  * :func:`settings_options` — one documented, self-propagating ``click.Option`` per
-    settings field, so ``--help`` shows every setting, its env var, default, and
-    description (the self-documentation), and a passed option writes its env var so the
-    value reaches the app (and any server workers) through the environment they already
-    read. No serialization, no transport across the worker boundary.
+  * :class:`SettingsGroup` — one or more settings classes composed into a validated set
+    of documented, self-propagating ``click.Option``\\ s (one per field), so ``--help``
+    shows every setting, its env var, default, and description (the self-documentation),
+    and a passed option writes its env var so the value reaches the app (and any server
+    workers) through the environment they already read. No serialization, no transport
+    across the worker boundary. Combine groups with ``+``.
   * :func:`secrets_epilog` — the ``--help`` epilog documenting secret fields (their env
     var, requiredness) without accepting them as flags, so a composed command can
     document secrets without ever putting them on the command line.
@@ -30,6 +31,8 @@ settings class's ``secrets_dir`` (pydantic-settings reads ``/run/secrets``-style
 or env.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import os
@@ -37,7 +40,7 @@ import os
 from collections.abc import Collection, Mapping, Sequence
 from enum import Enum
 from types import UnionType
-from typing import Any, Union, get_args, get_origin
+from typing import Any, NamedTuple, Union, get_args, get_origin
 
 import click
 
@@ -48,9 +51,9 @@ from pydantic_settings import BaseSettings
 
 __all__ = [
     'JsonFormatter',
+    'SettingsGroup',
     'default_log_config',
     'secrets_epilog',
-    'settings_options',
 ]
 
 
@@ -199,58 +202,77 @@ def _require_env_prefix(cls: type[BaseSettings]) -> None:
         )
 
 
-def settings_options(
+def _generated_flags(settings_cls: type[BaseSettings]) -> dict[str, str]:
+    """Map each non-secret field to the long flag :class:`SettingsGroup` generates for
+    it (e.g. ``{'greeting': '--app-greeting'}``). This flag — not the bare field name — is
+    the stable key callers use in ``exclude``/``rename``, so a key reads in the same
+    namespace as the value it maps to and stays unambiguous across groups. Secret fields
+    have no option, so they don't appear here."""
+    prefix = settings_cls.model_config.get('env_prefix', '')
+    group = prefix.rstrip('_').lower()
+    flags: dict[str, str] = {}
+    for name, field in settings_cls.model_fields.items():
+        if _is_secret(field.annotation):
+            continue
+        dest = f'{group}_{name}' if group else name
+        flags[name] = '--' + dest.replace('_', '-')
+    return flags
+
+
+def _option_decls(
+    flag: str,
+    anno: Any,
+    rename: Mapping[str, str | Sequence[str]],
+) -> list[str]:
+    """The click declaration(s) for one option: its generated flag, a ``bool``'s
+    ``--x/--no-x`` toggle, or a rename's replacement (a single decl or a short+long
+    sequence, with the bool toggle re-derived when the rename didn't spell it out)."""
+    if flag in rename:
+        decl = rename[flag]
+        decls = [decl] if isinstance(decl, str) else list(decl)
+        if anno is bool and not any('/' in d for d in decls):
+            # give a renamed bool the same on/off toggle a generated one has, hung on its
+            # long option (or its sole decl): '--flag' -> '--flag/--no-flag'.
+            longs = [i for i, d in enumerate(decls) if d.startswith('--')]
+            i = longs[-1] if longs else len(decls) - 1
+            decls[i] = f'{decls[i]}/--no-{decls[i].lstrip("-")}'
+        return decls
+    if anno is bool:
+        return [f'{flag}/--no-{flag[2:]}']
+    return [flag]
+
+
+def _group_options(
     settings_cls: type[BaseSettings],
-    *,
-    exclude: Collection[str] = (),
-    rename: Mapping[str, str] | None = None,
+    exclude: Collection[str],
+    rename: Mapping[str, str | Sequence[str]] | None,
 ) -> list[click.Parameter]:
-    """One self-documenting, self-propagating ``click.Option`` per non-secret field.
-
-    Each option is prefixed by the class's (required) ``env_prefix`` (e.g.
-    ``--app-host``) so it namespaces cleanly against the server's own options and other
-    settings groups, carries its env var for ``--help``, and — via a callback — writes
-    that env var when passed, so the value reaches the app with no export step of your
-    own. Options are ``expose_value=False``: they act purely by side effect, so they
-    don't appear in the command callback's signature.
-
-    Compose the lists from several classes to expose more than one group on one command
-    (``[*settings_options(A), *settings_options(B)]``); each class needs a distinct
-    ``env_prefix``. This is the presentation half of ``serve_command``, exposed so a
-    custom CLI can attach these options to its own command.
-
-    Args:
-        settings_cls: The ``pydantic-settings`` class to document.
-        exclude: Field names to omit. Use this to drop a field you pin to a constant —
-            set its env var yourself (or leave the app's default to stand) instead.
-        rename: ``{field_name: decl}`` to give a field a different flag, e.g.
-            ``{'greeting': '--message'}``, to unify names across a larger CLI. The env
-            var is unchanged, so the renamed option still propagates to the same field.
-            A renamed ``bool`` becomes the usual toggle automatically (``'--x'`` ->
-            ``--x/--no-x``); give the full ``'--x/--no-x'`` form to control both names.
-
-    No type gating: an option just writes a string to the env var, and pydantic
-    deserializes it exactly as it does for env loading — so an option can carry whatever
-    an env var can (scalars directly; complex types as a JSON string). Secret fields
-    (``SecretStr``/``SecretBytes``) get no option, so a secret never lands on the
-    command line."""
+    """Build one self-propagating ``click.Option`` per non-secret field — the body behind
+    :class:`SettingsGroup`; see that class for the ``exclude``/``rename`` semantics."""
     _require_env_prefix(settings_cls)
     rename = rename or {}
+    flags = _generated_flags(settings_cls)  # field name -> generated flag (the key space)
+    valid = set(flags.values())
+    unknown = (set(exclude) | set(rename)) - valid
+    if unknown:
+        raise ValueError(
+            f'{settings_cls.__name__}: {sorted(unknown)} in exclude/rename match no '
+            f'generated option; key by the generated flag — one of {sorted(valid)} '
+            '(a secret field has no option, so it cannot be excluded or renamed).',
+        )
     opts: list[click.Parameter] = []
     prefix = settings_cls.model_config.get('env_prefix', '')
     case_sensitive = settings_cls.model_config.get('case_sensitive', False)
-    group = prefix.rstrip('_').lower()
     for name, field in settings_cls.model_fields.items():
-        if name in exclude:
-            continue
         anno = field.annotation
         if _is_secret(anno):
             continue  # never put a secret on the command line
+        flag = flags[name]
+        if flag in exclude:
+            continue
         anno = _unwrap_optional(anno)
         envvar = prefix + name
         envvar = envvar if case_sensitive else envvar.upper()
-        dest = f'{group}_{name}' if group else name
-        dash = dest.replace('_', '-')
         default = field.default if field.default is not PydanticUndefined else None
         required = field.is_required()
         kw: dict[str, Any] = {
@@ -274,22 +296,120 @@ def settings_options(
             kw['type'] = click.Choice([e.value for e in anno])
             if isinstance(default, Enum):
                 kw['default'] = default.value
-        # Every field gets an option (no type gating). The default is a plain string
-        # option: the value is written verbatim to the env var and pydantic deserializes
-        # it exactly as for env loading — scalars (str/int/Path/UUID/...) directly,
-        # complex types (list/dict/model) as JSON. Only bool and enum get a special
-        # widget, for UX and self-documentation — not because of how they parse.
-        if name in rename:
-            decl = rename[name]
-            if anno is bool and '/' not in decl:
-                decl = f'{decl}/--no-{decl.lstrip("-")}'  # same toggle a bool always gets
-            decls = [decl]
-        elif anno is bool:
-            decls = [f'--{dash}/--no-{dash}']
-        else:
-            decls = [f'--{dash}']
-        opts.append(click.Option(decls, **kw))
+        # Every field gets an option (no type gating): the value is written verbatim to
+        # the env var and pydantic deserializes it exactly as for env loading — scalars
+        # directly, complex types as JSON. Only bool and enum get a special widget.
+        opts.append(click.Option(_option_decls(flag, anno, rename), **kw))
     return opts
+
+
+class _Group(NamedTuple):
+    settings_cls: type[BaseSettings]
+    options: list[click.Parameter]
+
+
+def _validate_groups(groups: tuple[_Group, ...]) -> None:
+    """Enforce the cross-group invariants — a distinct ``env_prefix`` per group and no two
+    options sharing a flag (a rename target can land on another option's flag). Run on
+    every construction/combination, so an invalid composition fails right there."""
+    seen_prefixes: set[str] = set()
+    seen_flags: set[str] = set()
+    for group in groups:
+        prefix = group.settings_cls.model_config.get('env_prefix', '')
+        if prefix in seen_prefixes:
+            raise ValueError(
+                f'duplicate env_prefix {prefix!r} across settings groups; '
+                'each group needs a distinct prefix',
+            )
+        seen_prefixes.add(prefix)
+        for opt in group.options:
+            for decl in (*opt.opts, *opt.secondary_opts):
+                if decl in seen_flags:
+                    raise ValueError(
+                        f'duplicate option {decl!r} across settings groups; a rename '
+                        'collided two options onto one flag — give them distinct names',
+                    )
+                seen_flags.add(decl)
+
+
+class SettingsGroup:
+    """One or more settings classes composed into a validated set of self-documenting CLI
+    options.
+
+    Construct one from a ``pydantic-settings`` class to expose its non-secret fields as
+    ``click`` options — each prefixed by the class's (required) ``env_prefix`` (e.g.
+    ``--app-host``), carrying its env var for ``--help``, and writing that env var when
+    passed so the value reaches the app (and any server workers) with no export step of
+    your own. The options are ``expose_value=False``: they act purely by side effect.
+
+    Combine groups with ``+`` to expose several on one command
+    (``SettingsGroup(A) + SettingsGroup(B)``); the result is another ``SettingsGroup``.
+    Constructing or combining validates the whole set: each group needs a distinct
+    ``env_prefix`` and no two options may share a flag. Pass the group to
+    :func:`gazebo.ext.uvicorn.serve_command`, or splat :attr:`options` onto your own
+    ``click`` command.
+
+    Args:
+        settings_cls: The ``pydantic-settings`` class to document. Omit for an empty group.
+        exclude: Generated flags to omit, e.g. ``{'--app-log-level'}`` — drop a field you
+            pin to a constant (set its env var yourself, or leave the app's default).
+        rename: ``{generated_flag: decl}`` to give an option a different flag, e.g.
+            ``{'--app-greeting': '--message'}``, to unify names across a larger CLI. The
+            key is the flag this would generate — reading in the same namespace as the
+            replacement, not the bare field name — and the env var is unchanged, so the
+            renamed option still propagates to the same field. ``decl`` may be a single
+            string or a sequence of declarations (``['-C', '--config']``) to add a short
+            option. A renamed ``bool`` gets the usual ``--x/--no-x`` toggle automatically;
+            give the full ``'--x/--no-x'`` form to control both names.
+
+    Raises:
+        ValueError: If an ``exclude``/``rename`` key matches no generated flag (a typo, or
+            a secret field, which has no option), if a group lacks an ``env_prefix``, or if
+            the composition has a duplicate prefix or a flag collision.
+    """
+
+    def __init__(
+        self,
+        settings_cls: type[BaseSettings] | None = None,
+        *,
+        exclude: Collection[str] = (),
+        rename: Mapping[str, str | Sequence[str]] | None = None,
+    ) -> None:
+        self._groups: tuple[_Group, ...] = ()
+        if settings_cls is not None:
+            opts = _group_options(settings_cls, exclude, rename)
+            self._groups = (_Group(settings_cls, opts),)
+        _validate_groups(self._groups)
+
+    @classmethod
+    def _combined(cls, groups: tuple[_Group, ...]) -> SettingsGroup:
+        self = cls.__new__(cls)
+        self._groups = groups
+        _validate_groups(groups)
+        return self
+
+    def __add__(self, other: object) -> SettingsGroup:
+        if not isinstance(other, SettingsGroup):
+            return NotImplemented
+        return SettingsGroup._combined(self._groups + other._groups)
+
+    @property
+    def options(self) -> list[click.Parameter]:
+        """The composed ``click`` options — one per non-secret field across every group."""
+        return [opt for group in self._groups for opt in group.options]
+
+    @property
+    def settings_classes(self) -> tuple[type[BaseSettings], ...]:
+        """The settings classes in composition order (for ``--check`` and secret docs)."""
+        return tuple(group.settings_cls for group in self._groups)
+
+    @property
+    def secrets_epilog(self) -> str | None:
+        """A ``--help`` epilog documenting every group's secret fields (their env var,
+        requiredness) without a value flag, or ``None`` if no group has a secret. See
+        :func:`secrets_epilog`."""
+        classes = self.settings_classes
+        return secrets_epilog(classes) if classes else None
 
 
 def secrets_epilog(
