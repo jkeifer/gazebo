@@ -51,3 +51,5 @@ Auto-generated from the source docstrings and type hints.
 ## CLI / serving
 
 ::: gazebo.ext.cli
+
+::: gazebo.ext.uvicorn
