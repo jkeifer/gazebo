@@ -43,8 +43,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Migration: `serve_command(app, settings=Settings, rename={...})` becomes
   `serve_command(app, settings_group=SettingsGroup(Settings, rename={...}))`.
 
-### Deprecated
-
 ### Removed
 
 - **Breaking:** `gazebo.ext.cli.settings_options()` is replaced by
@@ -55,10 +53,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unambiguous across groups, and a key matching no generated flag raises
   instead of silently doing nothing (`{'greeting': ...}` -> `{'--app-greeting':
   ...}`).
-
-### Fixed
-
-### Security
 
 ## [v0.5.0] - 2026-07-03
 
