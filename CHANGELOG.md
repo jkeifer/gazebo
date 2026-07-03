@@ -9,15 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [v0.6.0] - 2026-07-03
+
+### Added
+
 - `gazebo.ext.cli.SettingsGroup`: a class that composes one or more
   `pydantic-settings` classes into a validated set of self-documenting CLI
   options. Construct it with per-group `exclude`/`rename` (keyed by the
   **generated flag**, e.g. `rename={'--app-config': '--config'}`; a `rename`
-  value may be a sequence like `['-C', '--config']` to add a short option), read
-  `.options` to splat onto any `click` command, and `.secrets_epilog` for the
-  secrets `--help` section. Combine groups with `+`; constructing or combining
-  validates the whole set (distinct `env_prefix` per group, no flag collisions,
-  and every `exclude`/`rename` key must match a generated flag or it raises).
+  value may be a sequence like `['-C', '--config']` to add a short option),
+  read `.options` to splat onto any `click` command, and `.secrets_epilog` for
+  the secrets `--help` section. Combine groups with `+`; constructing or
+  combining validates the whole set (distinct `env_prefix` per group, no flag
+  collisions, and every `exclude`/`rename` key must match a generated flag or
+  it raises).
 
 ### Changed
 
@@ -34,11 +49,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Breaking:** `gazebo.ext.cli.settings_options()` is replaced by
   `gazebo.ext.cli.SettingsGroup`. Migration: `settings_options(Settings, ...)`
-  becomes `SettingsGroup(Settings, ...).options`, and its `exclude`/`rename` now
-  key by the generated flag (e.g. `--app-greeting`) rather than the bare field
-  name — so a key reads in the same namespace as a `rename` value, stays
-  unambiguous across groups, and a key matching no generated flag raises instead
-  of silently doing nothing (`{'greeting': ...}` -> `{'--app-greeting': ...}`).
+  becomes `SettingsGroup(Settings, ...).options`, and its `exclude`/`rename`
+  now key by the generated flag (e.g. `--app-greeting`) rather than the bare
+  field name — so a key reads in the same namespace as a `rename` value, stays
+  unambiguous across groups, and a key matching no generated flag raises
+  instead of silently doing nothing (`{'greeting': ...}` -> `{'--app-greeting':
+  ...}`).
 
 ### Fixed
 
@@ -281,7 +297,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release 🎉
 
-[unreleased]: https://github.com/jkeifer/gazebo/compare/v0.5.0...HEAD
+[unreleased]: https://github.com/jkeifer/gazebo/compare/v0.6.0...HEAD
+[v0.6.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.6.0
 [v0.5.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.5.0
 [v0.4.1]: https://github.com/jkeifer/gazebo/releases/tag/v0.4.1
 [v0.4.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.4.0
