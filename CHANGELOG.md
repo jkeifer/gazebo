@@ -9,7 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `gazebo.ext.cli`: `settings_options()`, `uvicorn_options()`, and `serve()` expose
+  the three pieces of `serve_command` — the settings option spec, uvicorn's option
+  spec, and the launch action — as composable building blocks, so a custom CLI can
+  attach them to its own command (renamed, reordered, alongside its own options) and
+  launch via `serve()` instead of routing through `serve_command` or reaching into
+  `uvicorn.main`. `serve()` takes only the uvicorn values you care about — unpassed
+  options get uvicorn's own CLI defaults (including `UVICORN_*` env vars), and unknown
+  names raise early. `settings_options()` takes `exclude` (drop a field) and `rename`
+  (re-flag a field, keeping its env var — a renamed `bool` still gets its
+  `--x/--no-x` toggle) so arguments can be overridden while composing;
+  `uvicorn_options()` always excludes `app`/`factory` and takes `exclude` for options you
+  pin. See the "Composing your own command" section in the serving docs.
+
 ### Changed
+
+- `gazebo.ext.cli` `serve_command`: settings options are now self-propagating —
+  each writes its own env var when passed (via a `click` option callback) and is
+  `expose_value=False`, so they no longer appear in the command callback's
+  signature. Behavior is unchanged for `serve_command` users; the payoff is that
+  an option produced by `settings_options()` wires itself up on any command with
+  no separate export step.
 
 ### Deprecated
 

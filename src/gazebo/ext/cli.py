@@ -10,9 +10,27 @@ core and **must not be imported by it**. It imports ``click``, ``uvicorn``, and
     options, composed in with full help);
   * generates one documented option per settings field, so ``--help`` shows every
     setting, its env var, default, and description — the self-documentation;
-  * when a settings flag is *passed*, it simply sets that field's env var, so the
+  * when a settings option is *passed*, it simply sets that field's env var, so the
     value reaches the app and any uvicorn workers through the environment they
     already read. No serialization, no transport across the worker boundary.
+
+The option *spec* is decoupled from the command so a custom CLI isn't forced through
+``serve_command``. Three composable pieces make up the whole, and ``serve_command`` is
+just the batteries-included assembly over them:
+
+  * :func:`settings_options` — the documented options for a settings group (with
+    ``exclude`` / ``rename`` to drop or re-flag a field);
+  * :func:`uvicorn_options` — copies of uvicorn's own options (``app`` / ``factory``
+    always excluded; ``exclude`` more that you pin);
+  * :func:`serve` — the launch action, delegating to uvicorn's own callback so its
+    value transforms run.
+
+A settings option is *self-propagating* — it carries a callback that writes its env var
+when passed — so you can drop it onto your own ``click`` command (renamed, reordered,
+alongside your own options) and it still reaches the app with no export step of your
+own. To *override* an argument: for uvicorn, ``exclude`` its option and pass the
+constant to :func:`serve`; for settings, ``rename`` the flag, or ``exclude`` it and set
+its env var yourself.
 
 Secrets are never accepted on the command line: model them as ``SecretStr`` and they
 get no value flag, only a documented entry in ``--help`` (their env var), so they stay
@@ -26,7 +44,7 @@ import json
 import logging
 import os
 
-from collections.abc import Sequence
+from collections.abc import Collection, Mapping, Sequence
 from enum import Enum
 from types import UnionType
 from typing import Any, Union, get_args, get_origin
@@ -39,7 +57,14 @@ from pydantic import SecretBytes, SecretStr
 from pydantic_core import PydanticUndefined
 from pydantic_settings import BaseSettings
 
-__all__ = ['JsonFormatter', 'default_log_config', 'serve_command']
+__all__ = [
+    'JsonFormatter',
+    'default_log_config',
+    'serve',
+    'serve_command',
+    'settings_options',
+    'uvicorn_options',
+]
 
 
 # --- default logging (the genuinely fiddly part) -----------------------------
@@ -176,23 +201,66 @@ def _unwrap_optional(anno: Any) -> Any:
     return anno
 
 
-def _settings_options(
-    settings_cls: type[BaseSettings],
-) -> list[tuple[click.Parameter, str, str]]:
-    """One documented click.Option per non-secret field. Returns
-    ``(option, dest, envvar)``. Flags are prefixed by the env_prefix (e.g.
-    ``--app-host``) so they never collide with uvicorn's own options and read as
-    'app config' vs 'server config' in --help. The option's only runtime effect is
-    to set its env var when passed; everything else is for ``--help``.
+def _propagate_to_env(ctx: click.Context, param: click.Parameter, value: Any) -> Any:
+    """Option callback: when the value came from the command line, write it to the
+    field's env var so it reaches the app (and every uvicorn worker) through the
+    environment they already read. Env- and default-sourced values are left untouched,
+    so the app's own resolution still wins. This is what makes a settings option
+    self-contained — compose it onto any command and it propagates itself, with no
+    separate export step."""
+    if (
+        param.name
+        and param.envvar
+        and ctx.get_parameter_source(param.name) == ParameterSource.COMMANDLINE
+    ):
+        os.environ[str(param.envvar)] = str(value)
+    return value
 
-    No type gating: a flag just writes a string to the env var, and pydantic
-    deserializes it exactly as it does for env loading — so a flag can carry whatever
-    an env var can (scalars directly; complex types as a JSON string)."""
-    opts: list[tuple[click.Parameter, str, str]] = []
+
+def settings_options(
+    settings_cls: type[BaseSettings],
+    *,
+    exclude: Collection[str] = (),
+    rename: Mapping[str, str] | None = None,
+) -> list[click.Parameter]:
+    """One self-documenting, self-propagating ``click.Option`` per non-secret field.
+
+    Each option is prefixed by the class's (required) ``env_prefix`` (e.g.
+    ``--app-host``) so it namespaces cleanly against uvicorn's own options and other
+    settings groups, carries its env var for ``--help``, and — via a callback — writes
+    that env var when passed, so the value reaches the app with no export step of your
+    own. Options are ``expose_value=False``: they act purely by side effect, so they
+    don't appear in the command callback's signature.
+
+    Compose the lists from several classes to expose more than one group on one command
+    (``[*settings_options(A), *settings_options(B)]``); each class needs a distinct
+    ``env_prefix``. This is the presentation half of :func:`serve_command`, exposed so a
+    custom CLI can attach these options to its own command.
+
+    Args:
+        settings_cls: The ``pydantic-settings`` class to document.
+        exclude: Field names to omit. Use this to drop a field you pin to a constant —
+            set its env var yourself (or leave the app's default to stand) instead.
+        rename: ``{field_name: decl}`` to give a field a different flag, e.g.
+            ``{'greeting': '--message'}``, to unify names across a larger CLI. The env
+            var is unchanged, so the renamed option still propagates to the same field.
+            A renamed ``bool`` becomes the usual toggle automatically (``'--x'`` ->
+            ``--x/--no-x``); give the full ``'--x/--no-x'`` form to control both names.
+
+    No type gating: an option just writes a string to the env var, and pydantic
+    deserializes it exactly as it does for env loading — so an option can carry whatever
+    an env var can (scalars directly; complex types as a JSON string). Secret fields
+    (``SecretStr``/``SecretBytes``) get no option, so a secret never lands on the
+    command line."""
+    _require_env_prefix(settings_cls)
+    rename = rename or {}
+    opts: list[click.Parameter] = []
     prefix = settings_cls.model_config.get('env_prefix', '')
     case_sensitive = settings_cls.model_config.get('case_sensitive', False)
     group = prefix.rstrip('_').lower()
     for name, field in settings_cls.model_fields.items():
+        if name in exclude:
+            continue
         anno = field.annotation
         if _is_secret(anno):
             continue  # never put a secret on the command line
@@ -208,7 +276,11 @@ def _settings_options(
             'show_envvar': True,
             'show_default': True,
             'help': field.description,
-            # click reads `envvar`, so a required field is satisfied by the flag OR
+            # the option acts by side effect only (write env var on the command line);
+            # nothing downstream needs its value, so keep it out of the callback kwargs.
+            'expose_value': False,
+            'callback': _propagate_to_env,
+            # click reads `envvar`, so a required field is satisfied by the option OR
             # the env var (not forced onto the command line) — shown in --help, errors
             # early only if neither is set. A required option must carry NO default: a
             # default (even None) suppresses click's required check.
@@ -216,19 +288,25 @@ def _settings_options(
         }
         if not required:
             kw['default'] = default
-        # Every field gets a flag (no type gating). The default is a plain string
-        # flag: the value is written verbatim to the env var and pydantic deserializes
-        # it exactly as for env loading — scalars (str/int/Path/UUID/...) directly,
-        # complex types (list/dict/model) as JSON. Only bool and enum get a special
-        # widget, for UX and self-documentation — not because of how they parse.
-        decls = [f'--{dash}']
-        if anno is bool:
-            decls = [f'--{dash}/--no-{dash}']
-        elif isinstance(anno, type) and issubclass(anno, Enum):
+        if isinstance(anno, type) and issubclass(anno, Enum):
             kw['type'] = click.Choice([e.value for e in anno])
             if isinstance(default, Enum):
                 kw['default'] = default.value
-        opts.append((click.Option(decls, **kw), dest, envvar))
+        # Every field gets an option (no type gating). The default is a plain string
+        # option: the value is written verbatim to the env var and pydantic deserializes
+        # it exactly as for env loading — scalars (str/int/Path/UUID/...) directly,
+        # complex types (list/dict/model) as JSON. Only bool and enum get a special
+        # widget, for UX and self-documentation — not because of how they parse.
+        if name in rename:
+            decl = rename[name]
+            if anno is bool and '/' not in decl:
+                decl = f'{decl}/--no-{decl.lstrip("-")}'  # same toggle a bool always gets
+            decls = [decl]
+        elif anno is bool:
+            decls = [f'--{dash}/--no-{dash}']
+        else:
+            decls = [f'--{dash}']
+        opts.append(click.Option(decls, **kw))
     return opts
 
 
@@ -290,28 +368,23 @@ def _require_env_prefix(cls: type[BaseSettings]) -> None:
         )
 
 
-def _setting_options_and_routing(
+def _combined_settings_options(
     classes: tuple[type[BaseSettings], ...],
-) -> tuple[list[click.Parameter], list[tuple[str, str]]]:
-    """The combined settings option group plus the ``(dest -> envvar)`` routing the
-    callback uses to write passed flags to the environment. Each class is its own
-    group, namespaced by its required, distinct env_prefix."""
+) -> list[click.Parameter]:
+    """The combined, self-propagating settings options for every group. Each class is
+    its own group, namespaced by its required, distinct env_prefix."""
     options: list[click.Parameter] = []
-    routing: list[tuple[str, str]] = []
     seen_prefixes: set[str] = set()
     for cls in classes:
-        _require_env_prefix(cls)
-        prefix = cls.model_config.get('env_prefix', '')
+        prefix = cls.model_config.get('env_prefix', '')  # settings_options requires it
         if prefix in seen_prefixes:
             raise ValueError(
                 f'duplicate env_prefix {prefix!r} across settings groups; '
                 'each group needs a distinct prefix',
             )
         seen_prefixes.add(prefix)
-        for option, dest, envvar in _settings_options(cls):
-            options.append(option)
-            routing.append((dest, envvar))
-    return options, routing
+        options.extend(settings_options(cls))
+    return options
 
 
 def _secrets_epilog(classes: tuple[type[BaseSettings], ...]) -> str | None:
@@ -341,9 +414,15 @@ def _secrets_epilog(classes: tuple[type[BaseSettings], ...]) -> str | None:
     )
 
 
-def _uvicorn_passthrough_options(excluded: set[str]) -> list[click.Parameter]:
-    """Copies of uvicorn's own CLI options (never the originals), with an env var
-    annotated for documentation. Excludes the ones we pin or control."""
+def uvicorn_options(*, exclude: Collection[str] = ()) -> list[click.Parameter]:
+    """Copies of uvicorn's own CLI options (never the originals, which are process-
+    global), each annotated with a ``UVICORN_*`` env var for ``--help`` where it lacks
+    one. ``app`` and ``factory`` are always excluded — you supply those yourself via
+    :func:`serve`; pass ``exclude`` for any further option you pin or control (its
+    constant then goes straight to :func:`serve`). This is the uvicorn presentation half
+    of :func:`serve_command`, exposed so a custom CLI can compose uvicorn's flags onto
+    its own command."""
+    excluded = _RESERVED | set(exclude)
     options: list[click.Parameter] = []
     for param in uvicorn.main.params:  # type: ignore[attr-defined]
         if param.name in excluded:
@@ -356,16 +435,66 @@ def _uvicorn_passthrough_options(excluded: set[str]) -> list[click.Parameter]:
     return options
 
 
-def _export_passed_settings(routing: list[tuple[str, str]], kwargs: dict[str, Any]) -> None:
-    """For each settings flag the user actually passed, write its env var so the
-    value reaches the app (and uvicorn workers) through the environment. Defaults and
-    env-sourced values are left untouched, so the app's own resolution still wins.
-    Settings keys are removed from ``kwargs`` so only uvicorn options remain."""
-    ctx = click.get_current_context()
-    for dest, envvar in routing:
-        if ctx.get_parameter_source(dest) == ParameterSource.COMMANDLINE:
-            os.environ[envvar] = str(kwargs[dest])
-        kwargs.pop(dest, None)
+def _uvicorn_option_defaults() -> dict[str, Any]:
+    """The CLI-equivalent default for every uvicorn option. uvicorn's callback is the
+    raw function behind its click command and has no parameter defaults of its own
+    (click normally supplies every option's value), so :func:`serve` overlays the
+    caller's kwargs on these to stay callable with only the values that matter.
+
+    Resolved by parsing an empty command line with click itself (``make_context``), so
+    the values are exactly what a bare ``uvicorn <app>`` run would see — including
+    click-version sentinel handling and any ``UVICORN_*`` env vars, which uvicorn's own
+    CLI honors too."""
+    ctx = uvicorn.main.make_context('uvicorn', ['-'])  # type: ignore[attr-defined]
+    defaults = dict(ctx.params)
+    for name in (*_RESERVED, 'log_config'):  # serve() supplies these explicitly
+        defaults.pop(name, None)
+    return defaults
+
+
+def serve(
+    app: str | Any,
+    *,
+    factory: bool = False,
+    log_config: Any = None,
+    **uvicorn_kwargs: Any,
+) -> None:
+    """Launch ``app`` via uvicorn, delegating to uvicorn's own CLI callback so its value
+    transforms run (``--header`` split, ``--app-dir`` -> ``sys.path``, log-config
+    loading, ...). This is the action half of :func:`serve_command`, exposed so a custom
+    command can build its own options (see :func:`uvicorn_options`,
+    :func:`settings_options`) and forward the parsed uvicorn values here instead of
+    reaching into ``uvicorn.main`` itself.
+
+    Only pass the values you care about: any uvicorn option not passed gets uvicorn's
+    own CLI default, so ``serve('pkg.mod:app', workers=4)`` is a complete call. Because
+    values go through uvicorn's CLI callback, they must be **CLI-shaped** where the two
+    differ (e.g. ``headers=['x-a:b']``, the ``--header`` form, not ``uvicorn.run()``'s
+    pair tuples) — the same shapes the composed options parse, so parsed values and
+    pinned constants mix freely.
+
+    Args:
+        app: A ``'module:attr'`` import string or an importable (module-level) factory.
+            Live app objects and lambdas are rejected — uvicorn re-imports by name.
+        factory: Force factory mode for a string ``app`` (auto-detected for callables).
+        log_config: dictConfig for uvicorn; defaults to :func:`default_log_config` when
+            omitted, so structured logging is on without extra wiring.
+        **uvicorn_kwargs: uvicorn option values (the parsed values of
+            :func:`uvicorn_options`, and/or constants for options you pinned). Keys must
+            be uvicorn option names — unknown keys raise ``ValueError`` — so pop your
+            own non-uvicorn options first.
+    """
+    factory_path, derived_factory = _resolve_app(app)
+    _reject_unknown_uvicorn_kwargs(uvicorn_kwargs)
+    if log_config is None:
+        log_config = default_log_config()
+    kwargs = _uvicorn_option_defaults() | uvicorn_kwargs
+    uvicorn.main.callback(  # type: ignore[misc]
+        app=factory_path,
+        factory=factory or derived_factory,
+        log_config=log_config,
+        **kwargs,
+    )
 
 
 def serve_command(
@@ -385,7 +514,8 @@ def serve_command(
             uvicorn workers re-import by name.
         settings: A pydantic-settings class or a sequence of them. Each becomes a
             self-documenting option group, namespaced by its (required, distinct)
-            ``env_prefix``; a passed flag sets the matching env var.
+            ``env_prefix``; a passed option sets the matching env var. See
+            :func:`settings_options` to compose these onto a command of your own.
         name: The command name (default ``serve``).
         factory: Force factory mode for a string ``app`` (auto-detected for callables).
         log_config: dictConfig for uvicorn; defaults to :func:`default_log_config`.
@@ -397,8 +527,10 @@ def serve_command(
     _reject_unknown_uvicorn_kwargs(fixed)
 
     classes = _as_tuple(settings)
-    setting_opts, routing = _setting_options_and_routing(classes)
-    uvicorn_opts = _uvicorn_passthrough_options(excluded=_RESERVED | set(fixed))
+    # settings options propagate themselves to the env (expose_value=False), so the
+    # callback never sees them; only uvicorn options remain in its kwargs.
+    setting_opts = _combined_settings_options(classes)
+    uvicorn_opts = uvicorn_options(exclude=set(fixed))
     check_opt = click.Option(
         ['--check'],
         is_flag=True,
@@ -408,18 +540,12 @@ def serve_command(
 
     def callback(**kwargs: Any) -> None:
         check = kwargs.pop('check', False)
-        _export_passed_settings(routing, kwargs)
         if check:
             _run_check(factory_path, classes)
             return
-        # delegate to uvicorn's own CLI callback so its value transforms run
-        # (header split, app_dir -> sys.path, ...); we only pin app + factory.
-        uvicorn.main.callback(  # type: ignore[misc]
-            app=factory_path,
-            factory=force_factory,
-            **fixed,
-            **kwargs,
-        )
+        # only uvicorn options remain in kwargs (settings self-propagate to the env);
+        # serve() pins app + factory and delegates to uvicorn's own CLI callback.
+        serve(factory_path, factory=force_factory, **fixed, **kwargs)
 
     return click.Command(
         name,

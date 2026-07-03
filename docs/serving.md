@@ -47,6 +47,40 @@ The app target must be an importable `'module:attr'` string or a module-level
 factory — uvicorn's `--workers`/`--reload` re-import it by name, so live app objects
 and lambdas are rejected.
 
+## Composing your own command
+
+`serve_command` is the batteries-included assembly; its three pieces are exposed so a
+custom CLI doesn't have to route through it: `settings_options(Settings)` returns the
+documented `click` options for a settings group, `uvicorn_options()` returns copies of
+uvicorn's own options (with `app`/`factory` always excluded — you supply those), and
+`serve(app, ...)` is the launch action, delegating to uvicorn's own callback so its
+value transforms still run.
+
+Settings options are **self-propagating**: each carries a callback that writes its env
+var when passed (and only when passed — env/default values are left for the app to
+resolve). They're `expose_value=False`, so they act purely by side effect and never
+appear in your callback's signature — which means the callback only ever sees uvicorn's
+options and can forward them straight to `serve`:
+
+```python
+--8<-- "tests/examples/serving.py:compose"
+```
+
+Compose several groups by concatenating lists (`[*settings_options(A),
+*settings_options(B)]`).
+
+**Overriding an argument** falls out of composition:
+
+- *Rename a settings flag* — `settings_options(Settings, rename={'greeting':
+  '--message'})`. The env var is unchanged, so the renamed flag still propagates to the
+  same field; handy for unifying names across a larger CLI. (A renamed `bool` becomes
+  the usual `--x/--no-x` toggle automatically.)
+- *Pin a uvicorn option* — `uvicorn_options(exclude={'workers'})` drops its flag; pass
+  the constant to `serve(app, workers=4, ...)` (this is exactly what `serve_command`'s
+  `**fixed` does).
+- *Pin a setting* — `settings_options(Settings, exclude={'log_level'})` drops its flag;
+  set its env var yourself, or let the app's own default stand.
+
 ## Validation and logging
 
 `yourcli serve --check` validates settings (including required secrets) and that the

@@ -6,6 +6,7 @@ moves the internals we delegate to, instead of breaking mysteriously at runtime.
 import os
 import sys
 
+import click
 import pytest
 import uvicorn
 
@@ -13,7 +14,13 @@ from click.testing import CliRunner
 from fastapi import FastAPI
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from gazebo.ext.cli import default_log_config, serve_command
+from gazebo.ext.cli import (
+    default_log_config,
+    serve,
+    serve_command,
+    settings_options,
+    uvicorn_options,
+)
 
 
 class Settings(BaseSettings):
@@ -198,6 +205,125 @@ def test_check_ok() -> None:
     result = CliRunner().invoke(cmd, ['--check'])
     assert result.exit_code == 0
     assert 'OK' in result.output
+
+
+def test_settings_options_self_propagate_on_a_plain_command(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # the whole point of the split: drop the options onto *any* command and they
+    # export their env var themselves — the callback takes no settings args at all.
+    monkeypatch.delenv('APP_GREETING', raising=False)
+    cmd = click.Command('x', params=settings_options(Settings), callback=lambda: None)
+    result = CliRunner().invoke(cmd, ['--app-greeting', 'hi'])
+    assert result.exit_code == 0, result.output
+    assert os.environ['APP_GREETING'] == 'hi'
+
+
+def test_settings_options_compose_multiple_groups(monkeypatch: pytest.MonkeyPatch) -> None:
+    class A(BaseSettings):
+        model_config = SettingsConfigDict(env_prefix='A_')
+        one: str = 'x'
+
+    class B(BaseSettings):
+        model_config = SettingsConfigDict(env_prefix='B_')
+        two: str = 'y'
+
+    monkeypatch.delenv('A_ONE', raising=False)
+    monkeypatch.delenv('B_TWO', raising=False)
+    params = [*settings_options(A), *settings_options(B)]
+    cmd = click.Command('x', params=params, callback=lambda: None)
+    result = CliRunner().invoke(cmd, ['--a-one', '1', '--b-two', '2'])
+    assert result.exit_code == 0, result.output
+    assert os.environ['A_ONE'] == '1'
+    assert os.environ['B_TWO'] == '2'
+
+
+def test_settings_option_left_alone_does_not_touch_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    # env/default-sourced values are left untouched, so the app's own resolution wins.
+    monkeypatch.delenv('APP_GREETING', raising=False)
+    cmd = click.Command('x', params=settings_options(Settings), callback=lambda: None)
+    assert CliRunner().invoke(cmd, []).exit_code == 0
+    assert 'APP_GREETING' not in os.environ
+
+
+def test_settings_options_requires_env_prefix() -> None:
+    class NoPrefix(BaseSettings):
+        host: str = 'x'
+
+    with pytest.raises(ValueError, match='env_prefix'):
+        settings_options(NoPrefix)
+
+
+def test_uvicorn_options_exclude_app_and_factory_by_default() -> None:
+    opts = uvicorn_options()  # no exclude given
+    names = {o.name for o in opts}
+    assert 'app' not in names  # always excluded — you supply it via serve()
+    assert 'factory' not in names
+    assert 'workers' in names  # a real uvicorn option composed in
+
+
+def test_uvicorn_options_exclude_is_additive_and_copies() -> None:
+    opts = uvicorn_options(exclude={'workers'})
+    names = {o.name for o in opts}
+    assert 'workers' not in names  # pinned by the caller
+    assert {'app', 'factory'}.isdisjoint(names)  # still excluded
+    assert 'host' in names
+    # copies, never uvicorn's process-global originals
+    originals = {id(p) for p in uvicorn.main.params}
+    assert all(id(o) not in originals for o in opts)
+
+
+def test_settings_options_rename_keeps_env_var(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv('APP_GREETING', raising=False)
+    opts = settings_options(Settings, rename={'greeting': '--message'})
+    flags = {o.opts[0] for o in opts}
+    assert '--message' in flags
+    assert '--app-greeting' not in flags
+    # the renamed flag still propagates to the field's original env var
+    cmd = click.Command('x', params=opts, callback=lambda: None)
+    result = CliRunner().invoke(cmd, ['--message', 'hi'])
+    assert result.exit_code == 0, result.output
+    assert os.environ['APP_GREETING'] == 'hi'
+
+
+def test_settings_options_exclude_drops_field() -> None:
+    opts = settings_options(Settings, exclude={'greeting'})
+    flags = {o.opts[0] for o in opts}
+    assert '--app-greeting' not in flags
+    assert '--app-debug' in flags  # other fields untouched
+
+
+def test_serve_partial_kwargs_through_real_callback(monkeypatch: pytest.MonkeyPatch) -> None:
+    # through uvicorn's REAL callback (which has no parameter defaults of its own):
+    # serve() must fill unpassed options with uvicorn's CLI defaults, so a partial
+    # call like serve(app, workers=3) is complete. Patch only the final run().
+    uvicorn_main_mod = sys.modules['uvicorn.main']
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(uvicorn_main_mod, 'run', lambda app, **kw: captured.update(app=app, **kw))
+
+    serve('pkg.mod:make_app', factory=True, workers=3)
+
+    assert captured['app'] == 'pkg.mod:make_app'
+    assert captured['factory'] is True
+    assert captured['workers'] == 3
+    assert captured['host'] == '127.0.0.1'  # unpassed option got uvicorn's CLI default
+    assert captured['log_config'] is not None  # default log config injected
+
+
+def test_serve_rejects_unknown_kwarg() -> None:
+    with pytest.raises(ValueError, match='wokers'):
+        serve('pkg.mod:make_app', wokers=2)
+
+
+def test_settings_options_rename_bool_becomes_toggle(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv('APP_DEBUG', raising=False)
+    opts = settings_options(Settings, rename={'debug': '--verbose'})
+    verbose = next(o for o in opts if o.opts == ['--verbose'])
+    assert verbose.secondary_opts == ['--no-verbose']  # toggle derived automatically
+    cmd = click.Command('x', params=opts, callback=lambda: None)
+    result = CliRunner().invoke(cmd, ['--no-verbose'])
+    assert result.exit_code == 0, result.output
+    assert os.environ['APP_DEBUG'] == 'False'  # still propagates to the original field
 
 
 def test_json_log_config_emits_json(capsys: pytest.CaptureFixture[str]) -> None:
