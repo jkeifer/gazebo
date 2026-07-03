@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import os
+
 import pytest
 
+from click.testing import CliRunner
 from fastapi.testclient import TestClient
 
 from gazebo.ext.fastapi import Overrides
 from gazebo.testing import assert_has_link, assert_problem, drive_pagination
 
-from garden.app import create_app
+from garden.app import create_app, main
 from garden.resources import Settings, reset_store
 
 AUTH = {'authorization': 'Bearer alice'}
@@ -370,6 +373,25 @@ def test_override_seam():
     overrides = Overrides().set(Settings, Settings(replica_dsn='memory://test'))
     with TestClient(create_app(overrides=overrides)) as c:
         assert c.get('/plants', headers=AUTH).status_code == 200
+
+
+def test_serve_help_uses_renamed_replica_flag():
+    # `garden serve` renames the replica-dsn field's flag to `--replica` (via
+    # serve_command's rename=), but it still documents/targets GARDEN_REPLICA_DSN.
+    result = CliRunner().invoke(main, ['serve', '--help'])
+    assert result.exit_code == 0, result.output
+    assert '--replica ' in result.output
+    assert '--garden-replica-dsn' not in result.output  # the prefixed default is gone
+    assert 'GARDEN_REPLICA_DSN' in result.output  # env var (and thus the field) unchanged
+
+
+def test_serve_renamed_flag_writes_original_env_var(monkeypatch):
+    monkeypatch.delenv('GARDEN_REPLICA_DSN', raising=False)
+    # --check validates settings then exits without a server; the renamed option's
+    # callback still propagates its value to the field's (unchanged) env var.
+    result = CliRunner().invoke(main, ['serve', '--replica', 'memory://cli', '--check'])
+    assert result.exit_code == 0, result.output
+    assert os.environ['GARDEN_REPLICA_DSN'] == 'memory://cli'
 
 
 def test_link_header_mirrors_nav_links(client):

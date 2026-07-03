@@ -14,9 +14,9 @@ from click.testing import CliRunner
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from gazebo.ext.cli import (
+    SettingsGroup,
     default_log_config,
     secrets_epilog,
-    settings_options,
 )
 
 
@@ -42,19 +42,19 @@ def test_core_does_not_import_uvicorn() -> None:
     assert result.returncode == 0, result.stderr
 
 
-def test_settings_options_self_propagate_on_a_plain_command(
+def test_settings_group_self_propagate_on_a_plain_command(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # the whole point of the split: drop the options onto *any* command and they
     # export their env var themselves — the callback takes no settings args at all.
     monkeypatch.delenv('APP_GREETING', raising=False)
-    cmd = click.Command('x', params=settings_options(Settings), callback=lambda: None)
+    cmd = click.Command('x', params=SettingsGroup(Settings).options, callback=lambda: None)
     result = CliRunner().invoke(cmd, ['--app-greeting', 'hi'])
     assert result.exit_code == 0, result.output
     assert os.environ['APP_GREETING'] == 'hi'
 
 
-def test_settings_options_compose_multiple_groups(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_settings_group_compose_multiple_groups(monkeypatch: pytest.MonkeyPatch) -> None:
     class A(BaseSettings):
         model_config = SettingsConfigDict(env_prefix='A_')
         one: str = 'x'
@@ -65,7 +65,7 @@ def test_settings_options_compose_multiple_groups(monkeypatch: pytest.MonkeyPatc
 
     monkeypatch.delenv('A_ONE', raising=False)
     monkeypatch.delenv('B_TWO', raising=False)
-    params = [*settings_options(A), *settings_options(B)]
+    params = (SettingsGroup(A) + SettingsGroup(B)).options  # groups combine with +
     cmd = click.Command('x', params=params, callback=lambda: None)
     result = CliRunner().invoke(cmd, ['--a-one', '1', '--b-two', '2'])
     assert result.exit_code == 0, result.output
@@ -73,25 +73,56 @@ def test_settings_options_compose_multiple_groups(monkeypatch: pytest.MonkeyPatc
     assert os.environ['B_TWO'] == '2'
 
 
+def test_settings_group_combine_rejects_duplicate_prefix() -> None:
+    class A(BaseSettings):
+        model_config = SettingsConfigDict(env_prefix='X_')
+        a: int = 1
+
+    class B(BaseSettings):
+        model_config = SettingsConfigDict(env_prefix='X_')
+        b: int = 2
+
+    # combining validates the whole set: a shared prefix would collide flags/env vars
+    with pytest.raises(ValueError, match='duplicate env_prefix'):
+        _ = SettingsGroup(A) + SettingsGroup(B)
+
+
+def test_settings_group_combine_rejects_flag_collision() -> None:
+    class A(BaseSettings):
+        model_config = SettingsConfigDict(env_prefix='A_')
+        config: str = 'a'
+
+    class B(BaseSettings):
+        model_config = SettingsConfigDict(env_prefix='B_')
+        config: str = 'b'
+
+    # each rename is fine alone, but both land on --config -> caught when combined
+    left = SettingsGroup(A, rename={'--a-config': '--config'})
+    right = SettingsGroup(B, rename={'--b-config': '--config'})
+    with pytest.raises(ValueError, match='duplicate option'):
+        _ = left + right
+
+
 def test_settings_option_left_alone_does_not_touch_env(monkeypatch: pytest.MonkeyPatch) -> None:
     # env/default-sourced values are left untouched, so the app's own resolution wins.
     monkeypatch.delenv('APP_GREETING', raising=False)
-    cmd = click.Command('x', params=settings_options(Settings), callback=lambda: None)
+    cmd = click.Command('x', params=SettingsGroup(Settings).options, callback=lambda: None)
     assert CliRunner().invoke(cmd, []).exit_code == 0
     assert 'APP_GREETING' not in os.environ
 
 
-def test_settings_options_requires_env_prefix() -> None:
+def test_settings_group_requires_env_prefix() -> None:
     class NoPrefix(BaseSettings):
         host: str = 'x'
 
     with pytest.raises(ValueError, match='env_prefix'):
-        settings_options(NoPrefix)
+        SettingsGroup(NoPrefix)
 
 
-def test_settings_options_rename_keeps_env_var(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_settings_group_rename_keeps_env_var(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv('APP_GREETING', raising=False)
-    opts = settings_options(Settings, rename={'greeting': '--message'})
+    # rename keys by the generated flag (--app-greeting), same namespace as the value
+    opts = SettingsGroup(Settings, rename={'--app-greeting': '--message'}).options
     flags = {o.opts[0] for o in opts}
     assert '--message' in flags
     assert '--app-greeting' not in flags
@@ -102,9 +133,20 @@ def test_settings_options_rename_keeps_env_var(monkeypatch: pytest.MonkeyPatch) 
     assert os.environ['APP_GREETING'] == 'hi'
 
 
-def test_settings_options_rename_bool_becomes_toggle(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_settings_group_rename_to_short_and_long(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv('APP_GREETING', raising=False)
+    # a sequence of decls adds a short option alongside the long one
+    opts = SettingsGroup(Settings, rename={'--app-greeting': ['-m', '--message']}).options
+    message = next(o for o in opts if '--message' in o.opts)
+    assert set(message.opts) == {'-m', '--message'}
+    cmd = click.Command('x', params=opts, callback=lambda: None)
+    assert CliRunner().invoke(cmd, ['-m', 'hi']).exit_code == 0
+    assert os.environ['APP_GREETING'] == 'hi'  # short flag propagates to the field too
+
+
+def test_settings_group_rename_bool_becomes_toggle(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv('APP_DEBUG', raising=False)
-    opts = settings_options(Settings, rename={'debug': '--verbose'})
+    opts = SettingsGroup(Settings, rename={'--app-debug': '--verbose'}).options
     verbose = next(o for o in opts if o.opts == ['--verbose'])
     assert verbose.secondary_opts == ['--no-verbose']  # toggle derived automatically
     cmd = click.Command('x', params=opts, callback=lambda: None)
@@ -113,11 +155,20 @@ def test_settings_options_rename_bool_becomes_toggle(monkeypatch: pytest.MonkeyP
     assert os.environ['APP_DEBUG'] == 'False'  # still propagates to the original field
 
 
-def test_settings_options_exclude_drops_field() -> None:
-    opts = settings_options(Settings, exclude={'greeting'})
+def test_settings_group_exclude_drops_field() -> None:
+    opts = SettingsGroup(Settings, exclude={'--app-greeting'}).options
     flags = {o.opts[0] for o in opts}
     assert '--app-greeting' not in flags
     assert '--app-debug' in flags  # other fields untouched
+
+
+def test_settings_group_rejects_unknown_rename_or_exclude_key() -> None:
+    # keying by the field name (or a typo) matches no generated flag -> loud error,
+    # not a silent no-op
+    with pytest.raises(ValueError, match='match no generated option'):
+        SettingsGroup(Settings, rename={'greeting': '--message'})
+    with pytest.raises(ValueError, match='match no generated option'):
+        SettingsGroup(Settings, exclude={'--app-greetng'})
 
 
 def test_non_scalar_and_optional_fields_get_flags(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -131,7 +182,7 @@ def test_non_scalar_and_optional_fields_get_flags(monkeypatch: pytest.MonkeyPatc
         retries: int | None = None  # Optional unwraps to int
         tags: list[str] = []  # complex -> string flag (JSON), not skipped
 
-    opts = settings_options(S)
+    opts = SettingsGroup(S).options
     flags = {o.opts[0] for o in opts}
     assert {'--app-snowdb-config', '--app-retries', '--app-tags'} <= flags
 
@@ -151,7 +202,7 @@ def test_required_field_is_click_required_satisfiable_by_env(
         model_config = SettingsConfigDict(env_prefix='APP_')
         api_url: str  # required (no default)
 
-    opts = settings_options(S)
+    opts = SettingsGroup(S).options
     opt = next(o for o in opts if getattr(o, 'opts', None) == ['--app-api-url'])
     assert opt.required is True
     cmd = click.Command('x', params=opts, callback=lambda: None)
@@ -171,7 +222,7 @@ def test_secrets_not_settable_but_documented() -> None:
         model_config = SettingsConfigDict(env_prefix='APP_')
         db_password: SecretStr | None = None
 
-    flags = {o.opts[0] for o in settings_options(S)}
+    flags = {o.opts[0] for o in SettingsGroup(S).options}
     assert '--app-db-password' not in flags  # never a value flag (no shell-history leak)
     assert 'APP_DB_PASSWORD' in (secrets_epilog(S) or '')  # documented instead
 

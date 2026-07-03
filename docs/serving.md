@@ -22,8 +22,8 @@ server-agnostic building blocks are in [`gazebo.ext.cli`](reference.md#gazebo.ex
 
 ## Building a serve command
 
-Point it at an importable app factory and your `pydantic-settings` class, then add the
-result to your `click` group:
+Point it at an importable app factory and a `SettingsGroup` wrapping your
+`pydantic-settings` class, then add the result to your `click` group:
 
 ```python
 --8<-- "tests/examples/serving.py:serve"
@@ -39,7 +39,8 @@ A settings flag's only job is to **set its env var**; the app (and every uvicorn
 reads configuration from the environment as usual, so nothing is serialized across the
 worker boundary. Settings flags are prefixed by the class's `env_prefix` (required), so
 they never collide with uvicorn's options and read as *app config* vs *server config*. For
-multiple groups, pass `settings=[A, B]`; each needs a distinct `env_prefix`.
+multiple groups, combine them — `settings_group=SettingsGroup(A) + SettingsGroup(B)`; each
+needs a distinct `env_prefix`.
 
 A field with no default is **required**: marked `[required]` in `--help` and enforced at
 parse time. Because click reads the env var, it's satisfied by the flag *or* its env var —
@@ -59,8 +60,8 @@ rejected.
 ## Composing your own command
 
 `gazebo.ext.cli` imports no server, so its pieces compose atop **any** server (granian,
-hypercorn, ...), not just uvicorn: `settings_options(Settings)` returns the documented
-`click` options for a settings group, and `secrets_epilog(Settings)` renders the `--help`
+hypercorn, ...), not just uvicorn: `SettingsGroup(Settings).options` returns the documented
+`click` options for a settings group, and its `.secrets_epilog` renders the `--help`
 section for secret fields. When you *do* target uvicorn,
 [`serve(app, *uvicorn_args, ...)`](reference.md#gazebo.ext.uvicorn.serve) is the launch
 action — it forwards uvicorn's documented CLI argv.
@@ -75,16 +76,20 @@ flag falls through to `ctx.args`, which you forward straight to `serve`:
 --8<-- "tests/examples/serving.py:compose"
 ```
 
-Compose several groups by concatenating lists (`[*settings_options(A),
-*settings_options(B)]`).
+Compose several groups by combining them with `+` (`SettingsGroup(A) + SettingsGroup(B)`);
+the result is another `SettingsGroup` that validates the whole set at once.
 
-**Overriding an argument** falls out of composition:
+**Overriding an argument** is configured on the `SettingsGroup`. Both `rename` and
+`exclude` are keyed by the **generated flag** — the same `--group-field` name you see in
+`--help` — not the bare field name, so the key reads in the same namespace as the value and
+stays unambiguous across groups (a mistyped key raises rather than silently doing nothing):
 
-- *Rename a settings flag* — `settings_options(Settings, rename={'greeting':
+- *Rename a settings flag* — `SettingsGroup(Settings, rename={'--app-greeting':
   '--message'})`. The env var is unchanged, so the renamed flag still propagates to the
-  same field; handy for unifying names across a larger CLI. (A renamed `bool` becomes the
-  usual `--x/--no-x` toggle automatically.)
-- *Pin a setting* — `settings_options(Settings, exclude={'log_level'})` drops its flag;
+  same field; handy for unifying names across a larger CLI. Pass a sequence to add a short
+  option (`{'--app-greeting': ['-m', '--message']}`); a renamed `bool` becomes the usual
+  `--x/--no-x` toggle automatically.
+- *Pin a setting* — `SettingsGroup(Settings, exclude={'--app-log-level'})` drops its flag;
   set its env var yourself, or let the app's own default stand.
 - *Author server defaults* — pass `uvicorn_args=('--workers', '4')` to `serve_command` (or
   place your own args before `*ctx.args` when hand-rolling). They're forwarded *before*

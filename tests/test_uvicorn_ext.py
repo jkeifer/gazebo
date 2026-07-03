@@ -19,7 +19,7 @@ from click.testing import CliRunner
 from fastapi import FastAPI
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from gazebo.ext.cli import default_log_config
+from gazebo.ext.cli import SettingsGroup, default_log_config
 from gazebo.ext.uvicorn import serve, serve_command
 
 
@@ -134,7 +134,7 @@ def test_serve_rejects_live_app_object() -> None:
 
 
 def test_command_has_settings_flags_not_uvicorn_flags() -> None:
-    cmd = serve_command(_factory, settings=Settings)
+    cmd = serve_command(_factory, settings_group=SettingsGroup(Settings))
     flags = {o.opts[0] for o in cmd.params if getattr(o, 'opts', None)}
     assert '--app-greeting' in flags  # settings option, prefixed
     assert '--app-debug' in flags  # bool -> --app-debug/--no-app-debug
@@ -143,13 +143,43 @@ def test_command_has_settings_flags_not_uvicorn_flags() -> None:
     assert '--workers' not in flags  # uvicorn options are forwarded, not our own params
 
 
+def test_command_surfaces_the_settings_groups_options() -> None:
+    # the command exposes exactly what the SettingsGroup composed (rename/exclude and all)
+    group = SettingsGroup(
+        Settings,
+        rename={'--app-greeting': '--message'},
+        exclude=['--app-debug'],
+    )
+    cmd = serve_command(_factory, settings_group=group)
+    flags = {o.opts[0] for o in cmd.params if getattr(o, 'opts', None)}
+    assert '--message' in flags  # renamed flag replaces the prefixed default
+    assert '--app-greeting' not in flags  # the default name is gone
+    assert '--app-debug' not in flags  # excluded field has no option at all
+
+
+def test_renamed_option_still_propagates_to_original_env_var(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured = _patch_run(monkeypatch)
+    monkeypatch.delenv('APP_GREETING', raising=False)
+
+    group = SettingsGroup(Settings, rename={'--app-greeting': '--message'})
+    cmd = serve_command(_factory, settings_group=group)
+    result = CliRunner().invoke(cmd, ['--message', 'hi'])
+
+    assert result.exit_code == 0, result.output
+    assert os.environ['APP_GREETING'] == 'hi'  # renamed flag writes the field's env var
+    assert captured['app'] == f'{__name__}:_factory'
+    monkeypatch.delenv('APP_GREETING', raising=False)
+
+
 def test_command_end_to_end_interleaves_settings_and_uvicorn(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured = _patch_run(monkeypatch)
     monkeypatch.delenv('APP_GREETING', raising=False)
 
-    cmd = serve_command(_factory, settings=Settings)
+    cmd = serve_command(_factory, settings_group=SettingsGroup(Settings))
     result = CliRunner().invoke(cmd, ['--app-greeting', 'hi', '--workers', '2'])
 
     assert result.exit_code == 0, result.output
@@ -182,7 +212,7 @@ def test_help_server_lists_uvicorn_options_even_with_required_unset(
         model_config = SettingsConfigDict(env_prefix='APP_')
         api_url: str  # required, unset
 
-    cmd = serve_command(_factory, settings=S)
+    cmd = serve_command(_factory, settings_group=SettingsGroup(S))
     result = CliRunner().invoke(cmd, ['--help-server'])
     assert result.exit_code == 0, result.output
     assert '--workers' in result.output  # uvicorn's own help, eager past the required opt
@@ -190,38 +220,17 @@ def test_help_server_lists_uvicorn_options_even_with_required_unset(
 
 def test_typo_unknown_flag_surfaces_uvicorn_error(monkeypatch: pytest.MonkeyPatch) -> None:
     _patch_run(monkeypatch)
-    cmd = serve_command(_factory, settings=Settings)
+    cmd = serve_command(_factory, settings_group=SettingsGroup(Settings))
     result = CliRunner().invoke(cmd, ['--wokers', '2'])
     assert result.exit_code != 0
     assert 'No such option' in result.output
 
 
 def test_help_documents_settings_and_forwarding() -> None:
-    cmd = serve_command(_factory, settings=Settings)
+    cmd = serve_command(_factory, settings_group=SettingsGroup(Settings))
     help_text = CliRunner().invoke(cmd, ['--help']).output
     assert 'APP_GREETING' in help_text  # settings documented
     assert '--help-server' in help_text  # points to uvicorn's help
-
-
-def test_requires_env_prefix() -> None:
-    class NoPrefix(BaseSettings):
-        host: str = 'x'
-
-    with pytest.raises(ValueError, match='env_prefix'):
-        serve_command(_factory, settings=NoPrefix)
-
-
-def test_rejects_duplicate_prefix() -> None:
-    class A(BaseSettings):
-        model_config = SettingsConfigDict(env_prefix='X_')
-        a: int = 1
-
-    class B(BaseSettings):
-        model_config = SettingsConfigDict(env_prefix='X_')
-        b: int = 2
-
-    with pytest.raises(ValueError, match='duplicate env_prefix'):
-        serve_command(_factory, settings=[A, B])
 
 
 def test_rejects_live_app_object() -> None:
@@ -236,7 +245,7 @@ def test_secrets_documented_in_help_but_not_settable() -> None:
         model_config = SettingsConfigDict(env_prefix='APP_')
         db_password: SecretStr | None = None
 
-    cmd = serve_command(_factory, settings=S)
+    cmd = serve_command(_factory, settings_group=SettingsGroup(S))
     flags = {o.opts[0] for o in cmd.params if getattr(o, 'opts', None)}
     assert '--app-db-password' not in flags  # never a value flag
 
@@ -251,7 +260,11 @@ def test_required_secret_marked_in_help() -> None:
         model_config = SettingsConfigDict(env_prefix='APP_')
         token: SecretStr  # required secret, no flag
 
-    help_text = CliRunner().invoke(serve_command(_factory, settings=S), ['--help']).output
+    help_text = (
+        CliRunner()
+        .invoke(serve_command(_factory, settings_group=SettingsGroup(S)), ['--help'])
+        .output
+    )
     assert 'APP_TOKEN' in help_text
     assert '(required)' in help_text
 
@@ -263,14 +276,14 @@ def test_check_reports_missing_required() -> None:
         model_config = SettingsConfigDict(env_prefix='SVC_')
         api_key: SecretStr  # required secret, no flag, not set
 
-    cmd = serve_command(_factory, settings=Secret)
+    cmd = serve_command(_factory, settings_group=SettingsGroup(Secret))
     result = CliRunner().invoke(cmd, ['--check'])
     assert result.exit_code == 1
     assert 'api_key' in result.output
 
 
 def test_check_ok() -> None:
-    cmd = serve_command(_factory, settings=Settings)
+    cmd = serve_command(_factory, settings_group=SettingsGroup(Settings))
     result = CliRunner().invoke(cmd, ['--check'])
     assert result.exit_code == 0
     assert 'OK' in result.output

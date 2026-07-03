@@ -26,7 +26,7 @@ workspace, so it resolves `gazebo` from one directory up.
 | Proxy-aware URLs + pluggable trust | `trust=trust_all` in `create_app` (demo) |
 | OpenAPI tags | `TAGS` + `tags_metadata` in `app.py` |
 | Request-id contextvar + logging filter | `RequestIdMiddleware` + `default_log_config(request_id=True)` |
-| Self-documenting CLI / serve command | `serve_command(create_app, settings=Settings)` in `app.py` |
+| Self-documenting CLI / serve command | `serve_command(create_app, settings_group=SettingsGroup(Settings, rename={'--garden-replica-dsn': '--replica'}))` in `app.py` |
 | Secret as a documented config surface | `primary_dsn: SecretStr` — shown under `garden serve --help`'s Secrets, no value flag |
 
 ## Endpoints

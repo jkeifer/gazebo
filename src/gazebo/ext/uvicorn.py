@@ -9,7 +9,7 @@ uvicorn internals), :func:`serve` forwards documented argv to
 parsing, defaults, ``UVICORN_*`` env vars, and value transforms.
 
 Discoverability splits cleanly: ``serve --help`` documents *app configuration* (our
-contribution via :func:`gazebo.ext.cli.settings_options`), while ``serve --help-server``
+contribution via :class:`gazebo.ext.cli.SettingsGroup`), while ``serve --help-server``
 prints uvicorn's own help. The ``--help-server`` path is a *display-only* coupling
 (``uvicorn.main.get_help``) that fails soft — a broken help screen never stops a server.
 
@@ -31,7 +31,7 @@ import uvicorn
 
 from pydantic_settings import BaseSettings
 
-from gazebo.ext.cli import default_log_config, secrets_epilog, settings_options
+from gazebo.ext.cli import SettingsGroup, default_log_config
 
 __all__ = ['serve', 'serve_command']
 
@@ -154,7 +154,7 @@ def _run_check(factory_path: str, classes: tuple[type[BaseSettings], ...]) -> No
 def serve_command(
     app: str | Any,
     *,
-    settings: type[BaseSettings] | Sequence[type[BaseSettings]] | None = None,
+    settings_group: SettingsGroup | None = None,
     name: str = 'serve',
     factory: bool = False,
     log_config: Any = None,
@@ -173,11 +173,11 @@ def serve_command(
         app: A ``'module:attr'`` import string or an importable (module-level)
             factory callable. Live app objects and lambdas are rejected because
             uvicorn workers re-import by name.
-        settings: A pydantic-settings class or a sequence of them. Each becomes a
-            self-documenting option group, namespaced by its (required, distinct)
-            ``env_prefix``; a passed option sets the matching env var. See
-            :func:`gazebo.ext.cli.settings_options` to compose these onto a command of
-            your own.
+        settings_group: A :class:`gazebo.ext.cli.SettingsGroup` — one or more settings
+            classes composed (and validated) into the command's options. Build it
+            yourself so any per-group ``exclude``/``rename`` and its cross-group checks
+            live in one place: ``settings_group=SettingsGroup(Settings)`` (or
+            ``SettingsGroup(A) + SettingsGroup(B)``). A passed option sets its env var.
         name: The command name (default ``serve``).
         factory: Force factory mode for a string ``app`` (auto-detected for callables).
         log_config: dictConfig for uvicorn; defaults to
@@ -189,21 +189,9 @@ def serve_command(
     import_string, derived_factory = _resolve_app(app)
     force_factory = factory or derived_factory
 
-    classes = (settings,) if isinstance(settings, type) else tuple(settings or ())
-    seen_prefixes: set[str] = set()
-    setting_opts: list[click.Parameter] = []
-    for cls in classes:
-        # settings_options() enforces a non-empty env_prefix; here we additionally
-        # require it be distinct across groups so their flags/env vars can't collide.
-        opts = settings_options(cls)
-        prefix = cls.model_config.get('env_prefix', '')
-        if prefix in seen_prefixes:
-            raise ValueError(
-                f'duplicate env_prefix {prefix!r} across settings groups; '
-                'each group needs a distinct prefix',
-            )
-        seen_prefixes.add(prefix)
-        setting_opts.extend(opts)
+    group = settings_group if settings_group is not None else SettingsGroup()
+    setting_opts = group.options
+    classes = group.settings_classes
 
     check_opt = click.Option(
         ['--check'],
@@ -243,7 +231,7 @@ def serve_command(
             log_config=log_config,
         )
 
-    epilog = secrets_epilog(classes) if classes else None
+    epilog = group.secrets_epilog
     forwarded = (
         'Any uvicorn option (--workers, --reload, --host, ...) is accepted and '
         'forwarded to uvicorn; run with --help-server to list them.'
