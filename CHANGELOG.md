@@ -57,6 +57,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   command line (previously pinned constants were removed from the CLI).
   Migration: `serve_command(app, workers=4)` → `serve_command(app,
   uvicorn_args=('--workers', '4'))`.
+- **Breaking:** `uvicorn` is no longer pulled in by the `gazebo[cli]` extra; it
+  now lives in its own `gazebo[uvicorn]` extra (which depends on `gazebo[cli]`).
+  This matches `gazebo.ext.cli` (server-agnostic: `click`, `pydantic-settings`)
+  and `gazebo.ext.uvicorn` (the only module importing `uvicorn`) being separate
+  modules. Migration: install `gazebo[uvicorn]` instead of `gazebo[cli]` if you
+  use `gazebo.ext.uvicorn.serve` / `serve_command`; `gazebo[cli]` alone still
+  gets you `gazebo.ext.cli`'s building blocks for composing atop another server.
 
 ## [v0.4.1] - 2026-06-30
 

@@ -17,7 +17,8 @@ documented command-line interface.
 
 `serve_command` lives in [`gazebo.ext.uvicorn`](reference.md#gazebo.ext.uvicorn); the
 server-agnostic building blocks are in [`gazebo.ext.cli`](reference.md#gazebo.ext.cli).
-Both require the `gazebo[cli]` extra (`click`, `uvicorn`, `pydantic-settings`).
+`gazebo.ext.cli` requires the `gazebo[cli]` extra (`click`, `pydantic-settings`);
+`gazebo.ext.uvicorn` requires the `gazebo[uvicorn]` extra (`gazebo[cli]` plus `uvicorn`).
 
 ## Building a serve command
 

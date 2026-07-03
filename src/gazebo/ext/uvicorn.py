@@ -13,8 +13,9 @@ contribution via :func:`gazebo.ext.cli.settings_options`), while ``serve --help-
 prints uvicorn's own help. The ``--help-server`` path is a *display-only* coupling
 (``uvicorn.main.get_help``) that fails soft — a broken help screen never stops a server.
 
-Requires the ``gazebo[cli]`` extra (plus uvicorn installed). The ``import uvicorn`` here
-resolves to the real package, mirroring ``ext/fastapi``'s ``import fastapi``.
+Requires the ``gazebo[uvicorn]`` extra (which pulls in ``gazebo[cli]`` plus uvicorn
+itself). The ``import uvicorn`` here resolves to the real package, mirroring
+``ext/fastapi``'s ``import fastapi``.
 """
 
 import json

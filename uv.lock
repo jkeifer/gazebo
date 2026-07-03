@@ -258,7 +258,6 @@ dependencies = [
 cli = [
     { name = "click" },
     { name = "pydantic-settings" },
-    { name = "uvicorn" },
 ]
 cql2 = [
     { name = "cql2" },
@@ -271,6 +270,11 @@ geojson = [
 ]
 test = [
     { name = "pytest" },
+]
+uvicorn = [
+    { name = "click" },
+    { name = "pydantic-settings" },
+    { name = "uvicorn" },
 ]
 
 [package.dev-dependencies]
@@ -297,15 +301,17 @@ docs = [
 [package.metadata]
 requires-dist = [
     { name = "click", marker = "extra == 'cli'", specifier = ">=8" },
+    { name = "click", marker = "extra == 'uvicorn'", specifier = ">=8" },
     { name = "cql2", marker = "extra == 'cql2'", specifier = ">=0.3" },
     { name = "fastapi", marker = "extra == 'fastapi'" },
     { name = "geojson-pydantic", marker = "extra == 'geojson'", specifier = ">=1" },
     { name = "pydantic", specifier = ">=2" },
     { name = "pydantic-settings", marker = "extra == 'cli'", specifier = ">=2" },
+    { name = "pydantic-settings", marker = "extra == 'uvicorn'", specifier = ">=2" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=8.3.5" },
-    { name = "uvicorn", marker = "extra == 'cli'", specifier = ">=0.30" },
+    { name = "uvicorn", marker = "extra == 'uvicorn'", specifier = ">=0.30" },
 ]
-provides-extras = ["cli", "cql2", "fastapi", "geojson", "test"]
+provides-extras = ["cli", "cql2", "fastapi", "geojson", "test", "uvicorn"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -333,7 +339,7 @@ name = "gazebo-garden-example"
 version = "0.0.0"
 source = { editable = "examples/garden" }
 dependencies = [
-    { name = "gazebo", extra = ["cli", "cql2", "fastapi", "geojson"] },
+    { name = "gazebo", extra = ["cli", "cql2", "fastapi", "geojson", "uvicorn"] },
 ]
 
 [package.dev-dependencies]
@@ -344,7 +350,7 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "gazebo", extras = ["fastapi", "geojson", "cql2", "cli"], editable = "." }]
+requires-dist = [{ name = "gazebo", extras = ["fastapi", "geojson", "cql2", "cli", "uvicorn"], editable = "." }]
 
 [package.metadata.requires-dev]
 dev = [
