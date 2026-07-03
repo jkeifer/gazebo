@@ -1094,6 +1094,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#composing-your-own-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Composing your own command
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#validation-and-logging" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -1397,6 +1408,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#composing-your-own-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Composing your own command
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#validation-and-logging" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -1443,18 +1465,26 @@
 
 <h1 id="serving-cli">Serving (CLI)<a class="headerlink" href="#serving-cli" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>A self-documenting <code>serve</code> command: run your app with uvicorn, and let <code>--help</code>
-show every setting and the env var that configures it.</p>
+<p>A self-documenting <code>serve</code> command: <code>--help</code> is your app's configuration reference;
+every uvicorn option is still accepted and forwarded — <code>--help-server</code> lists them.</p>
 </blockquote>
-<p>Most projects hand-roll a CLI that calls <code>uvicorn.run(...)</code>, plus some way for
-operators to discover how the app is configured. <code>serve_command</code> packages both: it
-composes uvicorn's own options (so <code>--workers</code>, <code>--reload</code>, <code>--host</code>, <code>--env-file</code>
-all work) and generates one documented option per settings field, so <code>--help</code>
-<em>becomes</em> the configuration reference.</p>
-<p>It requires the <code>gazebo[cli]</code> extra (<code>click</code>, <code>uvicorn</code>, <code>pydantic-settings</code>).</p>
+<p>Most projects hand-roll a CLI that calls <code>uvicorn.run(...)</code>, plus some way for operators
+to discover how the app is configured. <code>serve_command</code> packages both, and splits the help
+cleanly: <code>serve --help</code> documents <em>your app's</em> settings (one option per field, with its
+env var, default, and description — the configuration reference), while every uvicorn flag
+(<code>--workers</code>, <code>--reload</code>, <code>--host</code>, <code>--env-file</code>, ...) is still accepted and <strong>forwarded
+verbatim to uvicorn</strong>. Run <code>serve --help-server</code> to see uvicorn's own options.</p>
+<p>Under the hood this treats uvicorn as a <strong>CLI, not a library</strong>: <code>serve</code> forwards
+documented argv to uvicorn's console entry point, so uvicorn does its own parsing,
+defaults, <code>UVICORN_*</code> env vars, and value transforms — the only coupling is uvicorn's
+documented command-line interface.</p>
+<p><code>serve_command</code> lives in <a href="../reference/#gazebo.ext.uvicorn"><code>gazebo.ext.uvicorn</code></a>; the
+server-agnostic building blocks are in <a href="../reference/#gazebo.ext.cli"><code>gazebo.ext.cli</code></a>.
+<code>gazebo.ext.cli</code> requires the <code>gazebo[cli]</code> extra (<code>click</code>, <code>pydantic-settings</code>);
+<code>gazebo.ext.uvicorn</code> requires the <code>gazebo[uvicorn]</code> extra (<code>gazebo[cli]</code> plus <code>uvicorn</code>).</p>
 <h2 id="building-a-serve-command">Building a serve command<a class="headerlink" href="#building-a-serve-command" title="Permanent link">&para;</a></h2>
-<p>Point it at an importable app factory and your <code>pydantic-settings</code> class, then add
-the result to your <code>click</code> group:</p>
+<p>Point it at an importable app factory and your <code>pydantic-settings</code> class, then add the
+result to your <code>click</code> group:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">Settings</span><span class="p">(</span><span class="n">BaseSettings</span><span class="p">):</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">model_config</span> <span class="o">=</span> <span class="n">SettingsConfigDict</span><span class="p">(</span><span class="n">env_prefix</span><span class="o">=</span><span class="s1">&#39;APP_&#39;</span><span class="p">)</span>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
@@ -1473,41 +1503,84 @@ the result to your <code>click</code> group:</p>
 </span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    <span class="k">return</span> <span class="n">app</span>
 </span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>
 </span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>
-</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="c1"># Add to your click group: cli.add_command(serve)</span>
-</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="n">serve</span> <span class="o">=</span> <span class="n">serve_command</span><span class="p">(</span>
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="c1"># Add to your click group: cli.add_command(serve_cmd)</span>
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="n">serve_cmd</span> <span class="o">=</span> <span class="n">serve_command</span><span class="p">(</span>
 </span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>    <span class="n">create_app</span><span class="p">,</span>
 </span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>    <span class="n">settings</span><span class="o">=</span><span class="n">Settings</span><span class="p">,</span>
 </span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>    <span class="n">log_config</span><span class="o">=</span><span class="n">default_log_config</span><span class="p">(</span><span class="n">json_logs</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
 </span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a><span class="p">)</span>
 </span></code></pre></div>
-<p><code>yourcli serve --help</code> now lists <code>--app-greeting</code> — with its env var
-(<code>APP_GREETING</code>), default, and description — alongside uvicorn's options.</p>
+<p><code>yourcli serve --help</code> now lists <code>--app-greeting</code> — with its env var (<code>APP_GREETING</code>),
+default, and description — as your app's configuration reference. <code>yourcli serve
+--workers 4 --reload</code> still works: those flags fall through to uvicorn.</p>
 <h2 id="how-settings-reach-the-app">How settings reach the app<a class="headerlink" href="#how-settings-reach-the-app" title="Permanent link">&para;</a></h2>
-<p>A settings flag's only job is to <strong>set its env var</strong>; the app (and every uvicorn
-worker) reads configuration from the environment as usual, so nothing is serialized
-across the worker boundary. Settings flags are prefixed by the class's <code>env_prefix</code>
-(required), so they never collide with uvicorn's options and read as <em>app config</em>
-vs <em>server config</em> in <code>--help</code>. For multiple groups, pass <code>settings=[A, B]</code>; each
-needs a distinct <code>env_prefix</code>.</p>
-<p>A field with no default is <strong>required</strong>: marked <code>[required]</code> in <code>--help</code> and enforced
-at parse time. Because click reads the env var, it's satisfied by the flag <em>or</em> its
-env var — not forced onto the command line — so the env/file workflow still works. (A
-required secret, having no flag, is instead marked <code>(required)</code> in the Secrets section
-and enforced by pydantic / <code>serve --check</code>.)</p>
-<p>Secrets are never accepted on the command line: model them as <code>SecretStr</code>. They get
-no value flag — but they're still listed in <code>--help</code> (their env var) as a documented
+<p>A settings flag's only job is to <strong>set its env var</strong>; the app (and every uvicorn worker)
+reads configuration from the environment as usual, so nothing is serialized across the
+worker boundary. Settings flags are prefixed by the class's <code>env_prefix</code> (required), so
+they never collide with uvicorn's options and read as <em>app config</em> vs <em>server config</em>. For
+multiple groups, pass <code>settings=[A, B]</code>; each needs a distinct <code>env_prefix</code>.</p>
+<p>A field with no default is <strong>required</strong>: marked <code>[required]</code> in <code>--help</code> and enforced at
+parse time. Because click reads the env var, it's satisfied by the flag <em>or</em> its env var —
+not forced onto the command line — so the env/file workflow still works. (A required
+secret, having no flag, is instead marked <code>(required)</code> in the Secrets section and enforced
+by pydantic / <code>serve --check</code>.)</p>
+<p>Secrets are never accepted on the command line: model them as <code>SecretStr</code>. They get no
+value flag — but they're still listed in <code>--help</code> (their env var) as a documented
 configuration surface, so they're discoverable without ever landing in shell history.
 Supply them via the settings class's <code>secrets_dir</code> (Docker/k8s <code>/run/secrets</code>) or env.</p>
-<p>The app target must be an importable <code>'module:attr'</code> string or a module-level
-factory — uvicorn's <code>--workers</code>/<code>--reload</code> re-import it by name, so live app objects
-and lambdas are rejected.</p>
+<p>The app target must be an importable <code>'module:attr'</code> string or a module-level factory —
+uvicorn's <code>--workers</code>/<code>--reload</code> re-import it by name, so live app objects and lambdas are
+rejected.</p>
+<h2 id="composing-your-own-command">Composing your own command<a class="headerlink" href="#composing-your-own-command" title="Permanent link">&para;</a></h2>
+<p><code>gazebo.ext.cli</code> imports no server, so its pieces compose atop <strong>any</strong> server (granian,
+hypercorn, ...), not just uvicorn: <code>settings_options(Settings)</code> returns the documented
+<code>click</code> options for a settings group, and <code>secrets_epilog(Settings)</code> renders the <code>--help</code>
+section for secret fields. When you <em>do</em> target uvicorn,
+<a href="../reference/#gazebo.ext.uvicorn.serve"><code>serve(app, *uvicorn_args, ...)</code></a> is the launch
+action — it forwards uvicorn's documented CLI argv.</p>
+<p>Settings options are <strong>self-propagating</strong>: each carries a callback that writes its env var
+when passed (and only when passed — env/default values are left for the app to resolve).
+They're <code>expose_value=False</code>, so they act purely by side effect and never appear in your
+callback's signature. With <code>ignore_unknown_options</code> / <code>allow_extra_args</code>, every uvicorn
+flag falls through to <code>ctx.args</code>, which you forward straight to <code>serve</code>:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># gazebo.ext.cli imports no server, so the same pieces compose atop any server. Here we</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="c1"># hand-roll a command: settings_options() writes each setting&#39;s env var when passed</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c1"># (expose_value=False, so the callback never sees them), and ignore_unknown_options +</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># allow_extra_args let every uvicorn flag fall through to ctx.args. We forward those to</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="c1"># serve() after our own author defaults (--workers 4), which the operator can override.</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="nd">@click</span><span class="o">.</span><span class="n">command</span><span class="p">(</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="s1">&#39;serve&#39;</span><span class="p">,</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="n">context_settings</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;ignore_unknown_options&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s1">&#39;allow_extra_args&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">},</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    <span class="n">params</span><span class="o">=</span><span class="n">settings_options</span><span class="p">(</span><span class="n">Settings</span><span class="p">,</span> <span class="n">rename</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;greeting&#39;</span><span class="p">:</span> <span class="s1">&#39;--message&#39;</span><span class="p">}),</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="p">)</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="k">def</span><span class="w"> </span><span class="nf">custom_serve</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    <span class="n">ctx</span> <span class="o">=</span> <span class="n">click</span><span class="o">.</span><span class="n">get_current_context</span><span class="p">()</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>    <span class="n">serve</span><span class="p">(</span><span class="s1">&#39;myapp:create_app&#39;</span><span class="p">,</span> <span class="s1">&#39;--workers&#39;</span><span class="p">,</span> <span class="s1">&#39;4&#39;</span><span class="p">,</span> <span class="o">*</span><span class="n">ctx</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="n">factory</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span></code></pre></div>
+<p>Compose several groups by concatenating lists (<code>[*settings_options(A),
+*settings_options(B)]</code>).</p>
+<p><strong>Overriding an argument</strong> falls out of composition:</p>
+<ul>
+<li><em>Rename a settings flag</em> — <code>settings_options(Settings, rename={'greeting':
+  '--message'})</code>. The env var is unchanged, so the renamed flag still propagates to the
+  same field; handy for unifying names across a larger CLI. (A renamed <code>bool</code> becomes the
+  usual <code>--x/--no-x</code> toggle automatically.)</li>
+<li><em>Pin a setting</em> — <code>settings_options(Settings, exclude={'log_level'})</code> drops its flag;
+  set its env var yourself, or let the app's own default stand.</li>
+<li><em>Author server defaults</em> — pass <code>uvicorn_args=('--workers', '4')</code> to <code>serve_command</code> (or
+  place your own args before <code>*ctx.args</code> when hand-rolling). They're forwarded <em>before</em>
+  the operator's arguments, so — click being last-value-wins — an operator's <code>--workers 8</code>
+  on the command line overrides your default.</li>
+</ul>
 <h2 id="validation-and-logging">Validation and logging<a class="headerlink" href="#validation-and-logging" title="Permanent link">&para;</a></h2>
-<p><code>yourcli serve --check</code> validates settings (including required secrets) and that the
-app imports, then exits — handy for CI and container preflight. <code>default_log_config()</code>
-is pinned by default; pass <code>json_logs=True</code> for one-JSON-object-per-line output, or
-<code>request_id=True</code> to thread gazebo's request id into every line.</p>
+<p><code>yourcli serve --check</code> validates settings (including required secrets) and that the app
+imports, then exits — handy for CI and container preflight. <code>default_log_config()</code> is
+injected by default; pass <code>json_logs=True</code> for one-JSON-object-per-line output, or
+<code>request_id=True</code> to thread gazebo's request id into every line. Operators can always
+override it with <code>--log-config</code>, since that flag is forwarded to uvicorn like any other.</p>
 <h2 id="reference">Reference<a class="headerlink" href="#reference" title="Permanent link">&para;</a></h2>
-<p>See <a href="../reference/#gazebo.ext.cli"><code>gazebo.ext.cli</code></a>.</p>
+<p>See <a href="../reference/#gazebo.ext.cli"><code>gazebo.ext.cli</code></a> (the server-agnostic toolkit) and
+<a href="../reference/#gazebo.ext.uvicorn"><code>gazebo.ext.uvicorn</code></a> (the uvicorn serve command).</p>
 
 
 
