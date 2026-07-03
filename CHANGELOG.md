@@ -19,7 +19,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
-## [0.4.1] - 2026-06-30
+## [v0.5.0] - 2026-07-03
+
+### Added
+
+- `gazebo.ext.uvicorn`: a self-documenting `serve` command over uvicorn.
+  `serve_command()` builds a `click` command whose `--help` documents *your
+  app's* settings (one option per field, with env var/default/description)
+  while every uvicorn option is accepted and **forwarded verbatim** to uvicorn;
+  `--help-server` prints uvicorn's own help. It treats uvicorn as a CLI, not a
+  library — `serve(app, *uvicorn_args, ...)` forwards documented argv to
+  `uvicorn.main.main(args=..., standalone_mode=False)`, so uvicorn does its own
+  parsing, defaults, `UVICORN_*` env vars, and value transforms; a typo'd flag
+  gets uvicorn's own "did you mean" error.
+- `gazebo.ext.cli`: `settings_options()` and `secrets_epilog()` as the
+  server-agnostic composable core — `gazebo.ext.cli` no longer imports uvicorn,
+  so these compose a serve command atop **any** server (granian, ...).
+  `settings_options()` returns one self-propagating, `expose_value=False`
+  `click.Option` per non-secret field (each writes its env var when passed) and
+  takes `exclude` (drop a field) and `rename` (re-flag a field, keeping its env
+  var — a renamed `bool` still gets its `--x/--no-x` toggle);
+  `secrets_epilog()` renders the `--help` section documenting secret fields
+  (env var, `(required)` marker) without accepting them as flags.
+
+### Changed
+
+- **Breaking:** `serve_command` moved from `gazebo.ext.cli` to
+  `gazebo.ext.uvicorn`.  Migration: `from gazebo.ext.uvicorn import
+  serve_command` (`default_log_config` / `settings_options` stay in
+  `gazebo.ext.cli`).
+- **Breaking:** uvicorn's options no longer appear in `serve --help` (which now
+  documents only your app's settings); they are still accepted and forwarded to
+  uvicorn. Migration: run `serve --help-server` to list uvicorn's options.
+- **Breaking:** `serve_command`'s `**fixed` uvicorn kwargs are replaced by
+  `uvicorn_args=('--workers', '4', ...)` — author-supplied CLI argv forwarded
+  *before* operator arguments, so operators can now override them on the
+  command line (previously pinned constants were removed from the CLI).
+  Migration: `serve_command(app, workers=4)` → `serve_command(app,
+  uvicorn_args=('--workers', '4'))`.
+- **Breaking:** `uvicorn` is no longer pulled in by the `gazebo[cli]` extra; it
+  now lives in its own `gazebo[uvicorn]` extra (which depends on `gazebo[cli]`).
+  This matches `gazebo.ext.cli` (server-agnostic: `click`, `pydantic-settings`)
+  and `gazebo.ext.uvicorn` (the only module importing `uvicorn`) being separate
+  modules. Migration: install `gazebo[uvicorn]` instead of `gazebo[cli]` if you
+  use `gazebo.ext.uvicorn.serve` / `serve_command`; `gazebo[cli]` alone still
+  gets you `gazebo.ext.cli`'s building blocks for composing atop another server.
+
+## [v0.4.1] - 2026-06-30
 
 ### Changed
 
@@ -36,7 +82,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   since click reads the env var; a required secret is marked `(required)` in the
   Secrets section.
 
-## [0.4.0] - 2026-06-30
+## [v0.4.0] - 2026-06-30
 
 ### Added
 
@@ -51,7 +97,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   switches) and a `serve --check` validate-and-exit preflight. Wired into the
   garden example as `garden serve`.
 
-## [0.3.0] - 2026-06-29
+## [v0.3.0] - 2026-06-29
 
 ### Added
 
@@ -102,7 +148,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unresolvable one now wire correctly, and gazebo warns once, naming the
   parameter it could not resolve.
 
-## [0.2.0] - 2026-06-28
+## [v0.2.0] - 2026-06-28
 
 ### Added
 
@@ -206,13 +252,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the real fields, the items alias, the computed `numberReturned`, and
   non-opaque `links`.
 
-## [0.1.0] - 2026-06-27
+## [v0.1.0] - 2026-06-27
 
 Initial release 🎉
 
-[unreleased]: https://github.com/jkeifer/gazebo/compare/v0.4.1...HEAD
-[0.4.1]: https://github.com/jkeifer/gazebo/releases/tag/v0.4.1
-[0.4.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.4.0
-[0.3.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.3.0
-[0.2.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.2.0
-[0.1.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.1.0
+[unreleased]: https://github.com/jkeifer/gazebo/compare/v0.5.0...HEAD
+[v0.5.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.5.0
+[v0.4.1]: https://github.com/jkeifer/gazebo/releases/tag/v0.4.1
+[v0.4.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.4.0
+[v0.3.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.3.0
+[v0.2.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.2.0
+[v0.1.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.1.0

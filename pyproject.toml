@@ -20,7 +20,6 @@ Repository = 'https://github.com/jkeifer/gazebo'
 [project.optional-dependencies]
 cli = [
     "click>=8",
-    "uvicorn>=0.30",
     "pydantic-settings>=2",
 ]
 cql2 = [
@@ -31,6 +30,10 @@ fastapi = [
 ]
 geojson = [
     "geojson-pydantic>=1",
+]
+uvicorn = [
+    "gazebo[cli]",
+    "uvicorn>=0.30",
 ]
 test = [
     "pytest>=8.3.5",

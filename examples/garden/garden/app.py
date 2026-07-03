@@ -13,7 +13,8 @@ import click
 
 from gazebo.asgi import ASGIApp, Receive, Scope, Send, trust_all
 from gazebo.context import use_request_id
-from gazebo.ext.cli import default_log_config, serve_command
+from gazebo.ext.cli import default_log_config
+from gazebo.ext.uvicorn import serve_command
 from gazebo.ext.fastapi import GazeboApp, Overrides, Providers
 from gazebo.tags import Tag, tags_metadata
 
