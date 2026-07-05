@@ -15,7 +15,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from gazebo.ext.cli import (
     SettingsGroup,
-    default_log_config,
     secrets_epilog,
 )
 
@@ -254,15 +253,3 @@ def test_secrets_epilog_single_and_sequence_forms() -> None:
         host: str = 'x'
 
     assert secrets_epilog(Plain) is None
-
-
-def test_json_log_config_emits_json(capsys: pytest.CaptureFixture[str]) -> None:
-    import json
-    import logging
-    import logging.config
-
-    cfg = default_log_config(json_logs=True)
-    logging.config.dictConfig(cfg)
-    logging.getLogger('uvicorn.error').warning('hello %s', 'world')
-    err = capsys.readouterr().err
-    assert json.loads(err.strip().splitlines()[-1])['message'] == 'hello world'

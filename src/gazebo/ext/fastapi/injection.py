@@ -20,7 +20,7 @@ from typing import Any
 from fastapi import Depends, FastAPI, Request
 from fastapi.routing import APIRoute
 
-from gazebo.di import Container, Key, ScopeState, parse_annotation
+from gazebo.di import Container, Key, ScopeState, parse_annotation, resolve_annotation
 
 # The ASGI scope key under which the request-scope middleware publishes the open DI
 # ``ScopeState``; the injected resolver reads it back out. Both sides share this name.
@@ -56,25 +56,6 @@ def _is_injectable(base: type | None, meta: tuple[Any, ...]) -> bool:
     return base is not None and hasattr(base, '__provide__')
 
 
-def _resolve_annotation(annotation: Any, globalns: dict[str, Any]) -> tuple[Any, bool]:
-    """Leniently resolve one (possibly stringized) annotation in isolation.
-
-    Under ``from __future__ import annotations`` every annotation reaches us as a
-    string. Unlike ``get_type_hints`` — which resolves a function's hints as a single
-    unit and raises if *any* name is undefined — this evaluates one annotation on its
-    own and tolerates failure, mirroring how FastAPI resolves parameter types. So a
-    single unresolvable sibling (e.g. a name imported only under ``if TYPE_CHECKING:``)
-    no longer hides the injectable parameters next to it. Returns ``(value, resolved)``;
-    on failure the original string is returned with ``resolved=False``.
-    """
-    if not isinstance(annotation, str):
-        return annotation, True
-    try:
-        return eval(annotation, globalns), True  # noqa: S307
-    except Exception:  # noqa: BLE001
-        return annotation, False
-
-
 @dataclass(frozen=True, slots=True)
 class _Candidate:
     """A parameter eligible for injection, paired with its parsed annotation."""
@@ -92,7 +73,7 @@ def _candidate_params(endpoint: Callable[..., Any]) -> Iterator[_Candidate]:
 
     Eligible means a positional/keyword parameter with no default (a default already
     marks it as wired or framework-handled, and ``**kwargs`` is never injectable). Each
-    annotation is resolved independently and leniently (see :func:`_resolve_annotation`),
+    annotation is resolved independently and leniently (see :func:`gazebo.di.resolve_annotation`),
     so one unresolvable sibling cannot mask the injectable parameters next to it. This is
     the single source of that resolution rule for both the rewrite and the route guard.
     """
@@ -104,7 +85,7 @@ def _candidate_params(endpoint: Callable[..., Any]) -> Iterator[_Candidate]:
     for name, param in sig.parameters.items():
         if param.kind is param.VAR_KEYWORD or param.default is not inspect.Parameter.empty:
             continue
-        annotation, resolved = _resolve_annotation(param.annotation, globalns)
+        annotation, resolved = resolve_annotation(param.annotation, globalns)
         base, qualifier, meta = parse_annotation(annotation)
         yield _Candidate(name, param, base, qualifier, meta, resolved)
 

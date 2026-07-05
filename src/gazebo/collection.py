@@ -48,6 +48,21 @@ class LinkedCollection[T](BaseModel):
     _items_alias: ClassVar[str] = 'items'
     _emit_number_returned: ClassVar[bool] = True
 
+    @classmethod
+    def _items_rename(cls) -> dict[str, str]:
+        """The ``items`` -> ``items_alias`` rename mapping, or ``{}`` if unaliased.
+
+        Shared by the serializer (applied only when ``info.by_alias``) and the JSON
+        schema hook (applied unconditionally, since it only runs in serialization
+        mode) so the two spellings of the same rename can't drift apart.
+        """
+        return {'items': cls._items_alias} if cls._items_alias != 'items' else {}
+
+    @classmethod
+    def _number_returned_names(cls) -> tuple[str, str]:
+        """The ``(alias, field)`` spelling pair for the computed ``numberReturned``."""
+        return ('numberReturned', 'number_returned')
+
     items: Sequence[T]
     links: list[Link] = Field(default_factory=list)
     number_matched: int | None = Field(default=None, serialization_alias='numberMatched')
@@ -66,14 +81,16 @@ class LinkedCollection[T](BaseModel):
         # The alias and the numberReturned toggle apply in every mode (matching how a
         # plain serialization_alias would behave); the OGC-style null-dropping is for
         # the JSON wire format only, so a python-mode dump still round-trips.
-        data = handler(self)
-        if info.by_alias and self._items_alias != 'items':
-            data = {(self._items_alias if k == 'items' else k): v for k, v in data.items()}
+        data: dict[str, Any] = handler(self)
+        rename = self._items_rename()
+        if info.by_alias and rename:
+            data = {rename.get(k, k): v for k, v in data.items()}
         if not self._emit_number_returned:
             # The computed field carries alias='numberReturned', so the key the handler
             # emitted is determined by by_alias — pop exactly that one (same condition
             # the items rename above keys on) rather than guessing both names.
-            data.pop('numberReturned' if info.by_alias else 'number_returned', None)
+            alias_name, field_name = self._number_returned_names()
+            data.pop(alias_name if info.by_alias else field_name, None)
         if info.mode == 'json':
             data = drop_none(data)
         return data
@@ -92,8 +109,8 @@ class LinkedCollection[T](BaseModel):
         if handler.mode != 'serialization':
             return json_schema
 
-        rename = {'items': cls._items_alias} if cls._items_alias != 'items' else {}
-        drop = set() if cls._emit_number_returned else {'numberReturned', 'number_returned'}
+        rename = cls._items_rename()
+        drop = set() if cls._emit_number_returned else set(cls._number_returned_names())
 
         properties = json_schema.get('properties')
         if isinstance(properties, dict):

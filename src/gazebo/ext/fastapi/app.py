@@ -118,7 +118,20 @@ def upgrade(
 
     providers = providers or Providers()
     if Key(RequestContext) not in providers.bindings:  # type: ignore[type-abstract]
-        providers.request(RequestContext, _provide_request_context)  # type: ignore[type-abstract]
+        # Layer the default binding into a *fresh* registry rather than mutating the
+        # caller's `Providers` — `upgrade()` must not have side effects on registries
+        # it did not create. Re-binding through the public API is safe: `bind` re-runs
+        # `normalize_recipe`, which is idempotent.
+        with_default = Providers()
+        for binding in providers.bindings.values():
+            with_default.bind(
+                binding.key.type,
+                binding.recipe,
+                scope=binding.scope,
+                qualifier=binding.key.qualifier,
+            )
+        with_default.request(RequestContext, _provide_request_context)  # type: ignore[type-abstract]
+        providers = with_default
     container = Container(providers, overrides=overrides, roots={'request': Request})
     runtime = _Runtime(container)
     setattr(app.state, _RUNTIME_ATTR, runtime)

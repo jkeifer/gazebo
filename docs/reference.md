@@ -16,6 +16,8 @@ Auto-generated from the source docstrings and type hints.
 
 ::: gazebo.context
 
+::: gazebo.requestid
+
 ::: gazebo.problems
 
 ::: gazebo.params

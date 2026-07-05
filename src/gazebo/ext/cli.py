@@ -18,7 +18,9 @@ The building blocks:
   * :func:`secrets_epilog` — the ``--help`` epilog documenting secret fields (their env
     var, requiredness) without accepting them as flags, so a composed command can
     document secrets without ever putting them on the command line.
-  * :func:`default_log_config` — a complete dictConfig that survives worker spawn.
+  * :class:`JsonFormatter` — a minimal structured (one-JSON-object-per-line) logging
+    formatter with no server dependency; :func:`gazebo.ext.uvicorn.default_log_config`
+    wires it into a complete dictConfig for uvicorn.
 
 A settings option is *self-propagating* — it carries a callback that writes its env var
 when passed — so you can drop it onto your own ``click`` command (renamed, reordered,
@@ -52,12 +54,11 @@ from pydantic_settings import BaseSettings
 __all__ = [
     'JsonFormatter',
     'SettingsGroup',
-    'default_log_config',
     'secrets_epilog',
 ]
 
 
-# --- default logging (the genuinely fiddly part) -----------------------------
+# --- structured logging (the genuinely fiddly part, server-agnostic half) ----
 
 
 class JsonFormatter(logging.Formatter):
@@ -78,80 +79,6 @@ class JsonFormatter(logging.Formatter):
         if record.exc_info:
             data['exc'] = self.formatException(record.exc_info)
         return json.dumps(data, default=str)
-
-
-def default_log_config(
-    level: str = 'INFO',
-    *,
-    json_logs: bool = False,
-    request_id: bool = False,
-) -> dict[str, Any]:
-    """A complete dictConfig so a server's loggers coexist with app loggers
-    (``disable_existing_loggers=False``), error + access are formatted consistently,
-    and it re-applies cleanly in every spawned worker.
-
-    The console (non-``json_logs``) format names ``uvicorn.logging.DefaultFormatter`` /
-    ``AccessFormatter`` as ``()`` dictConfig strings; these are *lazy string references*
-    resolved by ``logging.config`` at config time, not imports here — but they do assume
-    uvicorn is installed when the config is applied. The ``json_logs`` mode uses only
-    :class:`JsonFormatter` and has no uvicorn dependency at all.
-
-    Args:
-        level: Log level for the server loggers and the root logger.
-        json_logs: Emit one JSON object per line (for log aggregation) instead of
-            the console format. Pin per environment, e.g.
-            ``log_config=default_log_config(json_logs=True)``.
-        request_id: Wire :class:`gazebo.context.RequestIdFilter` into the handlers so
-            the per-request id (set via ``use_request_id``) appears in every line.
-    """
-    rid_token = '[%(request_id)s] ' if request_id else ''
-    formatters: dict[str, dict[str, Any]]
-    if json_logs:
-        formatters = {
-            'default': {'()': f'{__name__}.JsonFormatter'},
-            'access': {'()': f'{__name__}.JsonFormatter'},
-        }
-    else:
-        formatters = {
-            'default': {
-                '()': 'uvicorn.logging.DefaultFormatter',
-                'format': f'%(levelprefix)s {rid_token}%(message)s',
-                'use_colors': None,
-            },
-            'access': {
-                '()': 'uvicorn.logging.AccessFormatter',
-                'format': f'%(levelprefix)s {rid_token}%(client_addr)s - '
-                '"%(request_line)s" %(status_code)s',
-            },
-        }
-    filters = {'request_id': {'()': 'gazebo.context.RequestIdFilter'}} if request_id else {}
-    handler_filters = ['request_id'] if request_id else []
-    return {
-        'version': 1,
-        'disable_existing_loggers': False,
-        'filters': filters,
-        'formatters': formatters,
-        'handlers': {
-            'default': {
-                'class': 'logging.StreamHandler',
-                'formatter': 'default',
-                'stream': 'ext://sys.stderr',
-                'filters': handler_filters,
-            },
-            'access': {
-                'class': 'logging.StreamHandler',
-                'formatter': 'access',
-                'stream': 'ext://sys.stdout',
-                'filters': handler_filters,
-            },
-        },
-        'loggers': {
-            'uvicorn': {'handlers': ['default'], 'level': level, 'propagate': False},
-            'uvicorn.error': {'level': level},
-            'uvicorn.access': {'handlers': ['access'], 'level': level, 'propagate': False},
-        },
-        'root': {'handlers': ['default'], 'level': level},
-    }
 
 
 # --- settings option generation (the self-documentation) ---------------------

@@ -29,9 +29,10 @@ import base64
 import json
 
 from collections.abc import Mapping
+from dataclasses import dataclass, field
 from typing import Any
 
-from gazebo.context import with_query
+from gazebo.context import merge_params, with_query
 from gazebo.link import Link
 from gazebo.params import ParamError
 from gazebo.rels import MediaType, Rel
@@ -46,43 +47,44 @@ def last_page_offset(total: int, limit: int) -> int:
     return ((total - 1) // limit) * limit if total > 0 else 0
 
 
-def _link_fields(
-    type: str | None,
-    headers: Mapping[str, str | list[str]] | None,
-    extra: Mapping[str, Any],
-) -> dict[str, Any]:
-    fields: dict[str, Any] = dict(extra)
-    if type is not None:
-        fields['type'] = type
-    if headers is not None:
-        fields['headers'] = dict(headers)
-    return fields
+@dataclass(frozen=True, slots=True)
+class _LinkStyle:
+    """The per-link knobs shared by every link `paginate`/`paginate_offset` emit.
+
+    Bundles how the token travels (``method``/``body``) and what else rides on the
+    ``Link`` (``type``/``headers``/``**link_fields``), so the two public functions
+    build one of these and pass it through their local link-building closures instead
+    of splatting a type-erased ``dict``.
+    """
+
+    method: str
+    body: Mapping[str, Any] | None
+    type: str | None
+    headers: Mapping[str, str | list[str]] | None
+    extra: Mapping[str, Any] = field(default_factory=dict)
+
+    @property
+    def link_fields(self) -> dict[str, Any]:
+        """The extra ``Link`` kwargs (``type``/``headers``/passthrough) for one link."""
+        fields: dict[str, Any] = dict(self.extra)
+        if self.type is not None:
+            fields['type'] = self.type
+        if self.headers is not None:
+            fields['headers'] = dict(self.headers)
+        return fields
 
 
-def _page_link(
-    rel: str,
-    params: Mapping[str, object],
-    *,
-    method: str,
-    body: Mapping[str, Any] | None,
-    type: str | None,
-    headers: Mapping[str, str | list[str]] | None,
-    extra: Mapping[str, Any],
-) -> Link:
+def _page_link(rel: str, params: Mapping[str, object], style: _LinkStyle) -> Link:
     """Build one pagination link, carrying the token in the query (GET) or body (POST).
 
     ``params`` is the set of pagination parameters to apply (a ``None`` value removes
     that key). For GET they rewrite the current URL's query; for POST they are merged
     into ``body`` and the href stays the current URL (the token travels in the body).
     """
-    fields = _link_fields(type, headers, extra)
-    if method.upper() == 'POST':
-        payload: dict[str, Any] = dict(body or {})
-        for key, value in params.items():
-            if value is None:
-                payload.pop(key, None)
-            else:
-                payload[key] = value
+    fields = style.link_fields
+    if style.method.upper() == 'POST':
+        payload: dict[str, Any] = dict(style.body or {})
+        merge_params(payload, params)
         return Link(href=lambda ctx: ctx.url, rel=rel, method='POST', body=payload, **fields)
     return Link(href=lambda ctx: with_query(ctx, **params), rel=rel, **fields)
 
@@ -127,10 +129,10 @@ def paginate(
     The ``next``/``prev`` links lead the list (unchanged from earlier releases); any
     ``first``/``last``/``self`` links follow.
     """
-    opts: dict[str, Any] = {'method': method, 'body': body, 'type': type, 'headers': headers}
+    style = _LinkStyle(method=method, body=body, type=type, headers=headers, extra=link_fields)
 
     def link(rel: str, token: str | None) -> Link:
-        return _page_link(rel, {token_param: token, limit_param: limit}, extra=link_fields, **opts)
+        return _page_link(rel, {token_param: token, limit_param: limit}, style)
 
     links: list[Link] = []
     if next_token is not None:
@@ -139,19 +141,12 @@ def paginate(
         links.append(link(Rel.PREV, prev_token))
     if first:
         # The first page is the collection with no token (limit preserved).
-        links.append(
-            _page_link(
-                Rel.FIRST,
-                {token_param: None, limit_param: limit},
-                extra=link_fields,
-                **opts,
-            ),
-        )
+        links.append(_page_link(Rel.FIRST, {token_param: None, limit_param: limit}, style))
     if last_token is not None:
         links.append(link(Rel.LAST, last_token))
     if self_:
         # self repeats the current request unchanged (no token rewrite).
-        links.append(_page_link(Rel.SELF, {}, extra=link_fields, **opts))
+        links.append(_page_link(Rel.SELF, {}, style))
     return links
 
 
@@ -196,11 +191,11 @@ def paginate_offset(
     if offset < 0:
         raise ValueError('offset must not be negative')
 
-    opts: dict[str, Any] = {'method': method, 'body': body, 'type': type, 'headers': headers}
+    style = _LinkStyle(method=method, body=body, type=type, headers=headers, extra=link_fields)
 
     def at(rel: str, page_offset: int) -> Link:
         params = {offset_param: page_offset, limit_param: limit}
-        return _page_link(rel, params, extra=link_fields, **opts)
+        return _page_link(rel, params, style)
 
     links: list[Link] = []
     if self_:
@@ -230,12 +225,14 @@ def encode_cursor(payload: Mapping[str, Any]) -> str:
     return base64.urlsafe_b64encode(raw).rstrip(b'=').decode('ascii')
 
 
-def decode_cursor(token: str, *, parameter: str = 'cursor') -> dict[str, Any]:
+def decode_cursor(token: str, *, parameter: str = 'token') -> dict[str, Any]:
     """Decode a cursor produced by :func:`encode_cursor` back into its payload.
 
     A malformed or non-object cursor raises :class:`~gazebo.params.ParamError` (which
     the FastAPI glue renders as a ``400`` problem) carrying ``parameter`` — treat a
-    bad client-supplied cursor as a client error, not a 500.
+    bad client-supplied cursor as a client error, not a 500. ``parameter`` defaults to
+    ``'token'`` to match :func:`paginate`'s default ``token_param``; pass the actual
+    query/body parameter name if the caller uses a different one (e.g. ``'cursor'``).
     """
     padded = token + '=' * (-len(token) % 4)
     try:

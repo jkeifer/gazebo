@@ -113,7 +113,7 @@ def _offset_from_cursor(cursor: str | None) -> int:
     """
     if not cursor:
         return 0
-    offset = decode_cursor(cursor).get('offset', 0)
+    offset = decode_cursor(cursor, parameter='cursor').get('offset', 0)
     if isinstance(offset, bool) or not isinstance(offset, int) or offset < 0:
         raise ParamError('cursor', 'cursor offset must be a non-negative integer')
     return offset

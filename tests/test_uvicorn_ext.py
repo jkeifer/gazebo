@@ -19,8 +19,8 @@ from click.testing import CliRunner
 from fastapi import FastAPI
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from gazebo.ext.cli import SettingsGroup, default_log_config
-from gazebo.ext.uvicorn import serve, serve_command
+from gazebo.ext.cli import SettingsGroup
+from gazebo.ext.uvicorn import default_log_config, serve, serve_command
 
 
 class Settings(BaseSettings):
@@ -79,6 +79,17 @@ def test_serve_forwards_argv_through_real_uvicorn(monkeypatch: pytest.MonkeyPatc
     assert captured['workers'] == 3
     assert captured['host'] == '127.0.0.1'  # uvicorn's own default for an unpassed option
     assert captured['log_config_content'] == default_log_config()  # injected default
+
+
+def test_json_log_config_emits_json(capsys: pytest.CaptureFixture[str]) -> None:
+    import logging
+    import logging.config
+
+    cfg = default_log_config(json_logs=True)
+    logging.config.dictConfig(cfg)
+    logging.getLogger('uvicorn.error').warning('hello %s', 'world')
+    err = capsys.readouterr().err
+    assert json.loads(err.strip().splitlines()[-1])['message'] == 'hello world'
 
 
 def test_serve_dict_log_config_round_trips(monkeypatch: pytest.MonkeyPatch) -> None:
