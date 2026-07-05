@@ -23,6 +23,7 @@ from gazebo.di.providers import (
     Qualify,
     Recipe,
     parse_annotation,
+    resolve_annotation,
 )
 
 __all__ = [
@@ -40,4 +41,5 @@ __all__ = [
     'ScopeState',
     'UnresolvedDependencyError',
     'parse_annotation',
+    'resolve_annotation',
 ]

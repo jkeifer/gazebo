@@ -13,6 +13,11 @@ contribution via :class:`gazebo.ext.cli.SettingsGroup`), while ``serve --help-se
 prints uvicorn's own help. The ``--help-server`` path is a *display-only* coupling
 (``uvicorn.main.get_help``) that fails soft — a broken help screen never stops a server.
 
+This module also owns :func:`default_log_config`, the batteries-included dictConfig: it
+configures the ``uvicorn``/``uvicorn.error``/``uvicorn.access`` loggers by name and
+references ``uvicorn.logging.DefaultFormatter``/``AccessFormatter``, so — unlike the
+rest of ``gazebo.ext.cli`` — it's genuinely uvicorn-specific and lives here instead.
+
 Requires the ``gazebo[uvicorn]`` extra (which pulls in ``gazebo[cli]`` plus uvicorn
 itself). The ``import uvicorn`` here resolves to the real package, mirroring
 ``ext/fastapi``'s ``import fastapi``.
@@ -31,9 +36,86 @@ import uvicorn
 
 from pydantic_settings import BaseSettings
 
-from gazebo.ext.cli import SettingsGroup, default_log_config
+from gazebo.ext.cli import SettingsGroup
 
-__all__ = ['serve', 'serve_command']
+__all__ = ['default_log_config', 'serve', 'serve_command']
+
+
+# --- default logging (uvicorn-specific dictConfig) ---------------------------
+
+
+def default_log_config(
+    level: str = 'INFO',
+    *,
+    json_logs: bool = False,
+    request_id: bool = False,
+) -> dict[str, Any]:
+    """A complete dictConfig so uvicorn's loggers coexist with app loggers
+    (``disable_existing_loggers=False``), error + access are formatted consistently,
+    and it re-applies cleanly in every spawned worker.
+
+    The console (non-``json_logs``) format names ``uvicorn.logging.DefaultFormatter`` /
+    ``AccessFormatter`` as ``()`` dictConfig strings, resolved by ``logging.config`` at
+    config time; this module already requires uvicorn, so that's a real dependency, not
+    a lazy one. The ``json_logs`` mode uses only :class:`gazebo.ext.cli.JsonFormatter`
+    and has no further uvicorn dependency.
+
+    Args:
+        level: Log level for the server loggers and the root logger.
+        json_logs: Emit one JSON object per line (for log aggregation) instead of
+            the console format. Pin per environment, e.g.
+            ``log_config=default_log_config(json_logs=True)``.
+        request_id: Wire :class:`gazebo.requestid.RequestIdFilter` into the handlers so
+            the per-request id (set via ``use_request_id``) appears in every line.
+    """
+    rid_token = '[%(request_id)s] ' if request_id else ''
+    formatters: dict[str, dict[str, Any]]
+    if json_logs:
+        formatters = {
+            'default': {'()': 'gazebo.ext.cli.JsonFormatter'},
+            'access': {'()': 'gazebo.ext.cli.JsonFormatter'},
+        }
+    else:
+        formatters = {
+            'default': {
+                '()': 'uvicorn.logging.DefaultFormatter',
+                'format': f'%(levelprefix)s {rid_token}%(message)s',
+                'use_colors': None,
+            },
+            'access': {
+                '()': 'uvicorn.logging.AccessFormatter',
+                'format': f'%(levelprefix)s {rid_token}%(client_addr)s - '
+                '"%(request_line)s" %(status_code)s',
+            },
+        }
+    filters = {'request_id': {'()': 'gazebo.requestid.RequestIdFilter'}} if request_id else {}
+    handler_filters = ['request_id'] if request_id else []
+    return {
+        'version': 1,
+        'disable_existing_loggers': False,
+        'filters': filters,
+        'formatters': formatters,
+        'handlers': {
+            'default': {
+                'class': 'logging.StreamHandler',
+                'formatter': 'default',
+                'stream': 'ext://sys.stderr',
+                'filters': handler_filters,
+            },
+            'access': {
+                'class': 'logging.StreamHandler',
+                'formatter': 'access',
+                'stream': 'ext://sys.stdout',
+                'filters': handler_filters,
+            },
+        },
+        'loggers': {
+            'uvicorn': {'handlers': ['default'], 'level': level, 'propagate': False},
+            'uvicorn.error': {'level': level},
+            'uvicorn.access': {'handlers': ['access'], 'level': level, 'propagate': False},
+        },
+        'root': {'handlers': ['default'], 'level': level},
+    }
 
 
 # --- app reference resolution ------------------------------------------------
@@ -87,7 +169,7 @@ def serve(
             injected default.
         factory: Force factory mode for a string ``app`` (auto-detected for callables).
         log_config: dictConfig loading for uvicorn. ``None`` injects
-            :func:`gazebo.ext.cli.default_log_config`; a ``dict`` is written to a temp
+            :func:`default_log_config`; a ``dict`` is written to a temp
             ``.json`` file whose path is passed (workers re-read it); a ``str``/``Path``
             is passed through as-is.
     """
@@ -181,7 +263,7 @@ def serve_command(
         name: The command name (default ``serve``).
         factory: Force factory mode for a string ``app`` (auto-detected for callables).
         log_config: dictConfig for uvicorn; defaults to
-            :func:`gazebo.ext.cli.default_log_config`. Operators can still override it
+            :func:`default_log_config`. Operators can still override it
             with ``--log-config`` on the command line.
         uvicorn_args: Author-supplied uvicorn CLI defaults, forwarded *before* operator
             arguments so an operator can override them at the command line.

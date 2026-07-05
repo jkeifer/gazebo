@@ -52,12 +52,14 @@ under the glue, you never do this by hand.
 
 ## Request id + logging (opt-in)
 
-A separate nicety lives in the same module: a `request_id` ContextVar with
-`use_request_id(value)` to bind one per request, and `RequestIdFilter`, a logging
-filter that stamps each record with the active id (or `-` outside a request) so a
-`%(request_id)s` format field never breaks. Wiring it into middleware is shown in
+A separate nicety lives in the sibling module `gazebo.requestid`: a `request_id`
+ContextVar with `use_request_id(value)` to bind one per request, and
+`RequestIdFilter`, a logging filter that stamps each record with the active id (or
+`-` outside a request) so a `%(request_id)s` format field never breaks. It's
+independent of the link context above. Wiring it into middleware is shown in
 [Proxy, context & health](../fastapi/proxy.md#request-id-logging).
 
 ## Reference
 
-See [`gazebo.context`](../reference.md#gazebo.context).
+See [`gazebo.context`](../reference.md#gazebo.context) and
+[`gazebo.requestid`](../reference.md#gazebo.requestid).

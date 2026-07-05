@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+### Fixed
+
 ### Deprecated
 
 ### Removed
@@ -18,6 +20,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 ### Security
+
+## [v0.7.0] - 2026-07-05
+
+### Added
+
+- `gazebo.di.resolve_annotation()`: the lenient, per-annotation type-hint
+  resolver (previously an internal of the FastAPI glue) is now a public, shared
+  `gazebo.di` helper — the single implementation behind both the DI container's
+  dependency discovery and route-signature injection.
+- `gazebo.context.merge_params()`: the shared "merge overrides into params; a
+  `None` value removes the key" helper behind `with_query` and the pagination
+  POST-body links.
+
+### Changed
+
+- **Breaking:** the request-id machinery moved out of `gazebo.context` into a
+  new `gazebo.requestid` module: `request_id`, `use_request_id`, and
+  `RequestIdFilter`. `gazebo.context` now carries only the link-context seam.
+  Migration: import from `gazebo.requestid`, and update any logging dictConfig
+  filter reference from `'gazebo.context.RequestIdFilter'` to
+  `'gazebo.requestid.RequestIdFilter'`.
+- **Breaking:** `default_log_config()` moved from `gazebo.ext.cli` to
+  `gazebo.ext.uvicorn`. It configures uvicorn's loggers and console formatters,
+  so it belongs in the uvicorn-coupled module; `gazebo.ext.cli` is now honestly
+  server-agnostic (`JsonFormatter` stays there). Migration: `from
+  gazebo.ext.uvicorn import default_log_config`.
+- **Breaking:** `decode_cursor()`'s default `parameter` is now `'token'`,
+  matching `paginate()`'s default `token_param` — so a service on all defaults
+  emits `?token=` links *and* blames `token` in the 400 problem for a bad
+  cursor. Pass `parameter='cursor'` explicitly if your query parameter is named
+  `cursor`.
+
+### Fixed
+
+- `upgrade()` (and therefore `GazeboApp`) no longer mutates the caller's
+  `Providers` registry when adding the default `RequestContext` binding; the
+  default is layered into a copy, so a registry can be safely reused or
+  inspected after wiring an app.
 
 ## [v0.6.0] - 2026-07-03
 
@@ -291,7 +331,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release 🎉
 
-[unreleased]: https://github.com/jkeifer/gazebo/compare/v0.6.0...HEAD
+[unreleased]: https://github.com/jkeifer/gazebo/compare/v0.7.0...HEAD
+[v0.7.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.7.0
 [v0.6.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.6.0
 [v0.5.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.5.0
 [v0.4.1]: https://github.com/jkeifer/gazebo/releases/tag/v0.4.1

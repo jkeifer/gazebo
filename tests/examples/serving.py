@@ -11,8 +11,8 @@ from click.testing import CliRunner
 from fastapi import FastAPI
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from gazebo.ext.cli import SettingsGroup, default_log_config
-from gazebo.ext.uvicorn import serve, serve_command
+from gazebo.ext.cli import SettingsGroup
+from gazebo.ext.uvicorn import default_log_config, serve, serve_command
 
 
 # --8<-- [start:serve]

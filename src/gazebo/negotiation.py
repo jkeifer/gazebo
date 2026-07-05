@@ -132,11 +132,10 @@ def negotiate(
                 (_accept_quality(rep.media_type, ranges), i, rep)
                 for i, rep in enumerate(available)
             ]
-            best_q = max(q for q, _, _ in scored)
+            # highest q wins; ties fall to server-preferred order (lowest index)
+            best_q, _, best = min(scored, key=lambda s: (-s[0], s[1]))
             if best_q > 0:
-                # highest q wins; ties fall to server-preferred order (lowest index)
-                _, _, rep = min((-q, i, r) for q, i, r in scored)
-                return rep
+                return best
             offered = ', '.join(rep.media_type for rep in available)
             raise ProblemException(
                 406,

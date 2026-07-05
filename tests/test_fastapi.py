@@ -13,6 +13,8 @@ from pydantic import BaseModel
 
 from gazebo.asgi import trust_all
 from gazebo.collection import LinkedCollection
+from gazebo.context import RequestContext
+from gazebo.di import Key
 from gazebo.ext.fastapi import (
     BBoxParam,
     CorsConfig,
@@ -317,6 +319,22 @@ def test_upgrade_existing_app():
     upgrade(app, Providers().request(Ping))  # gazebo-ify an app we didn't construct
     with TestClient(app) as client:
         assert client.get('/ping').json() == {'ok': True}
+        assert client.get('/health').status_code == 200
+
+
+def test_upgrade_does_not_mutate_callers_providers():
+    from fastapi import FastAPI
+
+    providers = Providers().request(Ping)
+    assert Key(RequestContext) not in providers.bindings  # type: ignore[type-abstract]
+
+    app = FastAPI(title='pre-existing')
+    upgrade(app, providers)
+
+    # upgrade() must layer in the default RequestContext binding on its own copy,
+    # never write it back into the caller-owned registry.
+    assert Key(RequestContext) not in providers.bindings  # type: ignore[type-abstract]
+    with TestClient(app) as client:
         assert client.get('/health').status_code == 200
 
 

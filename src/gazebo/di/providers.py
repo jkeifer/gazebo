@@ -59,6 +59,25 @@ class Qualify:
     qualifier: str
 
 
+def resolve_annotation(annotation: Any, globalns: dict[str, Any]) -> tuple[Any, bool]:
+    """Leniently resolve one (possibly stringized) annotation in isolation.
+
+    Under ``from __future__ import annotations`` every annotation reaches us as a
+    string. Unlike ``get_type_hints`` — which resolves a function's hints as a single
+    unit and raises if *any* name is undefined — this evaluates one annotation on its
+    own and tolerates failure, mirroring how FastAPI resolves parameter types. So a
+    single unresolvable sibling (e.g. a name imported only under ``if TYPE_CHECKING:``)
+    no longer hides the injectable parameters next to it. Returns ``(value, resolved)``;
+    on failure the original string is returned with ``resolved=False``.
+    """
+    if not isinstance(annotation, str):
+        return annotation, True
+    try:
+        return eval(annotation, globalns), True  # noqa: S307
+    except Exception:  # noqa: BLE001
+        return annotation, False
+
+
 def parse_annotation(ann: Any) -> tuple[type | None, str | None, tuple[Any, ...]]:
     """Split a type annotation into ``(base type, Qualify qualifier, metadata)``.
 

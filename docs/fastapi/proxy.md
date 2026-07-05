@@ -60,5 +60,6 @@ built, with nothing extra to maintain.
 
 ## Reference
 
-See [`gazebo.asgi`](../reference.md#gazebo.asgi) and
-[`gazebo.context`](../reference.md#gazebo.context).
+See [`gazebo.asgi`](../reference.md#gazebo.asgi),
+[`gazebo.context`](../reference.md#gazebo.context), and
+[`gazebo.requestid`](../reference.md#gazebo.requestid).

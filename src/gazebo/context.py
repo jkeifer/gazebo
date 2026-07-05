@@ -9,8 +9,6 @@ dumps and tests.
 
 from __future__ import annotations
 
-import logging
-
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
@@ -77,49 +75,28 @@ def resolve_context(info_context: Any = None) -> RequestContext | None:
     return None
 
 
+def merge_params(params: dict[str, Any], overrides: Mapping[str, object]) -> None:
+    """Merge ``overrides`` into ``params`` in place.
+
+    A ``None`` value in ``overrides`` removes the key from ``params``; any other value
+    sets it. Shared by :func:`with_query` (query-string overrides) and pagination's POST
+    body merge, so the two identical "None removes, else sets" merges aren't re-spelled.
+    """
+    for key, value in overrides.items():
+        if value is None:
+            params.pop(key, None)
+        else:
+            params[key] = value
+
+
 def with_query(ctx: RequestContext, **overrides: object) -> str:
     """Return the current URL with ``overrides`` merged into the query string.
 
-    A ``None`` value removes that parameter. Other values are stringified. The shared
-    "derive a URL from the active context" helper behind deferred pagination and
-    content-negotiation hrefs.
+    A ``None`` value removes that parameter. Other values are stringified (via
+    :func:`urllib.parse.urlencode`). The shared "derive a URL from the active context"
+    helper behind deferred pagination and content-negotiation hrefs.
     """
     parts = urlsplit(ctx.url)
-    query = dict(parse_qsl(parts.query, keep_blank_values=True))
-    for key, value in overrides.items():
-        if value is None:
-            query.pop(key, None)
-        else:
-            query[key] = str(value)
+    query: dict[str, Any] = dict(parse_qsl(parts.query, keep_blank_values=True))
+    merge_params(query, overrides)
     return urlunsplit(parts._replace(query=urlencode(query)))
-
-
-# --- request id + logging (deferred nicety, opt-in) -----------------------
-
-request_id: ContextVar[str | None] = ContextVar('gazebo_request_id', default=None)
-
-
-@contextmanager
-def use_request_id(value: str) -> Iterator[str]:
-    token = request_id.set(value)
-    try:
-        yield value
-    finally:
-        request_id.reset(token)
-
-
-class RequestIdFilter(logging.Filter):
-    """Logging filter that stamps each record with the active request id.
-
-    Add to a handler/logger and reference ``%(request_id)s`` in the format. The
-    field is always present (``-`` when no request is active), so the format
-    string never breaks outside a request.
-    """
-
-    def __init__(self, name: str = '', *, default: str = '-') -> None:
-        super().__init__(name)
-        self._default = default
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        record.request_id = request_id.get(None) or self._default
-        return True

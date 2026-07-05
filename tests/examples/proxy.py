@@ -34,7 +34,7 @@ assert trust({**_scope, 'client': ('1.2.3.4', 5000)}) is False
 import uuid
 
 from gazebo.asgi import ASGIApp, Receive, Scope, Send
-from gazebo.context import RequestIdFilter, use_request_id
+from gazebo.requestid import RequestIdFilter, use_request_id
 
 
 class RequestIdMiddleware:

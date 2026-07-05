@@ -22,6 +22,7 @@ from gazebo.di.providers import (
     Providers,
     normalize_recipe,
     parse_annotation,
+    resolve_annotation,
 )
 
 
@@ -107,12 +108,9 @@ def deps_of(recipe: Any) -> list[Dep]:
         if hints is not None and name in hints:
             ann: Any = hints[name]
         else:
-            ann = param.annotation
-            if isinstance(ann, str):
-                try:
-                    ann = eval(ann, globalns)  # noqa: S307 - resolving a type hint
-                except Exception:  # noqa: BLE001
-                    ann = None
+            ann, resolved = resolve_annotation(param.annotation, globalns)
+            if not resolved:
+                ann = None
         if ann is inspect.Parameter.empty:
             ann = None
         typ, qualifier, _ = parse_annotation(ann)
