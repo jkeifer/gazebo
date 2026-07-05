@@ -278,6 +278,32 @@
   
   
     <li class="md-nav__item">
+      <a href="../../why/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Why gazebo
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../getting-started/" class="md-nav__link">
         
   
@@ -345,7 +371,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
         
           
           <div class="md-nav__link md-nav__container">
@@ -366,14 +392,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="">
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_3">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -773,7 +799,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -794,14 +820,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -934,7 +960,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -955,14 +981,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1146,7 +1172,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1167,14 +1193,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_7" id="__nav_7_label" tabindex="">
+              <label class="md-nav__link " for="__nav_8" id="__nav_8_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_7">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1423,16 +1449,19 @@
 
 <h1 id="content-negotiation">Content negotiation<a class="headerlink" href="#content-negotiation" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>Pick a representation from <code>?f=</code> (then <code>Accept</code>), and link the alternates — without
-gazebo taking a position on HTML or templating.</p>
+<p><code>?f=</code> and <code>Accept</code> say what the client wants; something has to pick a
+representation and link the alternates. Pure resolution — gazebo takes no
+position on HTML or templating.</p>
 </blockquote>
-<p>OGC clients live on <code>?f=json|html</code>, with the HTTP <code>Accept</code> header as the fallback. The
-core ships the <code>ALTERNATE</code> rel and an <code>HTML</code> media type but no negotiation logic, so
-choosing a representation — and advertising the others — was on you. <code>gazebo.negotiation</code>
-closes that gap with pure <em>resolution</em>: given the representations a resource offers, it
-picks one and builds the <code>alternate</code> links to the rest. It deliberately ships <strong>no HTML
-renderer</strong>: turning the chosen representation into bytes (a template, a callable) is the
-app's job; gazebo only tells you <em>which</em> representation and links the others.</p>
+<p>OGC clients live on <code>?f=json|html</code>, with the HTTP <code>Accept</code> header as the
+fallback. Every multi-format endpoint therefore needs the same two decisions
+made correctly: which representation to serve, and how to advertise the others.
+<code>gazebo.negotiation</code> is exactly that <em>resolution</em> logic — given the
+representations a resource offers, it picks one and builds the <code>alternate</code> links
+to the rest.</p>
+<p>It deliberately ships <strong>no HTML renderer</strong>. Turning the chosen representation
+into bytes — a template, a callable — is the app's job; gazebo only tells you
+<em>which</em> representation won, and links the others.</p>
 <h2 id="resolving-a-representation">Resolving a representation<a class="headerlink" href="#resolving-a-representation" title="Permanent link">&para;</a></h2>
 <p>A <a href="../../reference/#gazebo.negotiation.Representation"><code>Representation</code></a> pairs a <code>?f=</code> key
 with a media type (<code>JSON</code>, <code>GEOJSON</code>, <code>HTML</code> are ready-made). <code>negotiate()</code> applies the

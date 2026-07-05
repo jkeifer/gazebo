@@ -278,6 +278,32 @@
   
   
     <li class="md-nav__item">
+      <a href="../../why/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Why gazebo
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../getting-started/" class="md-nav__link">
         
   
@@ -345,7 +371,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
         
           
           <div class="md-nav__link md-nav__container">
@@ -366,14 +392,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="">
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_3">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -845,7 +871,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -866,14 +892,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1006,7 +1032,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1027,14 +1053,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1218,7 +1244,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1239,14 +1265,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_7" id="__nav_7_label" tabindex="">
+              <label class="md-nav__link " for="__nav_8" id="__nav_8_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_7">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1567,15 +1593,21 @@
 
 <h1 id="collections">Collections<a class="headerlink" href="#collections" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p><code>LinkedCollection[T]</code> — the OGC collection envelope: a list of items plus
-hypermedia links and counts.</p>
+<p>Every listing endpoint returns the same envelope — items, links, counts — and
+every project re-invents it. <code>LinkedCollection[T]</code> is that envelope, written
+once, with the pagination links included.</p>
 </blockquote>
+<p>An OGC listing response is never just an array: it's items under a spec-defined
+key, a <code>links</code> list, and counts, with pagination links that must faithfully
+carry the client's query. None of that is your service's actual logic, and all
+of it has edge cases (<a href="../../why/#pagination-is-url-surgery-repeated-per-endpoint">Why gazebo</a>
+shows the classic one). This page is the envelope and its link builders.</p>
 <h2 id="the-envelope">The envelope<a class="headerlink" href="#the-envelope" title="Permanent link">&para;</a></h2>
 <p><code>LinkedCollection[T]</code> is the standard OGC collection wrapper: a <code>Sequence[T]</code> of
 items plus a <code>links</code> list and counts. <code>numberReturned</code> is computed from the
-items; <code>numberMatched</code> (the total across all pages) is optional and dropped when
-unset. Because the links are deferred, the whole envelope — items, links, and all
-— is built in business logic with no request in hand.</p>
+items. <code>numberMatched</code> — the total across all pages — is optional and dropped
+when unset. Because the links are deferred, the whole envelope is built in
+business logic with no request in hand.</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">gazebo.collection</span><span class="w"> </span><span class="kn">import</span> <span class="n">LinkedCollection</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">gazebo.link</span><span class="w"> </span><span class="kn">import</span> <span class="n">Link</span>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
@@ -1632,9 +1664,12 @@ temporal interval <code>[start, null]</code>) are preserved.</p>
 <h2 id="pagination-links">Pagination links<a class="headerlink" href="#pagination-links" title="Permanent link">&para;</a></h2>
 <p><code>paginate()</code> returns deferred <code>next</code>/<code>prev</code> links. At serialization each takes the
 current request URL and rewrites <em>only</em> the pagination query params — <code>token</code> and
-<code>limit</code> by default, both configurable — preserving every other param. You own the
-token semantics (opaque cursor, offset, keyset); gazebo just builds the links. The
-underlying <code>with_query</code> helper is public if you need to rewrite a URL yourself.</p>
+<code>limit</code> by default, both configurable — preserving every other param. Omitting
+<code>limit</code> leaves the current URL's <code>limit</code> (if any) untouched rather than stripping it,
+so a client's page-size choice survives pagination even when you don't re-pass it.
+You own the token semantics (opaque cursor, offset, keyset); gazebo just builds the
+links. The underlying <code>with_query</code> helper is public if you need to rewrite a URL
+yourself.</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">gazebo.pagination</span><span class="w"> </span><span class="kn">import</span> <span class="n">paginate</span>
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
 </span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="c1"># next/prev links that, at serialization, rewrite only the pagination query params</span>
@@ -1670,14 +1705,16 @@ malformed cursor raises a <a href="../params/"><code>ParamError</code></a> (a <c
 </span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="n">offset_links</span> <span class="o">=</span> <span class="n">paginate_offset</span><span class="p">(</span><span class="n">offset</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="mi">55</span><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="post-body-pagination-stateless-servers">POST-body pagination (stateless servers)<a class="headerlink" href="#post-body-pagination-stateless-servers" title="Permanent link">&para;</a></h3>
-<p>The builders are a thin convenience over <a href="../links/"><code>Link</code></a>, not a lossy wrapper: every
-generated link can carry the full <code>Link</code> surface — a <code>type</code>, <code>headers</code>, a <code>title</code> (or
-any extra member, via <code>**link_fields</code>), and a <code>method</code>/<code>body</code>. That last pair is what
-makes pagination work for a <strong>POST</strong> search on a <em>stateless</em> server: with
-<code>method='POST'</code> the page token rides in the request <strong>body</strong> (merged into the <code>body</code> you
-pass) instead of the query string, so each <code>next</code> link re-states the whole search the
-server doesn't remember. The companion <a href="../../testing/pagination/"><code>drive_pagination</code></a>
-test driver follows these POST <code>next</code> links by reposting that body.</p>
+<p>The builders are a thin convenience over <a href="../links/"><code>Link</code></a>, not a lossy wrapper.
+Every generated link can carry the full <code>Link</code> surface: a <code>type</code>, <code>headers</code>, a
+<code>title</code> (or any extra member, via <code>**link_fields</code>), and a <code>method</code>/<code>body</code>.</p>
+<p>That last pair is what makes pagination work for a <strong>POST</strong> search on a
+<em>stateless</em> server. With <code>method='POST'</code>, the page token rides in the request
+<strong>body</strong> — merged into the <code>body</code> you pass — instead of the query string. Each
+<code>next</code> link therefore re-states the whole search, which is exactly what a server
+that remembers nothing needs. The companion
+<a href="../../testing/pagination/"><code>drive_pagination</code></a> test driver follows these POST
+<code>next</code> links by reposting that body.</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># POST pagination for a *stateless* server: the token rides in the request body (merged</span>
 </span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="c1"># with the original criteria) rather than the query, so each `next` re-states the whole</span>
 </span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="c1"># search. Any Link member (here `type`) can be set on every emitted link.</span>

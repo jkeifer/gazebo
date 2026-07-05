@@ -278,6 +278,32 @@
   
   
     <li class="md-nav__item">
+      <a href="../../why/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Why gazebo
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../getting-started/" class="md-nav__link">
         
   
@@ -345,7 +371,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
         
           
           <div class="md-nav__link md-nav__container">
@@ -366,14 +392,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="">
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_3">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -784,7 +810,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -805,14 +831,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -945,7 +971,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -966,14 +992,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1157,7 +1183,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1178,14 +1204,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_7" id="__nav_7_label" tabindex="">
+              <label class="md-nav__link " for="__nav_8" id="__nav_8_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_7">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1445,18 +1471,18 @@
 
 <h1 id="filtering">Filtering<a class="headerlink" href="#filtering" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>CQL2 <code>filter</code>/<code>sortby</code> query parameters, plus the <code>queryables</code>/<code>sortables</code>
-resources — derived from your pydantic model — with malformed input rendered as a
-<code>400</code> problem.</p>
+<p>Supporting <code>filter</code> means much more than parsing CQL2: validating what's
+filterable, advertising it at <code>/queryables</code>, handling <code>sortby</code>, rejecting bad
+input as a <code>400</code>. gazebo adopts a parser and supplies everything around it.</p>
 </blockquote>
-<p>Filtering is the largest and most-reimplemented slice of request-side OGC machinery:
-parsing CQL2, validating that a filter only touches filterable fields, advertising
-which fields those are, and applying <code>sortby</code>. <code>gazebo.filtering</code> owns that
-<strong>plumbing</strong> — and deliberately does <em>not</em> own a CQL2 parser. Writing one (comparison,
-logical, spatial, temporal, and array operators across two encodings) is a large,
-perpetual maintenance burden that mature libraries already carry. So gazebo <strong>adopts</strong>
-a CQL2 engine behind a narrow seam and spends its effort on the parts no library
-provides.</p>
+<p>Filtering is the largest and most-reimplemented slice of request-side OGC
+machinery: parsing CQL2, validating that a filter only touches filterable
+fields, advertising which fields those are, and applying <code>sortby</code>.
+<code>gazebo.filtering</code> owns that <strong>plumbing</strong> — and deliberately does <em>not</em> own a
+CQL2 parser. Writing one (comparison, logical, spatial, temporal, and array
+operators, across two encodings) is a large, perpetual maintenance burden that
+mature libraries already carry. So gazebo <strong>adopts</strong> a CQL2 engine behind a
+narrow seam and spends its effort on the parts no library provides.</p>
 <p>The bundled engine adapts <a href="https://pypi.org/project/cql2/">cql2-rs</a>; install it with
 the extra:</p>
 <div class="language-sh highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">&#39;gazebo[cql2]&#39;</span>

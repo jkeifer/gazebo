@@ -278,6 +278,32 @@
   
   
     <li class="md-nav__item">
+      <a href="../../why/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Why gazebo
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../getting-started/" class="md-nav__link">
         
   
@@ -343,7 +369,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -364,14 +390,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="">
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -693,7 +719,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
         
           
           <div class="md-nav__link md-nav__container">
@@ -714,14 +740,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_4">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -967,7 +993,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -988,14 +1014,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1179,7 +1205,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1200,14 +1226,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_7" id="__nav_7_label" tabindex="">
+              <label class="md-nav__link " for="__nav_8" id="__nav_8_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_7">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1489,8 +1515,9 @@
 
 <h1 id="scopes-lifecycle">Scopes &amp; lifecycle<a class="headerlink" href="#scopes-lifecycle" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>Scope is a wiring decision — bound in the registry, not a property of the type.
-Two scopes ship by default: <code>app</code> and <code>request</code>.</p>
+<p>A resource's lifetime shouldn't be hardcoded into its class — the same type
+can live per-process or per-request depending on the app. Scope is a wiring
+decision, bound in the registry; <code>app</code> and <code>request</code> ship by default.</p>
 </blockquote>
 <h2 id="app-vs-request">app vs request<a class="headerlink" href="#app-vs-request" title="Permanent link">&para;</a></h2>
 <p>Scope is a wiring decision, not a property of the type — the same class can be
@@ -1507,9 +1534,12 @@ HTTP app is the request.</p>
 <p>Each entered scope owns a resolution cache and an <code>AsyncExitStack</code>. A type is
 built at most once per scope (the cache), and any generator or context-manager
 recipe has its teardown run when the scope closes, in reverse order of creation.
-The app scope builds its providers <strong>eagerly</strong> when it opens, so a misconfigured
-resource fails at startup rather than on the first request; providers nothing
-reaches are skipped (dead-provider elimination).</p>
+Under the FastAPI glue the app scope builds <strong>every</strong> app-scoped provider eagerly
+when it opens, so a misconfigured resource fails at startup rather than on the first
+request. (Standalone users who want reachability-based pruning can pass
+<code>open_app_scope(eager=...)</code> to build only the providers reachable from a set of entry
+types — dead-provider elimination — but the glue deliberately builds them all, since a
+resource may be reached only via <code>__health__</code> or a manual <code>app_state.get</code>.)</p>
 <h2 id="scope-roots">Scope roots<a class="headerlink" href="#scope-roots" title="Permanent link">&para;</a></h2>
 <p>A scope may carry a <em>root</em> object — for the request scope, the request itself. A
 recipe parameter typed as the root receives it directly, with no binding. This is

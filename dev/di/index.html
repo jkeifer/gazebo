@@ -278,6 +278,32 @@
   
   
     <li class="md-nav__item">
+      <a href="../why/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Why gazebo
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../getting-started/" class="md-nav__link">
         
   
@@ -343,7 +369,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -364,14 +390,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="">
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -693,7 +719,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
         
           
           <div class="md-nav__link md-nav__container">
@@ -714,14 +740,14 @@
             </a>
             
               
-              <label class="md-nav__link md-nav__link--active" for="__nav_4" id="__nav_4_label" tabindex="">
+              <label class="md-nav__link md-nav__link--active" for="__nav_5" id="__nav_5_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_4">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -854,7 +880,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -875,14 +901,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1066,7 +1092,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1087,14 +1113,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_7" id="__nav_7_label" tabindex="">
+              <label class="md-nav__link " for="__nav_8" id="__nav_8_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_7">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1365,15 +1391,21 @@
 
 <h1 id="dependency-injection">Dependency injection<a class="headerlink" href="#dependency-injection" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p><code>gazebo.di</code> — a small, typed, framework-agnostic injection container. Stdlib
-only; it never imports gazebo's OGC code or any web framework.</p>
+<p>Real services hold resources with lifetimes — a pool per process, a session
+per request — and something must build, cache, and tear each one down at the
+right moment. <code>gazebo.di</code> is that something: small, typed, stdlib-only.</p>
 </blockquote>
 <h2 id="why-a-container">Why a container<a class="headerlink" href="#why-a-container" title="Permanent link">&para;</a></h2>
-<p>As a service grows it accumulates resources with lifetimes: a database pool opened
-once at startup, a session per request, a user and tenant derived from each
-request's headers. Wiring these by hand means threading objects through call
-sites; FastAPI's <code>Depends</code> handles per-request needs but has no app-lifetime scope
-and leans on global state for test substitution. <code>gazebo.di</code> gives you:</p>
+<p>As a service grows it accumulates resources with lifetimes: a database pool
+opened once at startup, a session per request, a user and tenant derived from
+each request's headers. Something has to build each one at the right moment,
+deliver it to the code that needs it, and clean it up when its lifetime ends.</p>
+<p>FastAPI's <code>Depends</code> covers only part of that. It wires per-request needs, but it
+has no app-lifetime scope — startup resources end up stashed on <code>app.state</code> —
+and its test substitution mechanism, <code>dependency_overrides</code>, is mutation of a
+shared global.
+(<a href="../why/#resources-have-lifetimes-fastapi-doesnt-model">Why gazebo</a> shows
+where that leads.) <code>gazebo.di</code> gives you:</p>
 <ul>
 <li>one <strong>central, typed registry</strong> of what builds each resource and how long it lives;</li>
 <li><strong>deterministic teardown</strong> for anything that needs closing;</li>
