@@ -92,11 +92,25 @@ def merge_params(params: dict[str, Any], overrides: Mapping[str, object]) -> Non
 def with_query(ctx: RequestContext, **overrides: object) -> str:
     """Return the current URL with ``overrides`` merged into the query string.
 
-    A ``None`` value removes that parameter. Other values are stringified (via
-    :func:`urllib.parse.urlencode`). The shared "derive a URL from the active context"
-    helper behind deferred pagination and content-negotiation hrefs.
+    A ``None`` value removes that parameter (every occurrence). Other values are
+    stringified (via :func:`urllib.parse.urlencode`). A repeated parameter
+    (``?tag=a&tag=b``) is preserved verbatim unless overridden, in which case the
+    override's single value replaces all occurrences. The shared "derive a URL from
+    the active context" helper behind deferred pagination and content-negotiation
+    hrefs.
     """
     parts = urlsplit(ctx.url)
-    query: dict[str, Any] = dict(parse_qsl(parts.query, keep_blank_values=True))
+    # Collect repeated params into lists so they survive the merge; urlencode's
+    # doseq re-expands them.
+    query: dict[str, Any] = {}
+    for key, value in parse_qsl(parts.query, keep_blank_values=True):
+        if key in query:
+            existing = query[key]
+            if isinstance(existing, list):
+                existing.append(value)
+            else:
+                query[key] = [existing, value]
+        else:
+            query[key] = value
     merge_params(query, overrides)
-    return urlunsplit(parts._replace(query=urlencode(query)))
+    return urlunsplit(parts._replace(query=urlencode(query, doseq=True)))

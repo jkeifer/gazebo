@@ -93,6 +93,15 @@ def test_plants_cursor_pagination_links(client):
     assert 'cursor=' in nxt['href'] and 'offset=' not in nxt['href']
 
 
+def test_pagination_preserves_other_query_params(client):
+    # every non-paging query param -- repeated ones included -- survives into the
+    # next link, so page two runs the same query as page one
+    body = client.get('/plants?limit=1&tag=a&tag=b', headers=AUTH).json()
+    nxt = next(link for link in body['links'] if link['rel'] == 'next')
+    assert 'tag=a' in nxt['href']
+    assert 'tag=b' in nxt['href']
+
+
 def test_plants_malformed_cursor_is_problem(client):
     # a bad cursor decodes to a ParamError -> 400 problem+json, not a 500
     resp = client.get('/plants?cursor=%21%21not-base64', headers=AUTH)

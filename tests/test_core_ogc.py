@@ -39,6 +39,28 @@ def test_with_query_removes_on_none(ctx):
     assert 'token' not in out
 
 
+def test_with_query_preserves_repeated_params(ctx):
+    ctx.url = 'https://api.example.com/things?tag=a&tag=b&token=abc'
+    out = with_query(ctx, token='next')
+    assert 'tag=a' in out
+    assert 'tag=b' in out
+    assert 'token=next' in out
+
+
+def test_with_query_override_collapses_repeated_param(ctx):
+    ctx.url = 'https://api.example.com/things?token=a&token=b'
+    out = with_query(ctx, token='next')
+    assert out.count('token=') == 1
+    assert 'token=next' in out
+
+
+def test_with_query_none_removes_repeated_param(ctx):
+    ctx.url = 'https://api.example.com/things?token=a&token=b&limit=5'
+    out = with_query(ctx, token=None)
+    assert 'token' not in out
+    assert 'limit=5' in out
+
+
 def test_paginate_next_prev(ctx):
     links = paginate(next_token='n', prev_token='p', limit=5)
     rels = [link.rel for link in links]
