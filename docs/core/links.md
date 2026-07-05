@@ -1,7 +1,15 @@
 # Links
 
-> A `Link` model whose `href` may be a callable resolved against the request at
-> serialization time — so links are built with no request in hand.
+> Link URLs depend on the request — its host, its routes, its query string — but
+> responses are built far from any request. `Link` defers the URL: the href can
+> be a callable, resolved at serialization time.
+
+Every hypermedia response is full of URLs only the live request can determine,
+and holding a request in your business logic just to format them couples every
+layer to the web framework (and breaks the moment the app sits behind a proxy —
+[Why gazebo](../why.md#links-make-the-request-leak-everywhere) shows this going
+wrong in code). `Link` removes the coupling: build links anywhere, and let them
+resolve when the response serializes.
 
 ## Deferred hrefs
 

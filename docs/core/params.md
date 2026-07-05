@@ -1,8 +1,8 @@
 # Query parameters
 
-> Typed parsers for the standard OGC query parameters — `bbox`, `datetime`,
-> `crs`/`bbox-crs` — that turn raw strings into validated objects and bad input
-> into a `400` problem.
+> `bbox`, `datetime`, and `crs` look like simple query params and are anything
+> but. Typed parsers that get the edge cases right — and turn bad input into a
+> `400` problem instead of a wrong answer.
 
 OGC APIs share a small set of standardized query parameters, and parsing them
 correctly (RFC 3339 intervals, antimeridian-crossing bounding boxes, CRS

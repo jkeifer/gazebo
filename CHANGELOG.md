@@ -9,7 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- docs: a "Why gazebo" page that motivates the library by contrast — hand-rolled
+  plain-FastAPI code shown failing (proxy-broken links, pagination dropping query
+  params, global-mutation test overrides), then the gazebo equivalent, all backed
+  by tested examples (`tests/examples/why_before.py` / `why_after.py`).
+
 ### Changed
+
+- docs: feature pages now open with the problem they solve — pain-first summary
+  blockquotes and short problem openings across the core, DI, and FastAPI pages,
+  plus a decompression pass over the densest prose (context, collections,
+  negotiation, DI overview).
 
 ### Fixed
 

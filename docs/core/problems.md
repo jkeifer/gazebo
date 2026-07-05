@@ -1,7 +1,16 @@
 # Problems
 
-> RFC 7807 / 9457 problem responses: a typed `ProblemDetail` model and a
-> `ProblemException` you can raise from anywhere.
+> Without a convention, a service's errors arrive in as many shapes as it has
+> code paths. RFC 7807 / 9457 problem+json is the convention; `ProblemDetail`
+> and `ProblemException` make it the path of least resistance.
+
+Left to itself, a FastAPI service emits errors in at least three shapes:
+`HTTPException`'s `{"detail": "..."}`, the validation error list, and whatever
+each handler improvises. A client then needs per-endpoint error parsing, and an
+OGC client — which expects `application/problem+json` — gets none of them.
+`gazebo.problems` makes the RFC 7807 shape the easy default: one model, one
+exception, and [glue](#how-it-becomes-a-response) that renders everything —
+including errors you never wrote a handler for — uniformly.
 
 ## The model
 

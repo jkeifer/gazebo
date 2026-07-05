@@ -1,15 +1,22 @@
 # Dependency injection
 
-> `gazebo.di` — a small, typed, framework-agnostic injection container. Stdlib
-> only; it never imports gazebo's OGC code or any web framework.
+> Real services hold resources with lifetimes — a pool per process, a session
+> per request — and something must build, cache, and tear each one down at the
+> right moment. `gazebo.di` is that something: small, typed, stdlib-only.
 
 ## Why a container
 
-As a service grows it accumulates resources with lifetimes: a database pool opened
-once at startup, a session per request, a user and tenant derived from each
-request's headers. Wiring these by hand means threading objects through call
-sites; FastAPI's `Depends` handles per-request needs but has no app-lifetime scope
-and leans on global state for test substitution. `gazebo.di` gives you:
+As a service grows it accumulates resources with lifetimes: a database pool
+opened once at startup, a session per request, a user and tenant derived from
+each request's headers. Something has to build each one at the right moment,
+deliver it to the code that needs it, and clean it up when its lifetime ends.
+
+FastAPI's `Depends` covers only part of that. It wires per-request needs, but it
+has no app-lifetime scope — startup resources end up stashed on `app.state` —
+and its test substitution mechanism, `dependency_overrides`, is mutation of a
+shared global.
+([Why gazebo](../why.md#resources-have-lifetimes-fastapi-doesnt-model) shows
+where that leads.) `gazebo.di` gives you:
 
 - one **central, typed registry** of what builds each resource and how long it lives;
 - **deterministic teardown** for anything that needs closing;
