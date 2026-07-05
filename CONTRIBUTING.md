@@ -22,26 +22,27 @@ uv sync --all-extras --all-packages
 
 CI installs with `--locked --no-editable` in addition to the flags above.
 
-## Pre-commit
+## Git hooks (lefthook)
 
-Install the pre-commit hooks so they run on every `git commit`:
+Hooks are managed by [lefthook](https://lefthook.dev) (configured in
+`lefthook.yml`). Install them so they run on every `git commit`:
 
 ```commandline
-uv run pre-commit install
+uv run lefthook install
 ```
 
 You can also run them explicitly against all files:
 
 ```commandline
-uv run pre-commit run --all-files
+uv run lefthook run pre-commit --all-files
 ```
 
 The hooks cover `ruff` (lint + format), `mypy`, `pyright`, and a set of
 file-hygiene checks. The same hooks run in CI, so it's worth keeping them green
 locally.
 
-If for some reason you need to commit code that does not pass the pre-commit
-checks, this can be done with:
+If for some reason you need to commit code that does not pass the hooks, this
+can be done with:
 
 ```commandline
 git commit -m "message" --no-verify
@@ -50,7 +51,7 @@ git commit -m "message" --no-verify
 ## Type Checking
 
 Type checking is enforced by **both** mypy and pyright (pyright runs over `src`
-and `tests`). Both run in pre-commit and must be green in CI on Python
+and `tests`). Both run in the git hooks and must be green in CI on Python
 3.12–3.14.
 
 ## Testing

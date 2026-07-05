@@ -27,8 +27,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Sync
         run: uv sync --locked --all-extras --all-packages --no-editable
-      - name: Pre-Commit Hooks
-        run: uv run pre-commit run --all-files
+      - name: Lint hooks
+        run: uv run lefthook run pre-commit --all-files
       - name: Test
         run: uv run pytest
       - name: Test example
