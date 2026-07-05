@@ -1,0 +1,61 @@
+# Git hooks, managed by lefthook (https://lefthook.dev).
+#
+# `uv run lefthook install` wires the pre-commit hook into .git/hooks; the CI gate
+# runs the same set with `uv run lefthook run pre-commit --all-files`. The file-hygiene
+# commands come from the `pre-commit-hooks` package (a plain dev dependency here —
+# lefthook replaces the pre-commit *framework*, not those utility scripts).
+
+pre-commit:
+  parallel: false
+  commands:
+    ruff-check:
+      priority: 1
+      glob: '*.{py,pyi}'
+      run: uv run ruff check --force-exclude --fix --exit-non-zero-on-fix {staged_files}
+      stage_fixed: true
+    ruff-format:
+      priority: 2
+      glob: '*.{py,pyi}'
+      run: uv run ruff format --force-exclude {staged_files}
+      stage_fixed: true
+    check-added-large-files:
+      priority: 3
+      run: uv run check-added-large-files {staged_files}
+    check-toml:
+      priority: 4
+      glob: '*.toml'
+      run: uv run check-toml {staged_files}
+    check-yaml:
+      priority: 5
+      glob: '*.{yml,yaml}'
+      run: uv run check-yaml {staged_files}
+    end-of-file-fixer:
+      priority: 6
+      exclude: '\.(png|jpe?g|gif|ico|svgz|woff2?|pdf|zip|lock)$'
+      run: uv run end-of-file-fixer {staged_files}
+      stage_fixed: true
+    trailing-whitespace:
+      priority: 7
+      exclude: '\.(png|jpe?g|gif|ico|svgz|woff2?|pdf|zip|lock)$'
+      run: uv run trailing-whitespace-fixer {staged_files}
+      stage_fixed: true
+    # Type-check the whole repo (so future top-level code is covered without editing
+    # an allowlist) except the example: it is a separate workspace member with its own
+    # top-level `conftest` and package, so it is excluded via tool config and checked
+    # by its own commands below, run from inside its directory.
+    mypy:
+      priority: 8
+      glob: '*.{py,pyi}'
+      run: uv run mypy .
+    pyright:
+      priority: 9
+      glob: '*.{py,pyi}'
+      run: uv run pyright
+    mypy-garden:
+      priority: 10
+      glob: '*.{py,pyi}'
+      run: cd examples/garden && uv run mypy garden tests
+    pyright-garden:
+      priority: 11
+      glob: '*.{py,pyi}'
+      run: cd examples/garden && uv run pyright garden tests

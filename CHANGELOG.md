@@ -20,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   blockquotes and short problem openings across the core, DI, and FastAPI pages,
   plus a decompression pass over the densest prose (context, collections,
   negotiation, DI overview).
+- tooling: git hooks moved from the pre-commit framework to
+  [lefthook](https://lefthook.dev) (`lefthook.yml`); same hook set (ruff
+  check/format, file hygiene, mypy + pyright for the library and the garden
+  example). Install with `uv run lefthook install`; CI runs
+  `uv run lefthook run pre-commit --all-files`. The `pre-commit-hooks` utility
+  scripts remain a dev dependency.
 
 ### Fixed
 

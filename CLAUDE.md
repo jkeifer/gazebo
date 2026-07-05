@@ -18,7 +18,7 @@ The project is `uv`-managed and is a `uv` workspace whose only member is
 uv sync --all-extras --all-packages   # install (CI also uses --locked --no-editable)
 uv run pytest                          # run the library test suite (tests/)
 uv run pytest tests/test_link.py::test_name   # a single test
-uv run pre-commit run --all-files      # ruff check+format, mypy, pyright, file hygiene
+uv run lefthook run pre-commit --all-files   # ruff check+format, mypy, pyright, file hygiene
 ```
 
 `uv run pytest` always reports coverage on the `gazebo` package (`addopts=--cov=gazebo`
@@ -34,7 +34,8 @@ uv run pytest        # the example's tests
 ```
 
 Type checking is enforced by **both** mypy and pyright (pyright runs over `src` and
-`tests`); both run in pre-commit and CI must be green on Python 3.12–3.14.
+`tests`); both run in the lefthook pre-commit hook (`lefthook.yml`) and CI must be
+green on Python 3.12–3.14.
 
 ## Architecture
 
