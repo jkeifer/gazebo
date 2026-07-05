@@ -13,11 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `with_query()` (and everything built on it: `paginate()`, `paginate_offset()`,
+  and content-negotiation `alternate` links) now preserves repeated query
+  parameters (`?tag=a&tag=b`) when rewriting a URL; previously all but the last
+  occurrence were silently dropped. Overriding such a parameter replaces every
+  occurrence, and a `None` override removes them all.
+
 ### Deprecated
 
 ### Removed
-
-### Fixed
 
 ### Security
 
