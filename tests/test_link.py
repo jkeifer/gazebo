@@ -43,8 +43,35 @@ def test_callable_href_without_context_raises():
     from pydantic_core import PydanticSerializationError
 
     link = Link(href=lambda c: c.url, rel='self')
-    with pytest.raises(PydanticSerializationError):
+    # The clear message must surface rather than pydantic falling through a union
+    # to an opaque "unknown type" error (regression: the whole point of the fix).
+    with pytest.raises(PydanticSerializationError, match='no request context'):
         link.model_dump_json()
+
+
+def test_callable_href_resolver_error_surfaces(ctx):
+    from pydantic_core import PydanticSerializationError
+
+    def boom(_c):
+        raise RuntimeError('kaboom')
+
+    link = Link(href=boom, rel='self')
+    with use_context(ctx), pytest.raises(PydanticSerializationError, match='resolver raised'):
+        link.model_dump_json()
+
+
+def test_landing_page_deferred_link_error_surfaces():
+    # Stand-in for the FastAPI response path (TypeAdapter.dump_json is what FastAPI
+    # uses to serialize response models): a deferred link with no active context must
+    # surface the clear message, not an opaque serialization error.
+    from pydantic import TypeAdapter
+    from pydantic_core import PydanticSerializationError
+
+    from gazebo.ogc import LandingPage
+
+    page = LandingPage(title='T', description='D', links=[Link.self_link()])
+    with pytest.raises(PydanticSerializationError, match='no request context'):
+        TypeAdapter(LandingPage).dump_json(page)
 
 
 def test_self_and_root_factories(ctx):

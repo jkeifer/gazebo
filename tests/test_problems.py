@@ -40,6 +40,34 @@ def test_problemtype_is_frozen():
         pt.title = 'Y'
 
 
+def test_unset_members_are_omitted_on_json():
+    # OGC omits absent members rather than emitting null (matching Link/Collection).
+    data = json.loads(ProblemException(404).problem.model_dump_json())
+    assert 'detail' not in data
+    assert 'instance' not in data
+    assert data == {'type': 'about:blank', 'title': 'Not Found', 'status': 404}
+
+
+def test_set_members_are_kept_on_json():
+    p = ProblemException(404, detail='nope', instance='/things/5').problem
+    data = json.loads(p.model_dump_json())
+    assert data['detail'] == 'nope'
+    assert data['instance'] == '/things/5'
+
+
+def test_none_extension_member_dropped_set_survives():
+    p = ProblemException(404, dropped=None, kept='v').problem
+    data = json.loads(p.model_dump_json())
+    assert 'dropped' not in data
+    assert data['kept'] == 'v'
+
+
+def test_frozen_problemtype_omits_null_on_json():
+    # a frozen OmitNullModel still serializes with nulls dropped
+    pt = ProblemType(type='https://e/x', title='X', status=404)
+    assert 'detail' not in json.loads(pt.model_dump_json())
+
+
 def test_registry_register_get_and_catalog():
     reg = ProblemRegistry()
     nf = reg.define('nf', type='https://e/nf', title='Not found', status=404)

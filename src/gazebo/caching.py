@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 
 from datetime import UTC, datetime
 from email.utils import format_datetime, parsedate_to_datetime
@@ -23,6 +24,11 @@ from typing import Any
 from pydantic import BaseModel
 
 _CONDITIONAL_METHODS = frozenset({'GET', 'HEAD'})
+
+# One quoted entity-tag (optionally weak-prefixed), per RFC 7232 §2.3's etagc grammar
+# (which permits a comma inside the quoted string) — used to split an `If-None-Match`
+# header without breaking on a comma that's part of an ETag rather than a separator.
+_ETAG_PATTERN = re.compile(r'(?:W/)?"[^"]*"')
 
 
 def _canonical_bytes(value: Any) -> bytes:
@@ -80,13 +86,18 @@ def if_none_match_satisfied(etag: str, header: str) -> bool:
     """Whether ``etag`` matches an ``If-None-Match`` header value (weak comparison).
 
     ``*`` matches any current entity. Per RFC 7232, ``If-None-Match`` uses the *weak*
-    comparison function, so the ``W/`` prefix is ignored on both sides.
+    comparison function, so the ``W/`` prefix is ignored on both sides. The header's
+    comma-separated entity-tags are parsed with a quoted-string-aware pattern (rather
+    than a plain ``split(',')``) since RFC 7232's ``etagc`` grammar permits a literal
+    comma inside a quoted entity-tag; a candidate that isn't a well-formed quoted
+    entity-tag is simply not matched.
     """
     header = header.strip()
     if header == '*':
         return True
     current = _normalize_etag(etag)
-    return any(current == _normalize_etag(candidate) for candidate in header.split(','))
+    candidates = _ETAG_PATTERN.findall(header)
+    return any(current == _normalize_etag(candidate) for candidate in candidates)
 
 
 def is_not_modified(

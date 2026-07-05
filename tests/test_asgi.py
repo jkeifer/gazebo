@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hmac
+
 from gazebo.asgi import (
     ProxyHeadersMiddleware,
     SharedSecret,
@@ -10,9 +12,9 @@ from gazebo.asgi import (
 )
 
 
-def make_scope(headers: dict[bytes, bytes], *, client=('10.0.0.1', 1234)):
+def make_scope(headers: dict[bytes, bytes], *, client=('10.0.0.1', 1234), scope_type='http'):
     return {
-        'type': 'http',
+        'type': scope_type,
         'scheme': 'http',
         'server': ('internal', 80),
         'headers': list(headers.items()),
@@ -85,3 +87,51 @@ async def test_first_value_of_comma_list():
     scope = make_scope({b'x-forwarded-proto': b'https, http'})
     out = await run(scope, trust=trust_all)
     assert out['scheme'] == 'https'
+
+
+async def test_websocket_forwarded_https_becomes_wss():
+    scope = make_scope({b'x-forwarded-proto': b'https'}, scope_type='websocket')
+    out = await run(scope, trust=trust_all)
+    assert out['scheme'] == 'wss'
+
+
+async def test_websocket_forwarded_http_becomes_ws():
+    scope = make_scope({b'x-forwarded-proto': b'http'}, scope_type='websocket')
+    out = await run(scope, trust=trust_all)
+    assert out['scheme'] == 'ws'
+
+
+async def test_websocket_forwarded_ws_wss_passthrough():
+    scope = make_scope({b'x-forwarded-proto': b'wss'}, scope_type='websocket')
+    out = await run(scope, trust=trust_all)
+    assert out['scheme'] == 'wss'
+
+    scope = make_scope({b'x-forwarded-proto': b'ws'}, scope_type='websocket')
+    out = await run(scope, trust=trust_all)
+    assert out['scheme'] == 'ws'
+
+
+async def test_http_scope_scheme_unaffected_by_websocket_mapping():
+    scope = make_scope({b'x-forwarded-proto': b'https'})
+    out = await run(scope, trust=trust_all)
+    assert out['scheme'] == 'https'
+
+
+def test_shared_secret_uses_constant_time_compare(monkeypatch):
+    calls = []
+    original = hmac.compare_digest
+
+    def spy(a, b):
+        calls.append((a, b))
+        return original(a, b)
+
+    monkeypatch.setattr('gazebo.asgi.hmac.compare_digest', spy)
+    policy = SharedSecret('s3cr3t', header='x-proxy-secret')
+    assert policy(make_scope({b'x-proxy-secret': b's3cr3t'}))
+    assert not policy(make_scope({b'x-proxy-secret': b'wrong'}))
+    assert calls  # compare_digest was actually used, not `==`
+
+
+def test_shared_secret_absent_header_is_untrusted():
+    policy = SharedSecret('s3cr3t', header='x-proxy-secret')
+    assert not policy(make_scope({}))

@@ -17,7 +17,6 @@ from pydantic import (
     AfterValidator,
     AnyUrl,
     ConfigDict,
-    Field,
     FieldSerializationInfo,
     PlainSerializer,
     WithJsonSchema,
@@ -49,15 +48,27 @@ def _to_url(value: object) -> AnyUrl:
     return value if isinstance(value, AnyUrl) else AnyUrl(str(value))
 
 
+def _validate_href(value: object) -> object:
+    """Keep a resolver callable as-is; coerce anything else to :class:`AnyUrl`."""
+    return value if callable(value) else _to_url(value)
+
+
+def _serialize_href(value: object, info: FieldSerializationInfo) -> str:
+    """Resolve a callable href via the request context; stringify a concrete URL.
+
+    A single serializer (not a union) so a callable that cannot be resolved raises
+    its clear :class:`ValueError` instead of pydantic silently falling through to a
+    URL branch that then reports an opaque ``unknown type`` error.
+    """
+    if callable(value):
+        return _resolve_href(value, info)
+    return str(value)
+
+
 type Url = Annotated[
-    (
-        Annotated[
-            UrlResolver,
-            PlainSerializer(_resolve_href, return_type=str, when_used='json'),
-        ]
-        | Annotated[Any, AfterValidator(_to_url)]
-    ),
-    Field(union_mode='left_to_right'),
+    Any,
+    AfterValidator(_validate_href),
+    PlainSerializer(_serialize_href, return_type=str, when_used='json'),
     WithJsonSchema({'type': 'string', 'format': 'uri'}),
 ]
 """A URL field that accepts either a resolver callable or a concrete URL value."""

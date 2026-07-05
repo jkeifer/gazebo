@@ -56,7 +56,8 @@ gazebo doesn't impose a logging config:
 disable). It probes each app-scoped resource exposing a
 [`__health__()`](../di/scopes.md#health-checks) and returns a per-resource and
 aggregate status — a readiness check assembled from the resources you already
-built, with nothing extra to maintain.
+built, with nothing extra to maintain. The status code follows the aggregate: `200`
+when healthy and `503` when not, so load balancer and k8s probes read it directly.
 
 ## Reference
 

@@ -18,12 +18,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   parameters (`?tag=a&tag=b`) when rewriting a URL; previously all but the last
   occurrence were silently dropped. Overriding such a parameter replaces every
   occurrence, and a `None` override removes them all.
+- A DI recipe that reads the request body (`__provide__(request)` awaiting
+  `request.body()`) no longer deadlocks the request when the endpoint also
+  parses a body: the request-scope middleware now shares a replaying `receive`
+  between the DI-root request and the downstream app, at the cost of retaining
+  consumed body messages for the request's duration.
+- Duplicate route names (e.g. two `LinkedRouter`s left on the default
+  `landing_name='landing'`) now fail loudly at startup, naming the duplicates
+  and their paths. Previously `url_for` silently resolved to the first
+  registration, so hierarchical landing links could point at the wrong router.
+- `GET /health` now returns **503** when any probed resource is unhealthy
+  (previously 200 with an `"unhealthy"` body), so load balancers and readiness
+  probes keyed on the status code behave correctly.
+- Serializing a deferred (callable-href) link with no active request context
+  again raises the documented clear error (`no request context available…`).
+  It had been swallowed by pydantic's union-serializer fallback into an opaque
+  `Unable to serialize unknown type: <class 'function'>`.
+- Problem responses no longer emit null members: `ProblemDetail` and
+  `ProblemType` are now `OmitNullModel`s, so an unset `detail`/`instance` (or a
+  `None` extension member) is omitted on the wire, matching the library's OGC
+  omit-null convention and the documented response shapes.
+- `paginate()` called without `limit` no longer strips the client's existing
+  `?limit=...` from the emitted links (page size silently reset mid-walk);
+  an absent `limit` now leaves the URL's (or POST body's) limit untouched.
+- `ProxyHeadersMiddleware` now maps `X-Forwarded-Proto` onto websocket scopes
+  correctly (`https` → `wss`, `http` → `ws`) instead of setting an invalid
+  `https` scheme.
+- `If-None-Match` evaluation now parses entity-tags as quoted strings, so a
+  legal ETag containing a comma matches instead of always revalidating.
 
 ### Deprecated
 
 ### Removed
 
 ### Security
+
+- `SharedSecret` trust policy now compares the proxy secret with
+  `hmac.compare_digest` instead of `==`, closing a timing side channel.
 
 ## [v0.7.0] - 2026-07-05
 

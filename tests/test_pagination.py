@@ -34,6 +34,40 @@ def test_paginate_first_link_drops_token(ctx):
     assert 'limit=10' in hrefs[Rel.FIRST]
 
 
+def test_paginate_next_preserves_existing_limit_when_absent(ctx):
+    # no `limit=` passed to paginate(): the current URL's limit must survive
+    ctx.url = 'https://api.example.com/things?limit=10&token=a'
+    links = paginate(next_token='b')
+    hrefs = _hrefs(links, ctx)
+    assert 'limit=10' in hrefs[Rel.NEXT]
+    assert 'token=b' in hrefs[Rel.NEXT]
+
+
+def test_paginate_next_explicit_limit_overrides(ctx):
+    ctx.url = 'https://api.example.com/things?limit=10&token=a'
+    links = paginate(next_token='b', limit=25)
+    hrefs = _hrefs(links, ctx)
+    assert 'limit=25' in hrefs[Rel.NEXT]
+    assert 'limit=10' not in hrefs[Rel.NEXT]
+
+
+def test_paginate_first_link_no_limit_keeps_url_limit(ctx):
+    ctx.url = 'https://api.example.com/things?limit=10&token=abc'
+    links = paginate(next_token='n', first=True)
+    hrefs = _hrefs(links, ctx)
+    assert Rel.FIRST in hrefs
+    assert 'token=' not in hrefs[Rel.FIRST]
+    assert 'limit=10' in hrefs[Rel.FIRST]
+
+
+def test_post_pagination_no_limit_omits_limit_key():
+    body = {'filter': 'x'}
+    links = paginate(next_token='n', method='POST', body=body)
+    nxt = links[0]
+    assert nxt.body == {'filter': 'x', 'token': 'n'}
+    assert 'limit' not in nxt.body
+
+
 def test_paginate_last_and_self(ctx):
     links = paginate(last_token='z', self_=True, limit=5)
     rels = [link.rel for link in links]
