@@ -9,31 +9,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- docs: a "Why gazebo" page that motivates the library by contrast — hand-rolled
-  plain-FastAPI code shown failing (proxy-broken links, pagination dropping query
-  params, global-mutation test overrides), then the gazebo equivalent, all backed
-  by tested examples (`tests/examples/why_before.py` / `why_after.py`).
+### Changed
+
+### Fixed
+
+### Deprecated
+
+### Removed
+
+### Security
+
+## [v0.7.1] - 2026-07-05
+
+### Added
+
+- docs: a "Why gazebo" page that motivates the library by contrast —
+  hand-rolled plain-FastAPI code shown failing (proxy-broken links, pagination
+  dropping query params, global-mutation test overrides), then the gazebo
+  equivalent, all backed by tested examples (`tests/examples/why_before.py` /
+  `why_after.py`).
 
 ### Changed
 
 - docs: feature pages now open with the problem they solve — pain-first summary
-  blockquotes and short problem openings across the core, DI, and FastAPI pages,
-  plus a decompression pass over the densest prose (context, collections,
-  negotiation, DI overview).
+  blockquotes and short problem openings across the core, DI, and FastAPI
+  pages, plus a decompression pass over the densest prose (context,
+  collections, negotiation, DI overview).
 - tooling: git hooks moved from the pre-commit framework to
   [lefthook](https://lefthook.dev) (`lefthook.yml`); same hook set (ruff
   check/format, file hygiene, mypy + pyright for the library and the garden
-  example). Install with `uv run lefthook install`; CI runs
-  `uv run lefthook run pre-commit --all-files`. The `pre-commit-hooks` utility
-  scripts remain a dev dependency.
+  example). Install with `uv run lefthook install`; CI runs `uv run lefthook
+  run pre-commit --all-files`. The `pre-commit-hooks` utility scripts remain a
+  dev dependency.
 
 ### Fixed
 
-- `with_query()` (and everything built on it: `paginate()`, `paginate_offset()`,
-  and content-negotiation `alternate` links) now preserves repeated query
-  parameters (`?tag=a&tag=b`) when rewriting a URL; previously all but the last
-  occurrence were silently dropped. Overriding such a parameter replaces every
-  occurrence, and a `None` override removes them all.
+- `with_query()` (and everything built on it: `paginate()`,
+  `paginate_offset()`, and content-negotiation `alternate` links) now preserves
+  repeated query parameters (`?tag=a&tag=b`) when rewriting a URL; previously
+  all but the last occurrence were silently dropped. Overriding such a
+  parameter replaces every occurrence, and a `None` override removes them all.
 - A DI recipe that reads the request body (`__provide__(request)` awaiting
   `request.body()`) no longer deadlocks the request when the endpoint also
   parses a body: the request-scope middleware now shares a replaying `receive`
@@ -55,8 +70,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `None` extension member) is omitted on the wire, matching the library's OGC
   omit-null convention and the documented response shapes.
 - `paginate()` called without `limit` no longer strips the client's existing
-  `?limit=...` from the emitted links (page size silently reset mid-walk);
-  an absent `limit` now leaves the URL's (or POST body's) limit untouched.
+  `?limit=...` from the emitted links (page size silently reset mid-walk); an
+  absent `limit` now leaves the URL's (or POST body's) limit untouched.
 - `ProxyHeadersMiddleware` now maps `X-Forwarded-Proto` onto websocket scopes
   correctly (`https` → `wss`, `http` → `ws`) instead of setting an invalid
   `https` scheme.
@@ -382,7 +397,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release 🎉
 
-[unreleased]: https://github.com/jkeifer/gazebo/compare/v0.7.0...HEAD
+[unreleased]: https://github.com/jkeifer/gazebo/compare/v0.7.1...HEAD
+[v0.7.1]: https://github.com/jkeifer/gazebo/releases/tag/v0.7.1
 [v0.7.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.7.0
 [v0.6.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.6.0
 [v0.5.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.5.0
