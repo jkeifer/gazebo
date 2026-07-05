@@ -10,7 +10,9 @@ from __future__ import annotations
 from http import HTTPStatus
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import ConfigDict
+
+from gazebo.serialization import OmitNullModel
 
 
 def _reason(status: int) -> str:
@@ -20,8 +22,12 @@ def _reason(status: int) -> str:
         return 'Error'
 
 
-class ProblemDetail(BaseModel):
-    """An RFC 7807/9457 problem object. Extensions allowed."""
+class ProblemDetail(OmitNullModel):
+    """An RFC 7807/9457 problem object. Extensions allowed.
+
+    Absent optional members (``detail``, ``instance``, any ``None`` extension) are
+    omitted on JSON serialization, per the OGC/RFC 7807 omit-null convention.
+    """
 
     model_config = ConfigDict(extra='allow')
 
@@ -72,7 +78,7 @@ class ProblemException(Exception):  # noqa: N818
         return self.problem.status
 
 
-class ProblemType(BaseModel):
+class ProblemType(OmitNullModel):
     """A documented, reusable kind of problem: a stable ``type`` URI plus defaults.
 
     Define these once and raise them by reference, so a service's error catalog lives

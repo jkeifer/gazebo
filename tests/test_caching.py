@@ -77,6 +77,20 @@ def test_if_none_match_list():
     assert not if_none_match_satisfied('"z"', '"a", "b"')
 
 
+def test_if_none_match_comma_inside_quoted_etag_matches():
+    # a legal ETag may contain a literal comma inside the quoted string (RFC 7232
+    # etagc); a naive split(',') would break this into two bogus candidates.
+    assert if_none_match_satisfied('W/"abc,def"', 'W/"abc,def"')
+    assert if_none_match_satisfied('"abc,def"', '"abc,def"')
+
+
+def test_if_none_match_comma_inside_etag_among_multiple():
+    header = '"x", W/"abc,def", "y"'
+    assert if_none_match_satisfied('W/"abc,def"', header)
+    assert if_none_match_satisfied('"x"', header)
+    assert not if_none_match_satisfied('"z"', header)
+
+
 # --- precondition resolution -----------------------------------------------
 
 

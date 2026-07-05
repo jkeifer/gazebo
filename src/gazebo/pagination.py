@@ -110,10 +110,16 @@ def paginate(
     Args:
         next_token: Token for the next page; emits a ``next`` link when set.
         prev_token: Token for the previous page; emits a ``prev`` link when set.
-        limit: Page size to carry on every emitted link (omitted when ``None``).
+        limit: Page size to carry on every emitted link. When ``None`` (the default),
+            ``limit_param`` is left out of the merge entirely, so a GET link preserves
+            whatever limit (if any) is already on the current URL, and a POST link
+            leaves it out of (rather than popping it from) the caller's ``body``.
         first: Emit a ``first`` link to the un-tokened first page when ``True``.
         last_token: Token for the last page; emits a ``last`` link when set.
-        self_: Emit a ``self`` link to the current request when ``True``.
+        self_: Emit a ``self`` link to the current request when ``True``. Note that for
+            ``method='POST'`` the ``self`` link's body is exactly the caller's ``body``
+            — it does *not* bake in the current page's token, so re-POSTing it returns
+            page one unless the caller includes the current token in ``body``.
         method: ``'GET'`` (default) carries the token in the query string; ``'POST'``
             carries it in the request **body** (merged into ``body``) and keeps the
             current URL as the href — the form a stateless server needs.
@@ -132,7 +138,10 @@ def paginate(
     style = _LinkStyle(method=method, body=body, type=type, headers=headers, extra=link_fields)
 
     def link(rel: str, token: str | None) -> Link:
-        return _page_link(rel, {token_param: token, limit_param: limit}, style)
+        params: dict[str, object] = {token_param: token}
+        if limit is not None:
+            params[limit_param] = limit
+        return _page_link(rel, params, style)
 
     links: list[Link] = []
     if next_token is not None:
@@ -140,8 +149,12 @@ def paginate(
     if prev_token is not None:
         links.append(link(Rel.PREV, prev_token))
     if first:
-        # The first page is the collection with no token (limit preserved).
-        links.append(_page_link(Rel.FIRST, {token_param: None, limit_param: limit}, style))
+        # The first page is the collection with no token; an explicit limit still
+        # overrides, but an absent one leaves the current URL's limit untouched.
+        first_params: dict[str, object] = {token_param: None}
+        if limit is not None:
+            first_params[limit_param] = limit
+        links.append(_page_link(Rel.FIRST, first_params, style))
     if last_token is not None:
         links.append(link(Rel.LAST, last_token))
     if self_:

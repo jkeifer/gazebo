@@ -17,6 +17,7 @@ from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
 from gazebo.asgi import (
     ProxyHeadersMiddleware,
@@ -24,13 +25,19 @@ from gazebo.asgi import (
     Scope,
     Send,
     TrustPolicy,
+    _ReplayableReceive,
     trust_none,
 )
 from gazebo.context import RequestContext, use_context
 from gazebo.di import Container, Key, Overrides, Providers, ScopeState
 from gazebo.ext.fastapi.context import _provide_request_context
 from gazebo.ext.fastapi.cors import Cors, CorsConfig
-from gazebo.ext.fastapi.injection import _SCOPE_KEY, _validate_routes, inject_signature
+from gazebo.ext.fastapi.injection import (
+    _SCOPE_KEY,
+    _validate_routes,
+    _validate_unique_route_names,
+    inject_signature,
+)
 from gazebo.ext.fastapi.problems import (
     param_exception_handler,
     problem_exception_handler,
@@ -64,7 +71,11 @@ class _RequestScopeMiddleware:
             return
         if self.runtime.app_state is None:
             raise RuntimeError('gazebo app scope is not open (is the app started?)')
-        request = Request(scope, receive)
+        # A recipe (via the DI-root Request) and the endpoint both read the body from the
+        # same one-shot `receive`; without replay the second reader deadlocks. Give each a
+        # fork that shares a cache of consumed messages.
+        replay = _ReplayableReceive(receive)
+        request = Request(scope, replay.fork())
         async with self.runtime.container.open_request_scope(
             self.runtime.app_state,
             root=request,
@@ -72,12 +83,12 @@ class _RequestScopeMiddleware:
             scope[_SCOPE_KEY] = state
             ctx = await state.get(RequestContext)
             with use_context(ctx):
-                await self.app(scope, receive, send)
+                await self.app(scope, replay.fork(), send)
 
 
 def _add_health(app: FastAPI, runtime: _Runtime, path: str) -> None:
     @app.get(path, name='gazebo_health', include_in_schema=False)
-    async def health() -> dict[str, Any]:
+    async def health() -> JSONResponse:
         checks: dict[str, str] = {}
         ok = True
         state = runtime.app_state
@@ -92,7 +103,10 @@ def _add_health(app: FastAPI, runtime: _Runtime, path: str) -> None:
                 except Exception:  # noqa: BLE001
                     checks[name] = 'error'
                     ok = False
-        return {'status': 'healthy' if ok else 'unhealthy', 'checks': checks}
+        body = {'status': 'healthy' if ok else 'unhealthy', 'checks': checks}
+        # Probes drive the status code so load balancers / k8s readiness probes, which
+        # key on it, see an unhealthy app as 503 rather than a 200 with an unhealthy body.
+        return JSONResponse(body, status_code=200 if ok else 503)
 
 
 def upgrade(
@@ -158,6 +172,7 @@ def upgrade(
     @asynccontextmanager
     async def lifespan(a: FastAPI) -> AsyncIterator[None]:
         _validate_routes(a, container)
+        _validate_unique_route_names(a)
         async with container.open_app_scope() as app_state:
             runtime.app_state = app_state
             setattr(a.state, _STATE_ATTR, app_state)

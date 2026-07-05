@@ -190,4 +190,33 @@ def _validate_routes(app: FastAPI, container: Container) -> None:
         )
 
 
+def _validate_unique_route_names(app: FastAPI) -> None:
+    """Fail loudly when two routes share a name.
+
+    starlette's ``url_for`` resolves a name to its *first* registration, so a duplicate
+    name (e.g. two ``LinkedRouter``s both keeping the default ``landing_name='landing'``)
+    makes a link meant for one route silently point at the other. Catch it at startup
+    rather than shipping wrong URLs. Uses :func:`_iter_api_routes` so lazily-included
+    routers are covered, and dedupes by route identity so a route surfaced twice by the
+    traversal is not mistaken for a collision.
+    """
+    by_name: dict[str, list[str]] = {}
+    seen: set[int] = set()
+    for route in _iter_api_routes(app.routes):
+        if id(route) in seen:
+            continue
+        seen.add(id(route))
+        by_name.setdefault(route.name, []).append(route.path)
+    duplicates = {name: paths for name, paths in by_name.items() if len(paths) > 1}
+    if duplicates:
+        joined = '\n  '.join(
+            f'{name!r}: {", ".join(paths)}' for name, paths in sorted(duplicates.items())
+        )
+        raise RuntimeError(
+            'these route names are registered more than once, so url_for/deferred links '
+            'will resolve to the wrong route — give each route a distinct name (e.g. set '
+            f'a distinct landing_name on each LinkedRouter):\n  {joined}',
+        )
+
+
 __all__ = ['Inject', 'inject_signature']

@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import asyncio
+
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Annotated, Literal
 
+import httpx2 as httpx
 import pytest
 
 from fastapi import Request, Response
@@ -185,6 +188,8 @@ def test_validation_error_is_problem(client):
     # the field-level error list is carried as an RFC 9457 extension member
     assert body['errors']
     assert any(err['loc'] == ['query', 'limit'] for err in body['errors'])
+    # unset optional members are omitted, not emitted as null (OGC omit-null)
+    assert 'instance' not in body
 
 
 def test_health(client):
@@ -923,3 +928,160 @@ def test_filter_param_explicit_engine_used():
 
     with TestClient(app) as client:
         assert client.get('/p', params={'filter': 'depth > 1'}).json()['has_filter'] is True
+
+
+# --- body-reading recipes share the request body with the endpoint --------
+
+
+async def _asgi_request(app, method, path, *, json=None, timeout=5.0):
+    # Drive the app via an in-process ASGI transport with an explicit timeout so a
+    # regression that re-introduces the body-read deadlock fails the suite instead of
+    # hanging it (TestClient has no server-side hang protection). We enter the lifespan
+    # ourselves because ASGITransport does not run it.
+    async with app.router.lifespan_context(app):
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url='http://testserver') as client:
+            return await asyncio.wait_for(client.request(method, path, json=json), timeout)
+
+
+class _Audit:
+    """A request-scoped recipe that reads the raw request body."""
+
+    def __init__(self, raw: bytes) -> None:
+        self.raw = raw
+
+    @classmethod
+    async def __provide__(cls, request: Request) -> _Audit:
+        return cls(await request.body())
+
+
+class _Item(BaseModel):
+    name: str
+
+
+async def test_body_reading_recipe_and_body_endpoint_do_not_deadlock():
+    # A recipe reading the body AND an endpoint parsing the body consume the same ASGI
+    # receive channel; without a replayable receive the second reader blocks forever.
+    router = GazeboRouter()
+
+    @router.post('/items')
+    async def create(item: _Item, audit: _Audit) -> dict:
+        return {'name': item.name, 'audit_len': len(audit.raw)}
+
+    app = GazeboApp(Providers().request(_Audit))
+    app.include_router(router)
+
+    resp = await _asgi_request(app, 'POST', '/items', json={'name': 'widget'})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body['name'] == 'widget'
+    assert body['audit_len'] > 0
+
+
+async def test_body_reading_recipe_without_body_endpoint():
+    # The recipe reads the body even though the endpoint does not parse one.
+    router = GazeboRouter()
+
+    @router.post('/audit')
+    async def audit_only(audit: _Audit) -> dict:
+        return {'audit_len': len(audit.raw)}
+
+    app = GazeboApp(Providers().request(_Audit))
+    app.include_router(router)
+
+    resp = await _asgi_request(app, 'POST', '/audit', json={'hello': 'world'})
+    assert resp.status_code == 200
+    assert resp.json()['audit_len'] > 0
+
+
+async def test_ordinary_body_endpoint_without_recipe_still_works():
+    # Regression: the replay wrapper must not disturb the plain case (endpoint parses a
+    # body, no body-reading recipe).
+    router = GazeboRouter()
+
+    @router.post('/plain')
+    async def plain(item: _Item) -> dict:
+        return {'name': item.name}
+
+    app = GazeboApp(Providers())
+    app.include_router(router)
+
+    resp = await _asgi_request(app, 'POST', '/plain', json={'name': 'plain'})
+    assert resp.status_code == 200
+    assert resp.json() == {'name': 'plain'}
+
+
+# --- duplicate route names fail loudly ------------------------------------
+
+
+def test_duplicate_route_names_fail_loudly():
+    # Two LinkedRouters both keeping the default landing_name='landing' register a
+    # duplicate route name; url_for would resolve a child link to the parent. Startup
+    # must fail loudly instead.
+    root = LinkedRouter(landing_name='landing')
+    child = LinkedRouter(rel=Rel.CHILD, landing_name='landing')
+    root.include_router(child, prefix='/child')
+
+    app = GazeboApp(Providers())
+    app.include_router(root)
+
+    with pytest.raises(RuntimeError, match="'landing'"), TestClient(app):
+        pass
+
+
+def test_distinct_route_names_boot():
+    root = LinkedRouter(landing_name='landing')
+    child = LinkedRouter(rel=Rel.CHILD, landing_name='child_landing')
+    root.include_router(child, prefix='/child')
+
+    app = GazeboApp(Providers())
+    app.include_router(root)
+
+    with TestClient(app) as client:
+        assert client.get('/').status_code == 200
+        assert client.get('/child').status_code == 200
+
+
+# --- health status code reflects readiness --------------------------------
+
+
+class _Unhealthy:
+    @classmethod
+    def __provide__(cls) -> _Unhealthy:
+        return cls()
+
+    async def __health__(self) -> bool:
+        return False
+
+
+class _Erroring:
+    @classmethod
+    def __provide__(cls) -> _Erroring:
+        return cls()
+
+    def __health__(self) -> bool:
+        raise RuntimeError('probe blew up')
+
+
+def test_health_healthy_is_200(client):
+    r = client.get('/health')
+    assert r.status_code == 200
+    assert r.json()['status'] == 'healthy'
+
+
+def test_health_unhealthy_resource_is_503():
+    app = GazeboApp(Providers().app(_Unhealthy))
+    with TestClient(app) as client:
+        r = client.get('/health')
+        assert r.status_code == 503
+        body = r.json()
+        assert body['status'] == 'unhealthy'
+        assert body['checks'][str(Key(_Unhealthy))] == 'fail'
+
+
+def test_health_erroring_probe_is_503():
+    app = GazeboApp(Providers().app(_Erroring))
+    with TestClient(app) as client:
+        r = client.get('/health')
+        assert r.status_code == 503
+        assert r.json()['checks'][str(Key(_Erroring))] == 'error'
