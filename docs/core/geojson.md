@@ -1,7 +1,8 @@
 # GeoJSON
 
-> GeoJSON (RFC 7946) `Feature` and `FeatureCollection` models with gazebo's
-> hypermedia links, for OGC API Features item endpoints.
+> OGC Features items are GeoJSON, but plain GeoJSON models have no `links`,
+> counts, or top-level `bbox`. These `Feature`/`FeatureCollection` models add
+> gazebo's hypermedia surface to validated RFC 7946 geometry.
 
 !!! note "Optional extra"
     The GeoJSON models live behind the `gazebo[geojson]` extra — install it to

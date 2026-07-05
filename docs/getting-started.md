@@ -2,6 +2,9 @@
 
 > Install gazebo and stand up a minimal OGC-style API.
 
+(Wondering whether you need any of this? [Why gazebo](why.md) makes the case in
+code — the hand-rolled version of each problem, breaking, then fixed.)
+
 ## Install
 
 ```sh

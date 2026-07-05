@@ -1,15 +1,19 @@
 # Content negotiation
 
-> Pick a representation from `?f=` (then `Accept`), and link the alternates — without
-> gazebo taking a position on HTML or templating.
+> `?f=` and `Accept` say what the client wants; something has to pick a
+> representation and link the alternates. Pure resolution — gazebo takes no
+> position on HTML or templating.
 
-OGC clients live on `?f=json|html`, with the HTTP `Accept` header as the fallback. The
-core ships the `ALTERNATE` rel and an `HTML` media type but no negotiation logic, so
-choosing a representation — and advertising the others — was on you. `gazebo.negotiation`
-closes that gap with pure *resolution*: given the representations a resource offers, it
-picks one and builds the `alternate` links to the rest. It deliberately ships **no HTML
-renderer**: turning the chosen representation into bytes (a template, a callable) is the
-app's job; gazebo only tells you *which* representation and links the others.
+OGC clients live on `?f=json|html`, with the HTTP `Accept` header as the
+fallback. Every multi-format endpoint therefore needs the same two decisions
+made correctly: which representation to serve, and how to advertise the others.
+`gazebo.negotiation` is exactly that *resolution* logic — given the
+representations a resource offers, it picks one and builds the `alternate` links
+to the rest.
+
+It deliberately ships **no HTML renderer**. Turning the chosen representation
+into bytes — a template, a callable — is the app's job; gazebo only tells you
+*which* representation won, and links the others.
 
 ## Resolving a representation
 

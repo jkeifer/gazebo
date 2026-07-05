@@ -1,15 +1,22 @@
 # Collections
 
-> `LinkedCollection[T]` — the OGC collection envelope: a list of items plus
-> hypermedia links and counts.
+> Every listing endpoint returns the same envelope — items, links, counts — and
+> every project re-invents it. `LinkedCollection[T]` is that envelope, written
+> once, with the pagination links included.
+
+An OGC listing response is never just an array: it's items under a spec-defined
+key, a `links` list, and counts, with pagination links that must faithfully
+carry the client's query. None of that is your service's actual logic, and all
+of it has edge cases ([Why gazebo](../why.md#pagination-is-url-surgery-repeated-per-endpoint)
+shows the classic one). This page is the envelope and its link builders.
 
 ## The envelope
 
 `LinkedCollection[T]` is the standard OGC collection wrapper: a `Sequence[T]` of
 items plus a `links` list and counts. `numberReturned` is computed from the
-items; `numberMatched` (the total across all pages) is optional and dropped when
-unset. Because the links are deferred, the whole envelope — items, links, and all
-— is built in business logic with no request in hand.
+items. `numberMatched` — the total across all pages — is optional and dropped
+when unset. Because the links are deferred, the whole envelope is built in
+business logic with no request in hand.
 
 ```python
 --8<-- "tests/examples/collections.py:collection"
@@ -63,9 +70,12 @@ temporal interval `[start, null]`) are preserved.
 
 `paginate()` returns deferred `next`/`prev` links. At serialization each takes the
 current request URL and rewrites *only* the pagination query params — `token` and
-`limit` by default, both configurable — preserving every other param. You own the
-token semantics (opaque cursor, offset, keyset); gazebo just builds the links. The
-underlying `with_query` helper is public if you need to rewrite a URL yourself.
+`limit` by default, both configurable — preserving every other param. Omitting
+`limit` leaves the current URL's `limit` (if any) untouched rather than stripping it,
+so a client's page-size choice survives pagination even when you don't re-pass it.
+You own the token semantics (opaque cursor, offset, keyset); gazebo just builds the
+links. The underlying `with_query` helper is public if you need to rewrite a URL
+yourself.
 
 ```python
 --8<-- "tests/examples/collections.py:pagination"
@@ -96,14 +106,17 @@ For classic offset paging, `paginate_offset()` derives the whole
 
 ### POST-body pagination (stateless servers)
 
-The builders are a thin convenience over [`Link`](links.md), not a lossy wrapper: every
-generated link can carry the full `Link` surface — a `type`, `headers`, a `title` (or
-any extra member, via `**link_fields`), and a `method`/`body`. That last pair is what
-makes pagination work for a **POST** search on a *stateless* server: with
-`method='POST'` the page token rides in the request **body** (merged into the `body` you
-pass) instead of the query string, so each `next` link re-states the whole search the
-server doesn't remember. The companion [`drive_pagination`](../testing/pagination.md)
-test driver follows these POST `next` links by reposting that body.
+The builders are a thin convenience over [`Link`](links.md), not a lossy wrapper.
+Every generated link can carry the full `Link` surface: a `type`, `headers`, a
+`title` (or any extra member, via `**link_fields`), and a `method`/`body`.
+
+That last pair is what makes pagination work for a **POST** search on a
+*stateless* server. With `method='POST'`, the page token rides in the request
+**body** — merged into the `body` you pass — instead of the query string. Each
+`next` link therefore re-states the whole search, which is exactly what a server
+that remembers nothing needs. The companion
+[`drive_pagination`](../testing/pagination.md) test driver follows these POST
+`next` links by reposting that body.
 
 ```python
 --8<-- "tests/examples/collections.py:post"

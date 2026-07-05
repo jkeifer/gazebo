@@ -1,7 +1,7 @@
 # Providers & recipes
 
-> The central registry that binds each type to the recipe that builds it and the
-> scope it lives in.
+> Instead of wiring scattered across lifespans, globals, and `Depends` chains,
+> one registry answers: what builds this type, and how long does it live?
 
 ## The registry
 

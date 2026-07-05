@@ -1,7 +1,8 @@
 # Scopes & lifecycle
 
-> Scope is a wiring decision — bound in the registry, not a property of the type.
-> Two scopes ship by default: `app` and `request`.
+> A resource's lifetime shouldn't be hardcoded into its class — the same type
+> can live per-process or per-request depending on the app. Scope is a wiring
+> decision, bound in the registry; `app` and `request` ship by default.
 
 ## app vs request
 
@@ -21,9 +22,12 @@ HTTP app is the request.
 Each entered scope owns a resolution cache and an `AsyncExitStack`. A type is
 built at most once per scope (the cache), and any generator or context-manager
 recipe has its teardown run when the scope closes, in reverse order of creation.
-The app scope builds its providers **eagerly** when it opens, so a misconfigured
-resource fails at startup rather than on the first request; providers nothing
-reaches are skipped (dead-provider elimination).
+Under the FastAPI glue the app scope builds **every** app-scoped provider eagerly
+when it opens, so a misconfigured resource fails at startup rather than on the first
+request. (Standalone users who want reachability-based pruning can pass
+`open_app_scope(eager=...)` to build only the providers reachable from a set of entry
+types — dead-provider elimination — but the glue deliberately builds them all, since a
+resource may be reached only via `__health__` or a manual `app_state.get`.)
 
 ## Scope roots
 

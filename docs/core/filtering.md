@@ -1,17 +1,17 @@
 # Filtering
 
-> CQL2 `filter`/`sortby` query parameters, plus the `queryables`/`sortables`
-> resources — derived from your pydantic model — with malformed input rendered as a
-> `400` problem.
+> Supporting `filter` means much more than parsing CQL2: validating what's
+> filterable, advertising it at `/queryables`, handling `sortby`, rejecting bad
+> input as a `400`. gazebo adopts a parser and supplies everything around it.
 
-Filtering is the largest and most-reimplemented slice of request-side OGC machinery:
-parsing CQL2, validating that a filter only touches filterable fields, advertising
-which fields those are, and applying `sortby`. `gazebo.filtering` owns that
-**plumbing** — and deliberately does *not* own a CQL2 parser. Writing one (comparison,
-logical, spatial, temporal, and array operators across two encodings) is a large,
-perpetual maintenance burden that mature libraries already carry. So gazebo **adopts**
-a CQL2 engine behind a narrow seam and spends its effort on the parts no library
-provides.
+Filtering is the largest and most-reimplemented slice of request-side OGC
+machinery: parsing CQL2, validating that a filter only touches filterable
+fields, advertising which fields those are, and applying `sortby`.
+`gazebo.filtering` owns that **plumbing** — and deliberately does *not* own a
+CQL2 parser. Writing one (comparison, logical, spatial, temporal, and array
+operators, across two encodings) is a large, perpetual maintenance burden that
+mature libraries already carry. So gazebo **adopts** a CQL2 engine behind a
+narrow seam and spends its effort on the parts no library provides.
 
 The bundled engine adapts [cql2-rs](https://pypi.org/project/cql2/); install it with
 the extra:

@@ -1,7 +1,8 @@
 # Request context
 
-> The seam that lets the framework-free core build request-dependent URLs without
-> importing a framework or holding a request.
+> The core never imports a web framework, yet link URLs depend on the live
+> request. `RequestContext` is the seam that squares that — the minimal request
+> surface, delivered ambiently at serialization time.
 
 ## The problem
 
@@ -9,9 +10,10 @@ A link's `href` often depends on the incoming request — its scheme and host, t
 matched route, the current query string. But the model carrying that link is
 built far from the request, down in business logic or even a pure function.
 Threading the request through every layer would couple all of them to the web
-framework. gazebo resolves the tension by *deferring*: the href is a callable,
-and the request is supplied ambiently at serialization time through one small
-seam.
+framework ([Why gazebo](../why.md#links-make-the-request-leak-everywhere) shows
+that coupling in code). gazebo resolves the tension by *deferring*: the href is
+a callable, and the request is supplied ambiently at serialization time, through
+the one small seam this page describes.
 
 ## RequestContext: the minimal surface
 

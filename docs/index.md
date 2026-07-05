@@ -39,6 +39,7 @@ pydantic, so you can pull in one piece without adopting the rest.
 
 ## Where to go next
 
+- **Not sold yet?** [Why gazebo](why.md) — the three hand-rolled pains, shown breaking and then fixed.
 - **New here?** [Getting started](getting-started.md) — install + a working app in ~40 lines.
 - **Browsing features?** Start with [the core](core/index.md), then [DI](di/index.md), then [FastAPI glue](fastapi/index.md).
 - **Want the whole thing at once?** [Gazebo Gardens](example.md), the complete example app.

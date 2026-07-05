@@ -9,6 +9,7 @@ copyright = "Copyright &copy; 2026 Jarrett Keifer"
 
 nav = [
   { Home = "index.md" },
+  { "Why gazebo" = "why.md" },
   { "Getting started" = "getting-started.md" },
   { Core = [
     { Overview = "core/index.md" },

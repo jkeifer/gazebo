@@ -1,7 +1,14 @@
 # Landing pages & conformance
 
-> OGC API Common building blocks: the landing page (`GET /`) and the conformance
-> declaration (`GET /conformance`).
+> OGC clients don't read your docs — they start at `GET /` and follow links, and
+> they ask `GET /conformance` what you support. These are the models for both.
+
+A generic OGC client discovers a service, not the other way around: it fetches
+the landing page, follows `rel`-tagged links to capabilities, and checks the
+conformance declaration before relying on a feature. That only works if those
+two documents are accurate — which is why gazebo models them (here) and, in the
+FastAPI glue, [derives them from the running app](../fastapi/routers.md#the-service-root-rootrouter)
+so they can't drift from what's actually wired.
 
 ## Landing page
 

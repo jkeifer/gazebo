@@ -1,7 +1,8 @@
 # Routers & injection
 
-> Routes opt into by-type injection by living on a `GazeboRouter`. `LinkedRouter`
-> additionally builds hierarchical landing pages from router nesting.
+> `Depends(get_db)` restates the wiring at every route. On a `GazeboRouter`, a
+> handler just asks for `db: Database` — the registry already knows the rest.
+> `LinkedRouter` additionally builds landing pages from router nesting.
 
 ## Bare-type injection
 
