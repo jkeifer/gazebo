@@ -274,3 +274,15 @@ def test_bbox_field_order_check_translates_to_valueerror():
     with pytest.raises(ValidationError) as exc:
         _Query.model_validate({'bbox': '1,20,3,4'})
     assert exc.value.errors()[0]['loc'] == ('bbox',)
+
+
+def test_folded_fields_have_string_input_schema():
+    # bbox/datetime parse into models, but a client *sends* them as strings; the field
+    # schema must advertise the string input (a Swagger text box), not the parsed model's
+    # object schema, while keeping the Field description/examples.
+    props = _Query.model_json_schema()['properties']
+    for name in ('bbox', 'datetime'):
+        assert props[name]['type'] == 'string'
+        assert 'anyOf' not in props[name]  # no $ref to the parsed model
+        assert props[name]['description']
+        assert props[name]['examples']

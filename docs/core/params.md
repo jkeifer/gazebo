@@ -80,7 +80,10 @@ OGC parameters into it *as fields* rather than adding separate `Depends`. `BBoxQ
 and `DatetimeQuery` are annotated field types (pydantic `BeforeValidator` + documented
 `Field`) for their open value spaces; drop them onto your model and use it as
 `Annotated[MyQuery, Query()]`, and FastAPI explodes it into individual, documented query
-parameters — each parsed by the same core parser.
+parameters — each parsed by the same core parser. Although each parses into a model
+(`BBox`, `DatetimeInterval`), the field advertises a *string* input schema, so Swagger UI
+renders a plain text box (the value a client actually sends) rather than a nested object
+editor.
 
 The `crs` parameter is different: its allowed values are a *closed set*, and that set is
 a decision only you can make. So instead of a helper, gazebo gives you a base enum to

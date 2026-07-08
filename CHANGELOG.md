@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- params: the folded `BBoxQuery`/`DatetimeQuery` field types now advertise a
+  string input schema (`json_schema_input_type=str` on their `BeforeValidator`),
+  so the generated OpenAPI documents them as strings and Swagger UI renders a
+  plain text box instead of the parsed model's (`BBox`/`DatetimeInterval`) object
+  editor. Parsing and validation behavior are unchanged.
+
 ### Deprecated
 
 ### Removed

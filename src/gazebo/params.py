@@ -276,7 +276,11 @@ def _parse_bbox_field(value: str | None) -> BBox | None:
 
 BBoxQuery = Annotated[
     BBox | None,
-    BeforeValidator(_parse_bbox_field),
+    # A client sends the ``bbox`` param as a string; the validator parses it into a
+    # :class:`BBox`. Tell pydantic the *input* is a string so the field's JSON schema is a
+    # string (a Swagger text box) rather than the parsed model's object schema. Description
+    # and examples still come from the ``Field`` below.
+    BeforeValidator(_parse_bbox_field, json_schema_input_type=str),
     Field(default=None, description=BBOX_DESCRIPTION, examples=BBOX_EXAMPLES),
 ]
 """A folded ``bbox`` query field: parses to a :class:`BBox` (or ``None``), fully documented.
@@ -297,7 +301,10 @@ def _parse_datetime_field(value: str | None) -> DatetimeInterval | None:
 
 DatetimeQuery = Annotated[
     DatetimeInterval | None,
-    BeforeValidator(_parse_datetime_field),
+    # As with ``BBoxQuery``: the client sends a string, the validator parses it into a
+    # :class:`DatetimeInterval`. Declaring the string input keeps the OpenAPI schema a
+    # string (a text box) instead of the parsed model's object schema.
+    BeforeValidator(_parse_datetime_field, json_schema_input_type=str),
     Field(default=None, description=DATETIME_DESCRIPTION, examples=DATETIME_EXAMPLES),
 ]
 """A folded ``datetime`` query field: parses to a :class:`DatetimeInterval` (or ``None``)."""
