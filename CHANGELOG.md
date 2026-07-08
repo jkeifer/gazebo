@@ -9,7 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- context/negotiation: `RequestContext` now exposes `headers` (the request headers
+  as a case-insensitive mapping), unifying the request metadata the core needs onto
+  one seam. Core `negotiate()` reads it: when called with no explicit `accept` and an
+  ambient `RequestContext` is active, it falls back to that request's `Accept` header
+  (an explicit `accept` still wins), so negotiation works from the ambient request
+  with no request in hand — while staying pure when called with no context.
+
 ### Changed
+
+- **Breaking (for `RequestContext` implementers):** the (`@runtime_checkable`)
+  `RequestContext` protocol gained a required `headers` property (case-insensitive
+  request headers). The built-in FastAPI adapter implements it; any custom
+  `RequestContext` implementation must add it to keep structurally satisfying the
+  protocol. `RequestContext`'s charter is now the framework-agnostic seam for *all*
+  the request metadata the core needs (URL building **and** headers), not just link
+  URLs.
 
 ### Fixed
 

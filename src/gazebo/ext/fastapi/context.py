@@ -31,6 +31,11 @@ class RequestContextAdapter:
     def query_params(self) -> Mapping[str, str]:
         return dict(self._request.query_params)
 
+    @property
+    def headers(self) -> Mapping[str, str]:
+        # Starlette's Headers is already a case-insensitive Mapping[str, str].
+        return self._request.headers
+
     def url_for(self, name: str, /, **path: object) -> str:
         return str(self._request.url_for(name, **path))
 

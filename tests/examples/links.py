@@ -15,6 +15,7 @@ class _Ctx:
     base_url = 'https://api.example.com/'
     url = 'https://api.example.com/plants?limit=10'
     query_params: Mapping[str, str] = {}
+    headers: Mapping[str, str] = {}
 
     def url_for(self, name: str, /, **path: object) -> str:
         suffix = '/' + '/'.join(str(v) for v in path.values()) if path else ''

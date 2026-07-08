@@ -23,6 +23,10 @@ class MyContext:
     def query_params(self) -> Mapping[str, str]:
         return {}
 
+    @property
+    def headers(self) -> Mapping[str, str]:
+        return {}
+
     def url_for(self, name: str, /, **path: object) -> str:
         return f'https://api.example.com/{name}'
 
