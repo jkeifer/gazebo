@@ -56,8 +56,8 @@ own, so — as with [`crs`](params.md#folded-into-your-own-query-model) — gaze
 base enum to subclass: [`FormatEnum`](../reference.md#gazebo.negotiation.FormatEnum), a
 `StrEnum` whose members are `(?f= key, media type)` pairs. It is a real class, so it drops
 onto your model as an ordinary field type (no `type: ignore`), pydantic validates the key
-natively, and FastAPI renders it as an `enum` query param carrying the shared `f`
-description:
+natively, and FastAPI renders it as an `enum` query param whose OpenAPI description names
+your subclass's actual `?f=` keys (not a stock example):
 
 ```python
 --8<-- "tests/examples/negotiation.py:folded"

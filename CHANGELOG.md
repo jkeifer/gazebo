@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- negotiation: the `f` (format) parameter's OpenAPI description is now
+  format-neutral and names the *actual* supported `?f=` keys instead of a
+  hardcoded `json`/`html` example. A folded `FormatEnum` field enumerates its
+  subclass's members and the `Negotiate` dependency its representations, both via
+  the new `gazebo.negotiation.f_description` helper.
+
 ### Fixed
 
 - params: the folded `BBoxQuery`/`DatetimeQuery` field types now advertise a

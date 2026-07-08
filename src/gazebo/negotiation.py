@@ -23,7 +23,7 @@ renders as ``application/problem+json`` with no extra wiring.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import TYPE_CHECKING
@@ -40,11 +40,29 @@ if TYPE_CHECKING:
     from pydantic_core import CoreSchema
 
 F_DESCRIPTION = (
-    'The requested output format, as one of the supported representation keys (e.g. '
-    '`json` or `html`). Takes precedence over the `Accept` header; an unsupported value '
-    'returns a `400` problem.'
+    'The requested output format, as one of the supported representation keys. '
+    'Takes precedence over the `Accept` header; an unsupported value returns a `400` '
+    'problem.'
 )
-"""Human-readable description of the OGC ``f`` (format) query parameter."""
+"""Human-readable, format-neutral description of the OGC ``f`` (format) query parameter.
+
+It deliberately names no specific key; use :func:`f_description` to append the actual
+supported keys where they are known (a folded :class:`FormatEnum`, the ``Negotiate``
+adapter's representations).
+"""
+
+
+def f_description(keys: Iterable[str]) -> str:
+    """:data:`F_DESCRIPTION` with the supported ``?f=`` ``keys`` enumerated.
+
+    Keeps the ``f`` parameter's OpenAPI description honest about the *actual* formats a
+    resource offers (e.g. ``json``, ``csv``) instead of a hardcoded example. Falls back to
+    the bare :data:`F_DESCRIPTION` when ``keys`` is empty.
+    """
+    listed = ', '.join(f'`{key}`' for key in keys)
+    if not listed:
+        return F_DESCRIPTION
+    return f'{F_DESCRIPTION} Supported keys: {listed}.'
 
 
 @dataclass(frozen=True, slots=True)
@@ -227,8 +245,9 @@ class FormatEnum(StrEnum):
     Pydantic validates membership by the *key* (member value): an unknown ``?f=`` is a
     ``ValidationError`` that a :class:`~gazebo.ext.fastapi.GazeboApp` renders as a `400`
     ``application/problem+json`` citing the parameter. FastAPI renders the field as an
-    ``enum`` of keys, and the base carries :data:`F_DESCRIPTION` so it self-documents in
-    OpenAPI. Give the field a plain default so an absent ``?f=`` resolves to it.
+    ``enum`` of keys, and the base injects an OpenAPI description that names the
+    subclass's actual ``?f=`` keys (via :func:`f_description`) so it self-documents. Give
+    the field a plain default so an absent ``?f=`` resolves to it.
 
     Because each member carries its media type, :attr:`representation` turns a chosen
     member into a :class:`Representation` with no external mapping — drive rendering and
@@ -272,9 +291,10 @@ class FormatEnum(StrEnum):
         # self-documents in OpenAPI (FastAPI reads the parameter description from the
         # enum's own schema, not only from a consumer Field(...)). We overwrite rather than
         # setdefault: pydantic pre-fills ``description`` from the subclass docstring, but
-        # the API parameter wants F_DESCRIPTION.
+        # the API parameter wants the OGC one. The subclass knows its own members, so name
+        # the actual ``?f=`` keys rather than a hardcoded example.
         schema = handler(core_schema)
-        schema['description'] = F_DESCRIPTION
+        schema['description'] = f_description(member.value for member in cls)
         return schema
 
 
@@ -286,5 +306,6 @@ __all__ = [
     'FormatEnum',
     'Representation',
     'alternate_links',
+    'f_description',
     'negotiate',
 ]

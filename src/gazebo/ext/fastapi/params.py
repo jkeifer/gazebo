@@ -13,7 +13,7 @@ from typing import Annotated, Any
 
 from fastapi import Depends, Query, Request
 
-from gazebo.negotiation import F_DESCRIPTION, Representation, negotiate
+from gazebo.negotiation import Representation, f_description, negotiate
 from gazebo.params import (
     BBOX_DESCRIPTION,
     BBOX_EXAMPLES,
@@ -128,7 +128,8 @@ def Negotiate(  # noqa: N802  (factory returning a Depends, named like one)
         value: str | None = Query(
             default=None,
             alias=name,
-            description=F_DESCRIPTION,
+            # The available reps are known here, so name their actual keys.
+            description=f_description(rep.key for rep in reps),
             # The representation keys are a closed set; emit them as an OpenAPI enum.
             json_schema_extra={'enum': [rep.key for rep in reps]},
         ),
