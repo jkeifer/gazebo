@@ -227,6 +227,10 @@ def test_beds_search_folded_params_documented_in_openapi(client):
     # the folded model explodes into individual, documented query params
     assert {'bbox', 'datetime', 'crs', 'f', 'limit', 'offset'} <= set(params)
     assert 'A bounding box' in params['bbox']['description']
+    # bbox/datetime parse to models but are *sent* as strings: their OpenAPI schema must be
+    # a plain string (a Swagger text box), not the parsed model's object schema.
+    assert params['bbox']['schema']['type'] == 'string'
+    assert params['datetime']['schema']['type'] == 'string'
     # crs/f are closed-set enums: FastAPI $refs a reusable component that carries the enum
     # members and the base's injected description.
     crs_ref = params['crs']['schema']['$ref'].rsplit('/', 1)[-1]
