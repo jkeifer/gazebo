@@ -4,8 +4,18 @@ import json
 
 import pytest
 
+from pydantic import BaseModel, ValidationError
+
 from gazebo.context import use_context
-from gazebo.negotiation import GEOJSON, HTML, JSON, Representation, alternate_links, negotiate
+from gazebo.negotiation import (
+    GEOJSON,
+    HTML,
+    JSON,
+    FormatEnum,
+    Representation,
+    alternate_links,
+    negotiate,
+)
 from gazebo.params import ParamError
 from gazebo.problems import ProblemException
 from gazebo.rels import Rel
@@ -131,3 +141,44 @@ def test_alternate_links_empty_for_sole_representation():
 
 def test_representation_is_hashable_value():
     assert Representation('json', 'application/json') == JSON
+
+
+# --- FormatEnum composable closed-set field --------------------------------
+
+
+class _Format(FormatEnum):
+    json = 'json'
+    html = 'html'
+
+
+class _NegQuery(BaseModel):
+    # A real class (a FormatEnum subclass): a usable field type with NO type: ignore.
+    f: _Format = _Format.json
+
+
+def test_format_enum_resolves_from_f():
+    assert _NegQuery.model_validate({'f': 'html'}).f is _Format.html
+
+
+def test_format_enum_absent_falls_back_to_default():
+    assert _NegQuery.model_validate({}).f is _Format.json
+
+
+def test_format_enum_default_wins_when_absent():
+    class _Q(BaseModel):
+        f: _Format = _Format.html
+
+    assert _Q.model_validate({}).f is _Format.html
+
+
+def test_format_enum_unknown_is_valueerror():
+    with pytest.raises(ValidationError) as exc:
+        _NegQuery.model_validate({'f': 'xml'})
+    assert exc.value.errors()[0]['loc'] == ('f',)
+
+
+def test_format_enum_members_are_key_strings():
+    # a member is its ?f= key (StrEnum); the consumer maps it to a Representation
+    assert _Format.html == 'html'
+    key_to_rep = {'json': JSON, 'html': HTML}
+    assert key_to_rep[_Format.html] is HTML

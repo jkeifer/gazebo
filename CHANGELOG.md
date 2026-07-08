@@ -16,9 +16,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `RequestContext.url_for_template` (resolved proxy-correctly by the FastAPI
   adapter), a declared `Link.templated` field (present in the OpenAPI schema,
   omitted on the wire when unset), and wired into the garden beds collection.
+- params/negotiation: the standard OGC query parameters (`bbox`, `datetime`,
+  `crs`, `f`) now fully self-document in OpenAPI — the `BBoxParam`/`DatetimeParam`/
+  `CrsParam`/`Negotiate` `Depends` adapters carry a `description` and
+  `openapi_examples`, plus a closed `enum` for `crs`/`f`.
+- params/negotiation: composable OGC query **field types** to fold into a
+  consumer's own Pydantic query model (used as `Annotated[MyQuery, Query()]`, which
+  FastAPI explodes into individual documented params). For the open value spaces,
+  `BBoxQuery` and `DatetimeQuery` (in `gazebo.params`) are annotated field types
+  validated by the existing core parser. For the *closed sets* — whose members are a
+  consumer decision — `CrsEnum` (in `gazebo.params`) and `FormatEnum` (in
+  `gazebo.negotiation`) are `StrEnum` base classes to subclass: spelling the allowed
+  CRS URIs / `?f=` keys as enum members yields a real field type (no type-checker
+  suppression) that pydantic validates natively, renders as an OpenAPI `enum`, and
+  self-documents (each base injects the shared `crs`/`f` description). A malformed
+  value renders as a `400` `application/problem+json`, preserving OGC's client-error
+  semantics. Wired into the garden beds `search` route.
 
 ### Changed
 
+- **Breaking:** `validation_exception_handler` now derives its status from the error
+  location — a malformed **query** parameter is a `400` (an OGC client error,
+  matching `ParamError`) and cites the offending `parameter`/`parameters`, while a
+  bad request **body** or path stays a `422`. Both continue to render as
+  `application/problem+json`. This changes the status of query-validation failures
+  (e.g. a non-integer `?limit=`) from `422` to `400` — clients keying on `422` for
+  bad query parameters must update.
 - **Breaking (for `RequestContext` implementers):** the `RequestContext` protocol
   gained a required `url_for_template(name, path, template)` method. The built-in
   FastAPI adapter implements it; any custom `RequestContext` implementation must add

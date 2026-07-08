@@ -14,6 +14,8 @@ from pydantic import BaseModel, Field
 from gazebo.collection import LinkedCollection
 from gazebo.geojson import Feature, FeatureCollection, Point, Position2D
 from gazebo.link import Link
+from gazebo.negotiation import FormatEnum
+from gazebo.params import CRS84, BBoxQuery, CrsEnum, DatetimeQuery
 from gazebo.rels import MediaType, Rel
 
 
@@ -39,6 +41,49 @@ class PlantSearch(BaseModel):
     """
 
     name: str | None = None
+    limit: int = Field(10, ge=1, le=10_000)
+    offset: int = Field(0, ge=0)
+
+
+class BedCrs(CrsEnum):
+    """The closed CRS set the beds search endpoint advertises.
+
+    A :class:`~gazebo.params.CrsEnum` subclass — a *real* class, so it drops onto
+    :class:`BedQuery` as an ordinary field type (no ``type: ignore``). Members are CRS
+    URIs, validated natively; an unsupported ``crs`` is a `400` problem.
+    """
+
+    CRS84 = CRS84
+    WEB_MERCATOR = 'http://www.opengis.net/def/crs/EPSG/0/3857'
+
+
+class BedFormat(FormatEnum):
+    """The closed ``?f=`` output-format set the beds search endpoint advertises.
+
+    A :class:`~gazebo.negotiation.FormatEnum` subclass folded into :class:`BedQuery` as a
+    real field type. It sees only ``?f=`` (no ``Accept`` header at model-validation time);
+    an unsupported value is a `400` problem.
+    """
+
+    geojson = 'geojson'
+    json = 'json'
+
+
+class BedQuery(BaseModel):
+    """A *folded* query model for the beds search endpoint.
+
+    Composes gazebo's standard OGC query field types (`bbox`, `datetime`) and its
+    consumer-subclassable closed-set enums (`crs` via :class:`BedCrs`, `f` via
+    :class:`BedFormat`) alongside the app's own paging fields into one model. Used as
+    ``Annotated[BedQuery, Query()]``, FastAPI explodes it into individual, self-documented
+    query parameters; a malformed `bbox`/`datetime`, or an unsupported `crs`/`f`, becomes
+    a `400` problem, preserving OGC semantics.
+    """
+
+    bbox: BBoxQuery = None
+    datetime: DatetimeQuery = None
+    crs: BedCrs = BedCrs.CRS84
+    f: BedFormat = BedFormat.geojson
     limit: int = Field(10, ge=1, le=10_000)
     offset: int = Field(0, ge=0)
 

@@ -39,9 +39,13 @@ response is `application/problem+json` (see [Problems](../core/problems.md)):
 - `problem_exception_handler` renders any [`ProblemException`](../core/problems.md)
   you raise with its status and detail.
 - `validation_exception_handler` maps FastAPI's `RequestValidationError` to a
-  `422` problem, carrying the field-level errors under an `errors` extension
+  problem response, carrying the field-level errors under an `errors` extension
   member (RFC 9457). Without this, bad input would return FastAPI's default
-  `{"detail": [...]}` shape and break problem+json uniformity.
+  `{"detail": [...]}` shape and break problem+json uniformity. The status follows
+  OGC: a malformed **query** parameter is a `400` (a client error, matching
+  [`ParamError`](../reference.md#gazebo.params.ParamError)), while a bad request
+  **body** or path is a `422`. A query error also cites the offending parameter
+  name(s) under a `parameter`/`parameters` extension member, just like `ParamError`.
 
 The second is automatic — you write nothing for it:
 
@@ -49,14 +53,15 @@ The second is automatic — you write nothing for it:
 --8<-- "tests/examples/app.py:validation_problem"
 ```
 
-A bad request then yields:
+A bad query parameter then yields:
 
 ```json
 {
   "type": "about:blank",
-  "title": "Unprocessable Entity",
-  "status": 422,
+  "title": "Bad Request",
+  "status": 400,
   "detail": "request validation failed: 1 error(s)",
+  "parameter": "limit",
   "errors": [{"type": "int_parsing", "loc": ["query", "limit"], "msg": "..."}]
 }
 ```

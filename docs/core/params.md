@@ -69,6 +69,42 @@ question so consumers don't re-derive it: `BBox.contains(lon, lat)` returns whet
 point falls within the box, handling the wrapped case. The garden example filters its
 beds with it.
 
+Both the `Depends` adapters and the field types below carry a `description` and
+`openapi_examples` (and a closed `enum` for `crs`), so the generated OpenAPI
+documents each parameter fully rather than exposing a bare, undocumented string.
+
+## Folded into your own query model
+
+When you already have a Pydantic model for a route's query string, you can fold the
+OGC parameters into it *as fields* rather than adding separate `Depends`. `BBoxQuery`
+and `DatetimeQuery` are annotated field types (pydantic `BeforeValidator` + documented
+`Field`) for their open value spaces; drop them onto your model and use it as
+`Annotated[MyQuery, Query()]`, and FastAPI explodes it into individual, documented query
+parameters — each parsed by the same core parser.
+
+The `crs` parameter is different: its allowed values are a *closed set*, and that set is
+a decision only you can make. So instead of a helper, gazebo gives you a base enum to
+subclass — [`CrsEnum`](../reference.md#gazebo.params.CrsEnum), a `StrEnum` whose members
+are the CRS URIs you support. Because it is a real class, it drops onto your model as an
+ordinary field type — no `type: ignore` — and pydantic validates membership natively:
+
+```python
+--8<-- "tests/examples/params.py:folded"
+```
+
+Give the field a default (typically `CRS84`) so an absent value resolves to it. Members
+are real strings (the URIs), so the value flows downstream as a URI unchanged. FastAPI
+renders the field as an `enum` query param, and the base injects the shared `crs`
+description into the generated OpenAPI, so a folded field self-documents without your
+adding a `Field(description=...)`.
+
+A malformed folded field — a bad `bbox`/`datetime`, or a `crs` outside the enum — fails
+Pydantic validation, which FastAPI raises as a `RequestValidationError`. Under a
+`GazeboApp` that renders as a `400` `application/problem+json` (a query error is an OGC
+client error), citing the offending `parameter` — the same shape a `Depends` `ParamError`
+produces, so folding a field does not change the error contract. (A bad request *body*
+stays a `422`; see the [app handlers](../fastapi/app.md).)
+
 ## Reference
 
 See [`gazebo.params`](../reference.md#gazebo.params) and the adapters in

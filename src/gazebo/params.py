@@ -13,8 +13,15 @@ from __future__ import annotations
 import math
 
 from datetime import UTC, datetime
+from enum import StrEnum
+from typing import TYPE_CHECKING, Annotated
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, BeforeValidator, Field, model_validator
+
+if TYPE_CHECKING:
+    from pydantic import GetJsonSchemaHandler
+    from pydantic.json_schema import JsonSchemaValue
+    from pydantic_core import CoreSchema
 
 CRS84 = 'http://www.opengis.net/def/crs/OGC/1.3/CRS84'
 """The OGC default CRS: WGS 84 longitude/latitude (lon, lat axis order).
@@ -22,6 +29,47 @@ CRS84 = 'http://www.opengis.net/def/crs/OGC/1.3/CRS84'
 Same datum as ``EPSG:4326`` but with GeoJSON's lon/lat ordering, which is why OGC
 API Features uses it as the default and most common allow-list entry.
 """
+
+# Descriptions and examples for the standard OGC query parameters. Defined once here so
+# both the FastAPI ``Depends`` adapters (openapi metadata) and the composable field types
+# (pydantic ``Field`` metadata) document them identically — a single source of truth.
+
+BBOX_DESCRIPTION = (
+    'A bounding box, as comma-separated numbers `minx,miny,maxx,maxy` (WGS 84 '
+    'longitude/latitude), or `minx,miny,minz,maxx,maxy,maxz` for a 3D box. The x axis '
+    'may wrap the antimeridian (`minx` may exceed `maxx`); the y (and z) axes must be '
+    'ordered `min <= max`. Malformed values return a `400` problem.'
+)
+"""Human-readable description of the OGC ``bbox`` query parameter."""
+
+BBOX_EXAMPLES = [
+    '-180,-90,180,90',
+    '7.0,50.0,8.0,51.0',
+    '7,50,0,8,51,1000',
+]
+"""Example ``bbox`` values: global, a regional box, and a 3D box."""
+
+DATETIME_DESCRIPTION = (
+    'An RFC 3339 instant, or a `start/end` interval where either side may be open using '
+    '`..` (or empty). An instant matches a single timestamp; an interval matches a range. '
+    'Malformed values return a `400` problem.'
+)
+"""Human-readable description of the OGC ``datetime`` query parameter."""
+
+DATETIME_EXAMPLES = [
+    '2020-01-01T00:00:00Z',
+    '2020-01-01T00:00:00Z/2020-12-31T23:59:59Z',
+    '../2020-12-31T23:59:59Z',
+    '2020-01-01T00:00:00Z/..',
+]
+"""Example ``datetime`` values: instant, closed interval, open-start, open-end."""
+
+CRS_DESCRIPTION = (
+    'The coordinate reference system, as a CRS URI from the supported set. Defaults to '
+    'CRS84 (WGS 84 longitude/latitude) when it is allowed. A value outside the supported '
+    'set returns a `400` problem.'
+)
+"""Human-readable description of the OGC ``crs``/``bbox-crs`` query parameter."""
 
 
 class ParamError(Exception):
@@ -200,3 +248,125 @@ def validate_crs(
         allowed_list = ', '.join(allowed)
         raise ParamError(parameter, f'unsupported crs {value!r}; allowed: {allowed_list}')
     return value
+
+
+# --- Composable field types ------------------------------------------------
+#
+# Annotated types a consumer can fold into their *own* pydantic query model (used as
+# ``Annotated[MyQuery, Query()]``, which FastAPI explodes into individual query params).
+# They are pydantic-only (BeforeValidator + Field metadata, no web-framework import), so
+# they live in the core alongside the parsers they wrap. Because they run inside pydantic
+# validation, a bad value must surface as a plain ``ValueError`` (which pydantic wraps into
+# a ``ValidationError``): the ``ParamError`` the parsers raise is deliberately *not* a
+# ``ValueError`` (see below), so these validators translate it. The FastAPI glue maps the
+# resulting query-field ``RequestValidationError`` back to a `400` problem, preserving the
+# OGC "malformed query param is a client error" semantics.
+
+
+def _parse_bbox_field(value: str | None) -> BBox | None:
+    if value is None:
+        return None
+    try:
+        return BBox.parse(value)
+    except ParamError as exc:
+        # ParamError is intentionally not a ValueError, so raise a plain one here for
+        # pydantic to collect; the field's ``loc`` becomes the offending param name.
+        raise ValueError(exc.detail) from None
+
+
+BBoxQuery = Annotated[
+    BBox | None,
+    BeforeValidator(_parse_bbox_field),
+    Field(default=None, description=BBOX_DESCRIPTION, examples=BBOX_EXAMPLES),
+]
+"""A folded ``bbox`` query field: parses to a :class:`BBox` (or ``None``), fully documented.
+
+Put it on a consumer's own pydantic query model (used as ``Annotated[MyQuery, Query()]``);
+a malformed value becomes a `400` ``application/problem+json`` under a :class:`GazeboApp`.
+"""
+
+
+def _parse_datetime_field(value: str | None) -> DatetimeInterval | None:
+    if value is None:
+        return None
+    try:
+        return DatetimeInterval.parse(value)
+    except ParamError as exc:
+        raise ValueError(exc.detail) from None
+
+
+DatetimeQuery = Annotated[
+    DatetimeInterval | None,
+    BeforeValidator(_parse_datetime_field),
+    Field(default=None, description=DATETIME_DESCRIPTION, examples=DATETIME_EXAMPLES),
+]
+"""A folded ``datetime`` query field: parses to a :class:`DatetimeInterval` (or ``None``)."""
+
+
+# --- Composable closed-set field: CRS enum --------------------------------
+#
+# The closed set of allowed CRS URIs is a *consumer* decision, so it must be spelled by
+# the consumer as a real ``StrEnum`` subclass (a class definition is the only construct a
+# static type checker accepts as a usable field type — a gazebo helper *call* in
+# annotation position never is). :class:`CrsEnum` is the base to subclass: members are
+# CRS URI strings, so a folded field validates membership natively (a bad value → a
+# ``ValidationError`` that the FastAPI glue renders as a `400` problem), serializes as the
+# URI, and FastAPI renders it as an ``enum`` query param. The base injects
+# :data:`CRS_DESCRIPTION` into the field's JSON schema so it self-documents in OpenAPI.
+
+
+class CrsEnum(StrEnum):
+    """Base ``StrEnum`` for a folded ``crs``/``bbox-crs`` query field's closed CRS set.
+
+    Subclass it, spelling each allowed CRS as a member whose value is the CRS URI, then
+    fold the subclass into a pydantic query model as a real field type (no ``type: ignore``
+    needed — it is an ordinary class)::
+
+        class BedCrs(CrsEnum):
+            CRS84 = CRS84
+            WEB_MERCATOR = 'http://www.opengis.net/def/crs/EPSG/0/3857'
+
+        class BedQuery(BaseModel):
+            crs: BedCrs = BedCrs.CRS84
+
+    Because members are real strings (the URIs), the field value is usable downstream as a
+    URI and serializes as one. Pydantic validates membership natively: an unknown value is
+    a ``ValidationError`` that a :class:`~gazebo.ext.fastapi.GazeboApp` renders as a `400`
+    ``application/problem+json`` citing the parameter. FastAPI renders the field as an
+    ``enum`` query param, and the base carries :data:`CRS_DESCRIPTION` so it self-documents
+    in the generated OpenAPI. Give the field a default (typically ``CRS84``) so an absent
+    value resolves to it.
+    """
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls,
+        core_schema: CoreSchema,
+        handler: GetJsonSchemaHandler,
+    ) -> JsonSchemaValue:
+        # Force the shared OGC description onto the enum's schema so a folded field
+        # self-documents in OpenAPI with the *parameter's* meaning. FastAPI reads the
+        # parameter description from the (possibly $ref'd) enum schema, so it must live on
+        # the schema itself, not only on a Field(...) the consumer would otherwise add. We
+        # overwrite rather than setdefault: pydantic pre-fills ``description`` from the
+        # subclass docstring (developer-facing), but the API parameter wants CRS_DESCRIPTION.
+        schema = handler(core_schema)
+        schema['description'] = CRS_DESCRIPTION
+        return schema
+
+
+__all__ = [
+    'BBOX_DESCRIPTION',
+    'BBOX_EXAMPLES',
+    'CRS84',
+    'CRS_DESCRIPTION',
+    'DATETIME_DESCRIPTION',
+    'DATETIME_EXAMPLES',
+    'BBox',
+    'BBoxQuery',
+    'CrsEnum',
+    'DatetimeInterval',
+    'DatetimeQuery',
+    'ParamError',
+    'validate_crs',
+]

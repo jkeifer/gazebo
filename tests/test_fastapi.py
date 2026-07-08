@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Annotated, Literal
 import httpx2 as httpx
 import pytest
 
-from fastapi import Request, Response
+from fastapi import Query, Request, Response
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
 
@@ -20,10 +20,14 @@ from gazebo.context import RequestContext
 from gazebo.di import Key
 from gazebo.ext.fastapi import (
     BBoxParam,
+    BBoxQuery,
     CorsConfig,
+    CrsEnum,
     CrsParam,
     DatetimeParam,
+    DatetimeQuery,
     FilterParam,
+    FormatEnum,
     GazeboApp,
     GazeboRouter,
     Inject,
@@ -223,16 +227,19 @@ def test_problem_response(client):
 
 def test_validation_error_is_problem(client):
     # a non-int `limit` fails FastAPI request validation; the glue maps that to a
-    # problem+json 422 (not FastAPI's default {"detail": [...]} shape).
+    # problem+json response (not FastAPI's default {"detail": [...]} shape). A *query*
+    # error is a 400 (OGC: malformed query param is a client error).
     r = client.get('/things?limit=nope', headers={'authorization': 'a'})
-    assert r.status_code == 422
+    assert r.status_code == 400
     assert r.headers['content-type'] == 'application/problem+json'
     body = r.json()
-    assert body['status'] == 422
-    assert body['title'] == 'Unprocessable Entity'
+    assert body['status'] == 400
+    assert body['title'] == 'Bad Request'
     # the field-level error list is carried as an RFC 9457 extension member
     assert body['errors']
     assert any(err['loc'] == ['query', 'limit'] for err in body['errors'])
+    # the offending query parameter is cited, consistent with ParamError's problem
+    assert body['parameter'] == 'limit'
     # unset optional members are omitted, not emitted as null (OGC omit-null)
     assert 'instance' not in body
 
@@ -662,6 +669,166 @@ def test_crs_explicit_default_when_no_crs84():
 def test_crs_default_outside_allowed_raises_at_construction():
     with pytest.raises(ValueError, match='not in allowed'):
         CrsParam(allowed=[CRS84], default='http://example.com/crs/nope')
+
+
+# --- OpenAPI: the Depends adapters are fully spec'd ------------------------
+
+
+def _openapi_params(schema: dict, path: str) -> dict:
+    params = schema['paths'][path]['get']['parameters']
+    return {p['name']: p for p in params}
+
+
+def _resolve_schema(schema: dict, node: dict) -> dict:
+    """Follow a ``$ref`` (an enum's reusable component) to its resolved schema, once."""
+    ref = node.get('$ref')
+    if ref is None:
+        return node
+    name = ref.rsplit('/', 1)[-1]
+    return schema['components']['schemas'][name]
+
+
+def test_depends_adapters_are_documented_in_openapi():
+    app = GazeboApp(Providers())
+
+    @app.get('/search')
+    async def search(
+        bbox: Annotated[BBox | None, BBoxParam] = None,
+        datetime: Annotated[DatetimeInterval | None, DatetimeParam] = None,
+        crs: Annotated[str, CrsParam(allowed=[CRS84])] = CRS84,
+        rep: Annotated[Representation, Negotiate([JSON, HTML])] = JSON,
+    ) -> dict:
+        return {}
+
+    with TestClient(app) as client:
+        params = _openapi_params(client.get('/openapi.json').json(), '/search')
+
+    assert 'A bounding box' in params['bbox']['description']
+    assert params['bbox']['examples']  # openapi_examples on bbox
+    assert 'RFC 3339' in params['datetime']['description']
+    assert params['datetime']['examples']
+    # crs and f carry their closed set as an enum
+    assert params['crs']['schema']['enum'] == [CRS84]
+    assert 'coordinate reference system' in params['crs']['description']
+    assert params['f']['schema']['enum'] == ['json', 'html']
+    assert 'output format' in params['f']['description']
+
+
+# --- Folded query models (composable field types) --------------------------
+
+
+class _FoldedCrs(CrsEnum):
+    CRS84 = CRS84
+
+
+class _FoldedFormat(FormatEnum):
+    json = 'json'
+    html = 'html'
+
+
+class _FoldedQuery(BaseModel):
+    bbox: BBoxQuery = None
+    datetime: DatetimeQuery = None
+    # Real classes (CrsEnum / FormatEnum subclasses): usable field types, NO type: ignore.
+    crs: _FoldedCrs = _FoldedCrs.CRS84
+    f: _FoldedFormat = _FoldedFormat.json
+
+
+def _folded_app() -> GazeboApp:
+    app = GazeboApp(Providers())
+
+    @app.get('/items')
+    async def items(query: Annotated[_FoldedQuery, Query()]) -> dict:
+        return {
+            'bbox': None if query.bbox is None else [query.bbox.minx, query.bbox.maxx],
+            'has_datetime': query.datetime is not None,
+            'crs': query.crs,
+            'f': query.f.value,
+        }
+
+    return app
+
+
+@pytest.fixture
+def folded_client():
+    with TestClient(_folded_app()) as c:
+        yield c
+
+
+def test_folded_model_explodes_into_documented_params(folded_client):
+    spec = folded_client.get('/openapi.json').json()
+    params = _openapi_params(spec, '/items')
+    # exploded into individual query params, not a single collapsed object
+    assert {'bbox', 'datetime', 'crs', 'f'} <= set(params)
+    assert 'A bounding box' in params['bbox']['description']
+    assert params['bbox']['schema'].get('examples') or params['bbox'].get('examples')
+    # crs/f are closed-set enums: FastAPI $refs the reusable component schema, which
+    # carries both the enum members and the base's injected description.
+    crs_schema = _resolve_schema(spec, params['crs']['schema'])
+    assert crs_schema['enum'] == [CRS84]
+    assert 'coordinate reference system' in crs_schema['description']
+    f_schema = _resolve_schema(spec, params['f']['schema'])
+    assert f_schema['enum'] == ['json', 'html']
+    assert 'output format' in f_schema['description']
+
+
+def test_folded_good_values_parse(folded_client):
+    body = folded_client.get(
+        '/items?bbox=-1,-2,3,4&datetime=2020-01-01T00:00:00Z&f=html',
+    ).json()
+    assert body['bbox'] == [-1, 3]
+    assert body['has_datetime'] is True
+    assert body['crs'] == CRS84  # absent crs falls back to the field default
+    assert body['f'] == 'html'
+
+
+def test_folded_bad_value_is_400_problem(folded_client):
+    r = folded_client.get('/items?bbox=1,2,3')  # wrong coordinate count
+    assert r.status_code == 400  # a malformed query param is an OGC client error
+    assert r.headers['content-type'] == 'application/problem+json'
+    body = r.json()
+    assert body['status'] == 400
+    assert body['parameter'] == 'bbox'
+    assert any(err['loc'][-1] == 'bbox' for err in body['errors'])
+
+
+def test_folded_bad_f_is_400_problem(folded_client):
+    r = folded_client.get('/items?f=xml')
+    assert r.status_code == 400
+    assert r.json()['parameter'] == 'f'
+
+
+def test_folded_multiple_bad_params_lists_parameters(folded_client):
+    r = folded_client.get('/items?bbox=1,2,3&f=xml')
+    assert r.status_code == 400
+    body = r.json()
+    # more than one offending query param -> a `parameters` list rather than a scalar
+    assert set(body['parameters']) == {'bbox', 'f'}
+    assert 'parameter' not in body
+
+
+class _IntBody(BaseModel):
+    n: int
+
+
+def test_body_validation_still_422_problem():
+    app = GazeboApp(Providers())
+
+    @app.post('/things')
+    async def make(body: _IntBody) -> dict:
+        return {'n': body.n}
+
+    with TestClient(app) as client:
+        r = client.post('/things', json={'n': 'nope'})
+        # a bad request *body* stays a 422, now rendered as problem+json
+        assert r.status_code == 422
+        assert r.headers['content-type'] == 'application/problem+json'
+        body = r.json()
+        assert body['status'] == 422
+        assert body['title'] == 'Unprocessable Entity'
+        assert body['errors']
+        # no query params were involved, so no parameter citation
+        assert 'parameter' not in body
 
 
 # --- Link: response header via set_link_header helper ---------------------

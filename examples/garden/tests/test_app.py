@@ -8,6 +8,7 @@ from click.testing import CliRunner
 from fastapi.testclient import TestClient
 
 from gazebo.ext.fastapi import Overrides
+from gazebo.params import CRS84
 from gazebo.testing import assert_has_link, assert_problem, drive_pagination
 
 from garden.app import create_app, main
@@ -120,8 +121,9 @@ def test_plants_cursor_with_bad_offset_is_problem(client):
 
 
 def test_plants_limit_zero_is_validation_problem(client):
-    # an out-of-range limit is rejected at the boundary (422), never a divide-by-zero 500
-    assert_problem(client.get('/plants?limit=0', headers=AUTH), status=422)
+    # an out-of-range limit is rejected at the boundary as a 400 (a malformed query
+    # param is an OGC client error), never a divide-by-zero 500
+    assert_problem(client.get('/plants?limit=0', headers=AUTH), status=400)
 
 
 def test_beds_offset_pagination(client):
@@ -132,9 +134,78 @@ def test_beds_offset_pagination(client):
 
 
 def test_beds_out_of_range_paging_is_validation_problem(client):
-    # bad limit/offset are rejected (422) before reaching paginate_offset's ValueError
-    assert_problem(client.get('/collections/beds/items?limit=0'), status=422)
-    assert_problem(client.get('/collections/beds/items?offset=-1'), status=422)
+    # bad limit/offset are rejected (400: malformed query param) before reaching
+    # paginate_offset's ValueError
+    assert_problem(client.get('/collections/beds/items?limit=0'), status=400)
+    assert_problem(client.get('/collections/beds/items?offset=-1'), status=400)
+
+
+def test_beds_search_folded_query_parses(client):
+    # BedQuery folds gazebo's BBoxQuery + DatetimeQuery with the app's own paging fields;
+    # good values parse and filter.
+    r = client.get('/collections/beds/search?bbox=-180,-90,180,90')
+    assert r.status_code == 200
+    assert len(r.json()['features']) == 3
+    # a bbox that excludes everything narrows the result set
+    r = client.get('/collections/beds/search?bbox=100,80,101,81')
+    assert r.status_code == 200
+    assert r.json()['features'] == []
+
+
+def test_beds_search_bad_bbox_is_400_problem(client):
+    # a malformed folded field is a 400 application/problem+json (OGC client error),
+    # not FastAPI's default 422 shape — via the RequestValidationError handler.
+    r = client.get('/collections/beds/search?bbox=1,2,3')
+    assert_problem(r, status=400)
+    assert r.headers['content-type'] == 'application/problem+json'
+    assert r.json()['parameter'] == 'bbox'
+
+
+def test_beds_search_bad_datetime_is_400_problem(client):
+    r = client.get('/collections/beds/search?datetime=not-a-date')
+    assert_problem(r, status=400)
+    assert r.json()['parameter'] == 'datetime'
+
+
+def test_beds_search_folded_crs_and_f(client):
+    # the folded CrsEnum/FormatEnum fields validate natively and drive the response:
+    # crs is echoed in Content-Crs, f selects the self link's advertised media type.
+    web_mercator = 'http://www.opengis.net/def/crs/EPSG/0/3857'
+    r = client.get(f'/collections/beds/search?crs={web_mercator}&f=json')
+    assert r.status_code == 200
+    assert r.headers['Content-Crs'] == f'<{web_mercator}>'
+    self_link = next(link for link in r.json()['links'] if link['rel'] == 'self')
+    assert self_link['type'] == 'application/json'
+
+
+def test_beds_search_bad_crs_is_400_problem(client):
+    r = client.get('/collections/beds/search?crs=http://example.com/crs/nope')
+    assert_problem(r, status=400)
+    assert r.json()['parameter'] == 'crs'
+
+
+def test_beds_search_bad_f_is_400_problem(client):
+    r = client.get('/collections/beds/search?f=xml')
+    assert_problem(r, status=400)
+    assert r.json()['parameter'] == 'f'
+
+
+def test_beds_search_folded_params_documented_in_openapi(client):
+    schema = client.get('/openapi.json').json()
+    params = {
+        p['name']: p for p in schema['paths']['/collections/beds/search']['get']['parameters']
+    }
+    # the folded model explodes into individual, documented query params
+    assert {'bbox', 'datetime', 'crs', 'f', 'limit', 'offset'} <= set(params)
+    assert 'A bounding box' in params['bbox']['description']
+    # crs/f are closed-set enums: FastAPI $refs a reusable component that carries the enum
+    # members and the base's injected description.
+    crs_ref = params['crs']['schema']['$ref'].rsplit('/', 1)[-1]
+    crs_schema = schema['components']['schemas'][crs_ref]
+    assert 'coordinate reference system' in crs_schema['description']
+    assert crs_schema['enum'][0] == CRS84
+    f_ref = params['f']['schema']['$ref'].rsplit('/', 1)[-1]
+    assert 'output format' in schema['components']['schemas'][f_ref]['description']
 
 
 def test_beds_queryables_and_sortables(client):

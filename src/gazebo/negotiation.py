@@ -25,12 +25,26 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from enum import StrEnum
+from typing import TYPE_CHECKING
 
 from gazebo.context import with_query
 from gazebo.link import Link, UrlResolver
 from gazebo.params import ParamError
 from gazebo.problems import ProblemException
 from gazebo.rels import MediaType, Rel
+
+if TYPE_CHECKING:
+    from pydantic import GetJsonSchemaHandler
+    from pydantic.json_schema import JsonSchemaValue
+    from pydantic_core import CoreSchema
+
+F_DESCRIPTION = (
+    'The requested output format, as one of the supported representation keys (e.g. '
+    '`json` or `html`). Takes precedence over the `Accept` header; an unsupported value '
+    'returns a `400` problem.'
+)
+"""Human-readable description of the OGC ``f`` (format) query parameter."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -172,10 +186,67 @@ def alternate_links(
     return links
 
 
+# --- Composable closed-set field: format enum -----------------------------
+#
+# The closed set of ``?f=`` format keys is a *consumer* decision, so it must be spelled by
+# the consumer as a real ``StrEnum`` subclass (a class definition is the only construct a
+# static type checker accepts as a usable field type). :class:`FormatEnum` is the base to
+# subclass: members are format-key strings, so a folded field validates membership
+# natively and FastAPI renders it as an ``enum`` query param. Unlike the glue's
+# ``Negotiate`` dependency, a folded field sees only ``?f=`` (no ``Accept`` header at
+# model-validation time); the consumer maps a chosen member (key) to their
+# :class:`Representation` to drive rendering / :func:`alternate_links`.
+
+
+class FormatEnum(StrEnum):
+    """Base ``StrEnum`` for a folded ``?f=`` (format) query field's closed key set.
+
+    Subclass it, spelling each supported output format as a member whose value is its
+    ``?f=`` key, then fold the subclass into a pydantic query model as a real field type
+    (no ``type: ignore`` needed — it is an ordinary class)::
+
+        class BedFormat(FormatEnum):
+            json = 'json'
+            html = 'html'
+
+        class BedQuery(BaseModel):
+            f: BedFormat = BedFormat.json
+
+    Pydantic validates membership natively: an unknown ``?f=`` is a ``ValidationError``
+    that a :class:`~gazebo.ext.fastapi.GazeboApp` renders as a `400`
+    ``application/problem+json`` citing the parameter. FastAPI renders the field as an
+    ``enum`` query param, and the base carries :data:`F_DESCRIPTION` so it self-documents
+    in OpenAPI. Give the field a default so an absent ``?f=`` resolves to it.
+
+    A folded field only ever sees ``?f=`` — there is no ``Accept`` header at
+    model-validation time — so it negotiates on the query value alone. When you need
+    ``Accept``-aware negotiation (and its `406`), use the glue's ``Negotiate`` dependency
+    instead; when ``?f=`` is one field among several in a query model you already have,
+    reach for this base and map the chosen member (key) to your :class:`Representation`.
+    """
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls,
+        core_schema: CoreSchema,
+        handler: GetJsonSchemaHandler,
+    ) -> JsonSchemaValue:
+        # Force the shared OGC description onto the enum's schema so a folded field
+        # self-documents in OpenAPI (FastAPI reads the parameter description from the
+        # enum's own schema, not only from a consumer Field(...)). We overwrite rather than
+        # setdefault: pydantic pre-fills ``description`` from the subclass docstring, but
+        # the API parameter wants F_DESCRIPTION.
+        schema = handler(core_schema)
+        schema['description'] = F_DESCRIPTION
+        return schema
+
+
 __all__ = [
+    'F_DESCRIPTION',
     'GEOJSON',
     'HTML',
     'JSON',
+    'FormatEnum',
     'Representation',
     'alternate_links',
     'negotiate',

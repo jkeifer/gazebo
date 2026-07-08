@@ -4,13 +4,20 @@ from datetime import UTC, datetime
 
 import pytest
 
+from pydantic import BaseModel, ValidationError
+
 from gazebo.params import (
     CRS84,
     BBox,
+    BBoxQuery,
+    CrsEnum,
     DatetimeInterval,
+    DatetimeQuery,
     ParamError,
     validate_crs,
 )
+
+EPSG3857 = 'http://www.opengis.net/def/crs/EPSG/0/3857'
 
 # --- bbox ------------------------------------------------------------------
 
@@ -189,3 +196,81 @@ def test_crs_absent_with_no_default_is_required():
     with pytest.raises(ParamError) as exc:
         validate_crs(None, (epsg3857,), default=None)
     assert exc.value.parameter == 'crs'
+
+
+# --- composable field types ------------------------------------------------
+
+
+def test_paramerror_is_not_a_valueerror():
+    # Critical: several core @model_validators raise ParamError and rely on it
+    # propagating out of construction (not being wrapped into a ValidationError). The
+    # folded field types translate ParamError -> ValueError themselves instead.
+    assert not issubclass(ParamError, ValueError)
+
+
+class _Crs(CrsEnum):
+    CRS84 = CRS84
+    WEB_MERCATOR = EPSG3857
+
+
+class _Query(BaseModel):
+    bbox: BBoxQuery = None
+    datetime: DatetimeQuery = None
+    # A real class (a CrsEnum subclass): a usable field type with NO type: ignore.
+    crs: _Crs = _Crs.CRS84
+
+
+def test_field_types_parse_good_values():
+    q = _Query.model_validate(
+        {
+            'bbox': '-1,-2,3,4',
+            'datetime': '2020-01-01T00:00:00Z/..',
+            'crs': CRS84,
+        },
+    )
+    assert isinstance(q.bbox, BBox)
+    assert (q.bbox.minx, q.bbox.maxy) == (-1, 4)
+    assert isinstance(q.datetime, DatetimeInterval)
+    assert q.crs == CRS84
+    # members are real strings (the URIs), usable downstream as such
+    assert q.crs == _Crs.CRS84
+    assert isinstance(q.crs, str)
+
+
+def test_field_types_absent_resolve():
+    q = _Query.model_validate({})
+    assert q.bbox is None
+    assert q.datetime is None
+    assert q.crs == CRS84  # absent crs falls back to the field default
+
+
+def test_bad_bbox_field_is_valueerror():
+    with pytest.raises(ValidationError) as exc:
+        _Query.model_validate({'bbox': '1,2,3'})
+    # a folded field failure becomes a clean ValidationError located on the field name
+    assert exc.value.errors()[0]['loc'] == ('bbox',)
+
+
+def test_bad_datetime_field_is_valueerror():
+    with pytest.raises(ValidationError) as exc:
+        _Query.model_validate({'datetime': 'not-a-date'})
+    assert exc.value.errors()[0]['loc'] == ('datetime',)
+
+
+def test_bad_crs_field_is_valueerror():
+    with pytest.raises(ValidationError) as exc:
+        _Query.model_validate({'crs': 'http://example.com/crs/nope'})
+    assert exc.value.errors()[0]['loc'] == ('crs',)
+
+
+def test_crs_enum_members_are_uri_strings():
+    # members compare and behave as their URI value (StrEnum), so they flow downstream
+    assert _Crs.WEB_MERCATOR == EPSG3857
+    assert _Crs('http://www.opengis.net/def/crs/OGC/1.3/CRS84') is _Crs.CRS84
+
+
+def test_bbox_field_order_check_translates_to_valueerror():
+    # the model_validator ParamError (miny > maxy) is caught by the field validator too
+    with pytest.raises(ValidationError) as exc:
+        _Query.model_validate({'bbox': '1,20,3,4'})
+    assert exc.value.errors()[0]['loc'] == ('bbox',)
