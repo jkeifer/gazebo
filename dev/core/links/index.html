@@ -536,6 +536,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#templated-links" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Templated links
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#resolving-without-a-request" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -1447,6 +1458,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#templated-links" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Templated links
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#resolving-without-a-request" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -1564,6 +1586,32 @@ common links, each deferred so it resolves against the live request:</p>
 into the deferred resolver and handed to <code>ctx.url_for</code> at serialization time —
 they are <em>not</em> stored as fields on the link, so they never appear in the emitted
 JSON.</p>
+<h2 id="templated-links">Templated links<a class="headerlink" href="#templated-links" title="Permanent link">&para;</a></h2>
+<p>Sometimes a link's URL isn't fully known even to the server: the client supplies
+the final path segment, or a set of optional query filters. Rather than resolve
+those, <code>to_route</code> can leave chosen variables <em>unbound</em> as RFC 6570 <code>{var}</code>
+expressions and mark the link <code>templated: true</code>, so the client expands it. Pass
+<code>template</code> for path-position variables and <code>query_template</code> for form-query
+variables — the latter is appended as <code>{?a,b}</code> (or <code>{&amp;a,b}</code> when the resolved
+base already carries a query string):</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">gazebo.link</span><span class="w"> </span><span class="kn">import</span> <span class="n">Link</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">gazebo.rels</span><span class="w"> </span><span class="kn">import</span> <span class="n">Rel</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Leave a path variable unbound as an RFC 6570 {var}, and/or advertise optional</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="c1"># query parameters. The link carries &quot;templated&quot;: true so the client expands it.</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="n">templated</span> <span class="o">=</span> <span class="n">Link</span><span class="o">.</span><span class="n">to_route</span><span class="p">(</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="s1">&#39;stats&#39;</span><span class="p">,</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="n">rel</span><span class="o">=</span><span class="n">Rel</span><span class="o">.</span><span class="n">ITEM</span><span class="p">,</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    <span class="n">template</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;triplet&#39;</span><span class="p">],</span>  <span class="c1"># path-position {triplet}</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>    <span class="n">query_template</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;from&#39;</span><span class="p">,</span> <span class="s1">&#39;to&#39;</span><span class="p">],</span>  <span class="c1"># appended as {?from,to}</span>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="p">)</span>
+</span></code></pre></div>
+<p>Path variables you <em>do</em> know still go in <code>path</code> and are resolved normally;
+<code>template</code> is only for the ones you want the client to fill in. A plain
+<code>to_route</code> call (no <code>template</code>/<code>query_template</code>) serializes exactly as before,
+with no <code>templated</code> member. Under the FastAPI glue the unbound path variables are
+resolved through the real router, so the emitted template stays proxy-correct
+(scheme, host, and root path intact).</p>
 <h2 id="resolving-without-a-request">Resolving without a request<a class="headerlink" href="#resolving-without-a-request" title="Permanent link">&para;</a></h2>
 <p>A link only serializes to a real URL when a context is available. Under the
 <a href="../../fastapi/">FastAPI glue</a> that's automatic for every response. For a

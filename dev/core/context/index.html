@@ -1530,11 +1530,14 @@ a callable, and the request is supplied ambiently at serialization time, through
 the one small seam this page describes.</p>
 <h2 id="requestcontext-the-minimal-surface">RequestContext: the minimal surface<a class="headerlink" href="#requestcontext-the-minimal-surface" title="Permanent link">&para;</a></h2>
 <p>That seam is the <code>RequestContext</code> protocol — the minimal slice of "the request" a
-link factory needs: <code>base_url</code>, <code>url</code>, <code>query_params</code>, and
-<code>url_for(name, **path)</code>. It's a <code>Protocol</code>, so anything structurally matching it
-qualifies: the FastAPI glue adapts a FastAPI <code>Request</code>, and a test can pass a
-hand-rolled object. The core only ever calls these four members.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mapping</span>
+link factory needs: <code>base_url</code>, <code>url</code>, <code>query_params</code>, <code>url_for(name, **path)</code>,
+and <code>url_for_template</code> (which resolves a route while leaving selected variables as
+RFC 6570 <code>{var}</code> expressions, backing <a href="../links/#templated-links">templated links</a>).
+It's a <code>Protocol</code>, so anything structurally matching it qualifies: the FastAPI glue
+adapts a FastAPI <code>Request</code>, and a test can pass a hand-rolled object. Because the
+protocol is <code>@runtime_checkable</code>, a conforming object must implement the whole
+surface.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mapping</span><span class="p">,</span> <span class="n">Sequence</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">gazebo.context</span><span class="w"> </span><span class="kn">import</span> <span class="n">RequestContext</span>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
@@ -1557,8 +1560,18 @@ hand-rolled object. The core only ever calls these four members.</p>
 </span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">url_for</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">/</span><span class="p">,</span> <span class="o">**</span><span class="n">path</span><span class="p">:</span> <span class="nb">object</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 </span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>        <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;https://api.example.com/</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">&#39;</span>
 </span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>
-</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>
-</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">MyContext</span><span class="p">(),</span> <span class="n">RequestContext</span><span class="p">)</span>  <span class="c1"># runtime-checkable: structural match</span>
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">url_for_template</span><span class="p">(</span>
+</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>        <span class="bp">self</span><span class="p">,</span>
+</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>        <span class="n">path</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">],</span>
+</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>        <span class="n">template</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>        <span class="o">/</span><span class="p">,</span>
+</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>        <span class="nb">vars</span> <span class="o">=</span> <span class="s1">&#39;/&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="se">{{</span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="se">}}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">template</span><span class="p">)</span>
+</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>        <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;https://api.example.com/</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="nb">vars</span><span class="si">}</span><span class="s1">&#39;</span>
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>
+</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>
+</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a><span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">MyContext</span><span class="p">(),</span> <span class="n">RequestContext</span><span class="p">)</span>  <span class="c1"># runtime-checkable: structural match</span>
 </span></code></pre></div>
 <h2 id="how-its-delivered">How it's delivered<a class="headerlink" href="#how-its-delivered" title="Permanent link">&para;</a></h2>
 <p>A context reaches a serializing model two ways, tried in order:</p>

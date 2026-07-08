@@ -1587,9 +1587,13 @@ response is <code>application/problem+json</code> (see <a href="../../core/probl
 <li><code>problem_exception_handler</code> renders any <a href="../../core/problems/"><code>ProblemException</code></a>
   you raise with its status and detail.</li>
 <li><code>validation_exception_handler</code> maps FastAPI's <code>RequestValidationError</code> to a
-  <code>422</code> problem, carrying the field-level errors under an <code>errors</code> extension
+  problem response, carrying the field-level errors under an <code>errors</code> extension
   member (RFC 9457). Without this, bad input would return FastAPI's default
-  <code>{"detail": [...]}</code> shape and break problem+json uniformity.</li>
+  <code>{"detail": [...]}</code> shape and break problem+json uniformity. The status follows
+  OGC: a malformed <strong>query</strong> parameter is a <code>400</code> (a client error, matching
+  <a href="../../reference/#gazebo.params.ParamError"><code>ParamError</code></a>), while a bad request
+  <strong>body</strong> or path is a <code>422</code>. A query error also cites the offending parameter
+  name(s) under a <code>parameter</code>/<code>parameters</code> extension member, just like <code>ParamError</code>.</li>
 </ul>
 <p>The second is automatic — you write nothing for it:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">gazebo.ext.fastapi</span><span class="w"> </span><span class="kn">import</span> <span class="n">GazeboApp</span><span class="p">,</span> <span class="n">GazeboRouter</span><span class="p">,</span> <span class="n">Providers</span>
@@ -1606,16 +1610,18 @@ response is <code>application/problem+json</code> (see <a href="../../core/probl
 </span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="n">vapp</span><span class="o">.</span><span class="n">include_router</span><span class="p">(</span><span class="n">validating</span><span class="p">)</span>
 </span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>
 </span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="c1"># Now GET /widgets?limit=nope fails request validation and the glue returns an</span>
-</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="c1"># application/problem+json 422 (see the response shape below) — no handler needed.</span>
+</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="c1"># application/problem+json response — no handler needed. A malformed *query* param is a</span>
+</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="c1"># 400 (OGC client error); a bad request *body* is a 422.</span>
 </span></code></pre></div>
-<p>A bad request then yields:</p>
+<p>A bad query parameter then yields:</p>
 <div class="language-json highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="p">{</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;about:blank&quot;</span><span class="p">,</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">&quot;title&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Unprocessable Entity&quot;</span><span class="p">,</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">422</span><span class="p">,</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">&quot;title&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Bad Request&quot;</span><span class="p">,</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">400</span><span class="p">,</span>
 </span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="nt">&quot;detail&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;request validation failed: 1 error(s)&quot;</span><span class="p">,</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span><span class="nt">&quot;errors&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;int_parsing&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;loc&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;query&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;limit&quot;</span><span class="p">],</span><span class="w"> </span><span class="nt">&quot;msg&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;...&quot;</span><span class="p">}]</span>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="p">}</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span><span class="nt">&quot;parameter&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;limit&quot;</span><span class="p">,</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">  </span><span class="nt">&quot;errors&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;int_parsing&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;loc&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;query&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;limit&quot;</span><span class="p">],</span><span class="w"> </span><span class="nt">&quot;msg&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;...&quot;</span><span class="p">}]</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="p">}</span>
 </span></code></pre></div>
 <h2 id="cors">CORS<a class="headerlink" href="#cors" title="Permanent link">&para;</a></h2>
 <p>OGC APIs are usually consumed from a browser, so cross-origin requests matter.
