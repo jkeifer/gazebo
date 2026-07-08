@@ -5,11 +5,15 @@ The core never imports a web framework. Link hrefs may be callables that need
 ``RequestContext`` protocol and delivered ambiently through a ``ContextVar`` (set
 by the framework glue) with a pydantic-serialization-context fallback for manual
 dumps and tests.
+
+``RequestContext`` also carries :meth:`RequestContext.url_for_template`, which
+resolves a route while leaving selected variables as RFC 6570 ``{var}`` expressions
+so a link can advertise an unbound URI template (``templated: true``).
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from typing import Any, Protocol, runtime_checkable
@@ -22,6 +26,9 @@ class RequestContext(Protocol):
 
     Any object structurally satisfying this (e.g. a framework request adapter) can be
     placed in :data:`link_context`. The core only ever calls these members.
+
+    Because this protocol is ``@runtime_checkable``, every adapter must implement the
+    whole surface below — including :meth:`url_for_template`.
     """
 
     @property
@@ -34,6 +41,21 @@ class RequestContext(Protocol):
     def query_params(self) -> Mapping[str, str]: ...
 
     def url_for(self, name: str, /, **path: object) -> str: ...
+
+    def url_for_template(
+        self,
+        name: str,
+        path: Mapping[str, object],
+        template: Sequence[str],
+        /,
+    ) -> str:
+        """Resolve route ``name``, binding ``path`` and leaving ``template`` as ``{var}``.
+
+        Binds the ``path`` params concretely while each variable in ``template`` is left
+        in the returned URL as an RFC 6570 ``{var}`` expression, so a link can advertise
+        an unbound URI template for the client to expand.
+        """
+        ...
 
 
 # Holds the RequestContext for the duration of a request. Set by the framework

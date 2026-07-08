@@ -18,10 +18,13 @@ the one small seam this page describes.
 ## RequestContext: the minimal surface
 
 That seam is the `RequestContext` protocol — the minimal slice of "the request" a
-link factory needs: `base_url`, `url`, `query_params`, and
-`url_for(name, **path)`. It's a `Protocol`, so anything structurally matching it
-qualifies: the FastAPI glue adapts a FastAPI `Request`, and a test can pass a
-hand-rolled object. The core only ever calls these four members.
+link factory needs: `base_url`, `url`, `query_params`, `url_for(name, **path)`,
+and `url_for_template` (which resolves a route while leaving selected variables as
+RFC 6570 `{var}` expressions, backing [templated links](links.md#templated-links)).
+It's a `Protocol`, so anything structurally matching it qualifies: the FastAPI glue
+adapts a FastAPI `Request`, and a test can pass a hand-rolled object. Because the
+protocol is `@runtime_checkable`, a conforming object must implement the whole
+surface.
 
 ```python
 --8<-- "tests/examples/context.py:protocol"

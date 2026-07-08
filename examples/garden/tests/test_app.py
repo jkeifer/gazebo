@@ -148,6 +148,17 @@ def test_beds_queryables_and_sortables(client):
     assert {'http://www.opengis.net/def/rel/ogc/1.0/queryables'} <= rels
 
 
+def test_beds_collection_advertises_templated_item_link(client):
+    links = client.get('/collections/beds').json()['links']
+    item = next(link for link in links if link['rel'] == 'item')
+    # {bed_id} left unbound in the path, optional filters as an RFC 6570 form-query.
+    assert item['href'].endswith('/collections/beds/items/{bed_id}{?bbox,datetime,filter,sortby}')
+    assert item['templated'] is True
+    # a plain (non-templated) collection link must not carry the templated flag.
+    self_link = next(link for link in links if link['rel'] == 'self')
+    assert 'templated' not in self_link
+
+
 def test_beds_cql2_text_filter(client):
     body = client.get("/collections/beds/items?filter=name = 'Rose Bed'").json()
     assert [f['properties']['name'] for f in body['features']] == ['Rose Bed']

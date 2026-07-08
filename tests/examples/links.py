@@ -6,7 +6,7 @@ below them run in CI (``tests/test_examples.py``) so the snippets can't go stale
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 
 
 class _Ctx:
@@ -19,6 +19,16 @@ class _Ctx:
     def url_for(self, name: str, /, **path: object) -> str:
         suffix = '/' + '/'.join(str(v) for v in path.values()) if path else ''
         return f'https://api.example.com/{name}{suffix}'
+
+    def url_for_template(
+        self,
+        name: str,
+        path: Mapping[str, object],
+        template: Sequence[str],
+        /,
+    ) -> str:
+        parts = [name, *(str(v) for v in path.values()), *(f'{{{v}}}' for v in template)]
+        return 'https://api.example.com/' + '/'.join(parts)
 
 
 def _dump(link: object) -> dict:
@@ -52,3 +62,24 @@ dumped = [_dump(link) for link in links]
 assert dumped[0]['href'] == 'https://api.example.com/plants?limit=10'
 assert dumped[1]['href'] == 'https://api.example.com/landing'
 assert dumped[2]['href'] == 'https://api.example.com/plant/1'
+
+
+# --8<-- [start:templated]
+from gazebo.link import Link
+from gazebo.rels import Rel
+
+# Leave a path variable unbound as an RFC 6570 {var}, and/or advertise optional
+# query parameters. The link carries "templated": true so the client expands it.
+templated = Link.to_route(
+    'stats',
+    rel=Rel.ITEM,
+    template=['triplet'],  # path-position {triplet}
+    query_template=['from', 'to'],  # appended as {?from,to}
+)
+# --8<-- [end:templated]
+
+t = _dump(templated)
+assert t['href'] == 'https://api.example.com/stats/{triplet}{?from,to}'
+assert t['templated'] is True
+# A plain to_route omits templated entirely.
+assert 'templated' not in dumped[2]

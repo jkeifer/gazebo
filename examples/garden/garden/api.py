@@ -259,6 +259,17 @@ def build_beds_collection() -> Collection:
             Link.to_route(
                 'list_beds', rel=Rel.ITEMS, type=MediaType.GEOJSON, title='Bed features'
             ),
+            # A templated link advertising the item endpoint with its {bed_id} left
+            # unbound, plus the optional query filters — the client fills in {bed_id}
+            # (and any of bbox/datetime/filter/sortby) and expands the RFC 6570 URI.
+            Link.to_route(
+                'get_bed',
+                rel=Rel.ITEM,
+                type=MediaType.GEOJSON,
+                title='Bed feature by id (templated)',
+                template=['bed_id'],
+                query_template=['bbox', 'datetime', 'filter', 'sortby'],
+            ),
             Link.to_route(
                 'beds_queryables', rel=REL_QUERYABLES, type=MediaType.JSON, title='Queryables'
             ),

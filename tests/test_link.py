@@ -108,3 +108,65 @@ def test_to_route_with_path_is_idempotent_across_dumps(ctx):
         second = json.loads(link.model_dump_json())
     assert first == second
     assert second['href'] == 'https://api.example.com/plant/1'
+
+
+def test_to_route_plain_omits_templated(ctx):
+    link = Link.to_route('plant', rel=Rel.ITEM, path={'id': 1})
+    with use_context(ctx):
+        data = json.loads(link.model_dump_json())
+    assert 'templated' not in data
+
+
+def test_to_route_path_template_leaves_var_and_sets_templated(ctx):
+    link = Link.to_route('stats', rel=Rel.ITEM, template=['triplet'])
+    with use_context(ctx):
+        data = json.loads(link.model_dump_json())
+    assert data['href'] == 'https://api.example.com/stats/{triplet}'
+    assert data['templated'] is True
+
+
+def test_to_route_query_template_appends_query_expression(ctx):
+    link = Link.to_route('stats', rel=Rel.ITEM, query_template=['from', 'to'])
+    with use_context(ctx):
+        data = json.loads(link.model_dump_json())
+    # url_for('stats') has no query, so a fresh {?...} expression is appended.
+    assert data['href'] == 'https://api.example.com/stats{?from,to}'
+    assert data['templated'] is True
+
+
+def test_to_route_path_and_query_template_combined(ctx):
+    link = Link.to_route(
+        'stats',
+        rel=Rel.ITEM,
+        path={'kind': 'daily'},
+        template=['triplet'],
+        query_template=['from', 'to'],
+    )
+    with use_context(ctx):
+        data = json.loads(link.model_dump_json())
+    assert data['href'] == 'https://api.example.com/stats/daily/{triplet}{?from,to}'
+    assert data['templated'] is True
+
+
+def test_to_route_query_template_uses_ampersand_when_base_has_query(ctx):
+    # When the resolved base already carries a query string, the form-query
+    # continuation must use {&...} rather than {?...}. Resolve the route name to a
+    # URL that already has a query (the FakeContext subclass supplies the rest of
+    # the RequestContext surface).
+    from tests.conftest import FakeContext
+
+    class QueryBaseCtx(FakeContext):
+        def url_for(self, name: str, /, **path: object) -> str:
+            return 'https://api.example.com/stats?fixed=1'
+
+    link = Link.to_route('stats', rel=Rel.ITEM, query_template=['from'])
+    with use_context(QueryBaseCtx()):
+        data = json.loads(link.model_dump_json())
+    assert data['href'] == 'https://api.example.com/stats?fixed=1{&from}'
+    assert data['templated'] is True
+
+
+def test_templated_field_in_serialization_schema():
+    props = Link.model_json_schema(mode='serialization')['properties']
+    assert 'templated' in props
+    assert props['templated'].get('type') == 'boolean' or 'anyOf' in props['templated']

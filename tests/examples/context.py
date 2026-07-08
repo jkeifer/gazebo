@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 # --8<-- [start:protocol]
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 
 from gazebo.context import RequestContext
 
@@ -25,6 +25,16 @@ class MyContext:
 
     def url_for(self, name: str, /, **path: object) -> str:
         return f'https://api.example.com/{name}'
+
+    def url_for_template(
+        self,
+        name: str,
+        path: Mapping[str, object],
+        template: Sequence[str],
+        /,
+    ) -> str:
+        vars = '/'.join(f'{{{v}}}' for v in template)
+        return f'https://api.example.com/{name}/{vars}'
 
 
 assert isinstance(MyContext(), RequestContext)  # runtime-checkable: structural match
