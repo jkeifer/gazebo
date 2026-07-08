@@ -8,12 +8,14 @@ from pydantic import BaseModel, ValidationError
 
 from gazebo.context import use_context
 from gazebo.negotiation import (
+    F_DESCRIPTION,
     GEOJSON,
     HTML,
     JSON,
     FormatEnum,
     Representation,
     alternate_links,
+    f_description,
     negotiate,
 )
 from gazebo.params import ParamError
@@ -215,3 +217,25 @@ def test_format_enum_representations_in_definition_order():
     # the `available` list for negotiate(), straight off the enum, server-preferred order
     assert _Format.representations() == [member.representation for member in _Format]
     assert _Format.representations()[0] == _Format.json.representation
+
+
+def test_format_enum_description_names_actual_keys():
+    # the folded field's OpenAPI description enumerates the subclass's real keys, not a
+    # hardcoded example — a resource offering json/csv reads honestly.
+    class _CsvFormat(FormatEnum):
+        json = 'json', 'application/json'
+        csv = 'csv', 'text/csv'
+
+    class _Q(BaseModel):
+        f: _CsvFormat = _CsvFormat.json
+
+    description = _Q.model_json_schema()['$defs']['_CsvFormat']['description']
+    assert 'Supported keys: `json`, `csv`.' in description
+    assert 'html' not in description
+
+
+def test_f_description_helper():
+    assert f_description(['json', 'csv']).endswith('Supported keys: `json`, `csv`.')
+    # empty keys degrade to the bare, format-neutral base
+    assert f_description([]) == F_DESCRIPTION
+    assert 'Supported keys' not in F_DESCRIPTION

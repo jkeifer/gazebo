@@ -240,7 +240,11 @@ def test_beds_search_folded_params_documented_in_openapi(client):
     # f is an optional field -> anyOf: [{$ref enum}, {null}]; the ref carries the enum.
     f_node = next(part for part in params['f']['schema']['anyOf'] if '$ref' in part)
     f_ref = f_node['$ref'].rsplit('/', 1)[-1]
-    assert 'output format' in schema['components']['schemas'][f_ref]['description']
+    f_desc = schema['components']['schemas'][f_ref]['description']
+    assert 'output format' in f_desc
+    # the description names this resource's actual keys (geojson/json), not a stock example
+    assert 'Supported keys: `geojson`, `json`.' in f_desc
+    assert 'html' not in f_desc
 
 
 def test_beds_queryables_and_sortables(client):
