@@ -48,6 +48,31 @@ representation, each pointing at the current URL with `?f=` switched — so a cl
 the JSON view can discover and follow the HTML one. Pair it with a normal `self` link
 for the current representation.
 
+## Folded into your own query model
+
+When a route already takes a Pydantic query model, you can fold `?f=` into it as a field
+rather than adding a separate dependency. The supported format keys are a *closed set*
+you own, so — as with [`crs`](params.md#folded-into-your-own-query-model) — gazebo gives
+you a base enum to subclass: [`FormatEnum`](../reference.md#gazebo.negotiation.FormatEnum),
+a `StrEnum` whose members are your `?f=` keys. It is a real class, so it drops onto your
+model as an ordinary field type (no `type: ignore`), pydantic validates membership
+natively, and FastAPI renders it as an `enum` query param carrying the shared `f`
+description:
+
+```python
+--8<-- "tests/examples/negotiation.py:folded"
+```
+
+A folded field only ever sees `?f=` — there is no `Accept` header at model-validation
+time — so it validates the query key alone; give the field a default so an absent `?f=`
+resolves to it. The enum carries *keys*, not `Representation`s, so map the chosen member
+to the `Representation` you serve (a small `{key: rep}` dict) to drive rendering and
+`alternate_links`. An unknown `?f=` is a `400` problem.
+
+Reach for the `Negotiate` dependency instead when you need `Accept`-header negotiation
+(and its `406`); reach for a `FormatEnum` field when `?f=` is one field among several in
+a query model you already have.
+
 ## Reference
 
 See [`gazebo.negotiation`](../reference.md#gazebo.negotiation) (`Representation`,

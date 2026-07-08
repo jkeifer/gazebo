@@ -64,7 +64,9 @@ from gazebo.rels import MediaType, Rel
 from .models import (
     Bed,
     BedCollection,
+    BedFormat,
     BedProperties,
+    BedQuery,
     Plant,
     PlantCollection,
     PlantCreate,
@@ -349,6 +351,37 @@ async def list_beds(
         *paginate_offset(offset=offset, limit=limit, total=total, self_=False),
     ]
     set_link_header(response, links)
+    return BedCollection(items=[to_bed(r) for r in page], links=links, number_matched=total)
+
+
+@collections_router.get('/beds/search', response_model=BedCollection, name='search_beds')
+async def search_beds(
+    response: Response,
+    query: Annotated[BedQuery, Query()],
+) -> BedCollection:
+    # A *folded* query model: BedQuery composes gazebo's BBoxQuery + DatetimeQuery field
+    # types and its closed-set enums (crs via BedCrs, f via BedFormat) with the app's own
+    # limit/offset. FastAPI explodes it into individual, documented query params; a
+    # malformed bbox/datetime, or an unsupported crs/f, is a 400 problem (OGC client
+    # error), rendered via the RequestValidationError -> problem+json handler.
+    rows = all_beds()
+    if query.bbox is not None:
+        rows = [r for r in rows if query.bbox.contains(r['lon'], r['lat'])]
+    if query.datetime is not None:
+        rows = [r for r in rows if query.datetime.contains(r['planted'])]
+    total = len(rows)
+    page = rows[query.offset : query.offset + query.limit]
+    # The folded crs/f enums are already validated by pydantic (a bad value never gets
+    # here). We only serve CRS84 coordinates, so echo the requested crs in the OGC
+    # `Content-Crs` header; the f key selects the self link's advertised media type.
+    self_type = MediaType.JSON if query.f is BedFormat.json else MediaType.GEOJSON
+    links = [
+        Link.self_link(type=self_type),
+        Link.root_link(),
+        *paginate_offset(offset=query.offset, limit=query.limit, total=total, self_=False),
+    ]
+    set_link_header(response, links)
+    response.headers['Content-Crs'] = f'<{query.crs}>'
     return BedCollection(items=[to_bed(r) for r in page], links=links, number_matched=total)
 
 

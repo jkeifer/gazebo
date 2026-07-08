@@ -26,7 +26,10 @@ re-implemented per project:
   landing pages + conformance (a `RootRouter` that emits `service-desc`/
   `service-doc` and derives its conformance declaration from the running app),
   pagination, content negotiation (`?f=` then `Accept`), typed OGC query params
-  (`bbox`/`datetime`/`crs`), CQL2 filtering + `sortby`, conditional requests
+  (`bbox`/`datetime`/`crs`/`f`) — fully self-documented in OpenAPI and available
+  both as `Depends` adapters and as field types you fold into your own query model
+  (the closed-set `crs`/`f` as `StrEnum` bases you subclass) — CQL2 filtering +
+  `sortby`, conditional requests
   (ETag / 304), RFC 8288 `Link:` headers, and typed `Rel`/`MediaType` constants.
 - **A pytest plugin** — opt-in helpers that assert the OGC-ness of your service:
   link/problem assertions and a pagination driver that walks `next` to exhaustion.

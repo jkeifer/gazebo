@@ -13,11 +13,31 @@ from typing import Annotated, Any
 
 from fastapi import Depends, Query, Request
 
-from gazebo.negotiation import Representation, negotiate
-from gazebo.params import CRS84, BBox, DatetimeInterval, validate_crs
+from gazebo.negotiation import F_DESCRIPTION, Representation, negotiate
+from gazebo.params import (
+    BBOX_DESCRIPTION,
+    BBOX_EXAMPLES,
+    CRS84,
+    CRS_DESCRIPTION,
+    DATETIME_DESCRIPTION,
+    DATETIME_EXAMPLES,
+    BBox,
+    DatetimeInterval,
+    validate_crs,
+)
 
 
-async def _bbox_dep(bbox: Annotated[str | None, Query()] = None) -> BBox | None:
+def _openapi_examples(values: Sequence[str]) -> Any:
+    """Turn a list of raw example values into OpenAPI ``openapi_examples`` entries."""
+    return {value: {'value': value} for value in values}
+
+
+async def _bbox_dep(
+    bbox: Annotated[
+        str | None,
+        Query(description=BBOX_DESCRIPTION, openapi_examples=_openapi_examples(BBOX_EXAMPLES)),
+    ] = None,
+) -> BBox | None:
     return BBox.parse(bbox) if bbox is not None else None
 
 
@@ -26,7 +46,13 @@ BBoxParam = Depends(_bbox_dep)
 
 
 async def _datetime_dep(
-    datetime: Annotated[str | None, Query()] = None,
+    datetime: Annotated[
+        str | None,
+        Query(
+            description=DATETIME_DESCRIPTION,
+            openapi_examples=_openapi_examples(DATETIME_EXAMPLES),
+        ),
+    ] = None,
 ) -> DatetimeInterval | None:
     return DatetimeInterval.parse(datetime) if datetime is not None else None
 
@@ -62,7 +88,15 @@ def CrsParam(  # noqa: N802  (factory returning a Depends, named like one)
     # under ``from __future__ import annotations`` an ``Annotated[..., Query(alias=name)]``
     # string can't be resolved by ``get_type_hints`` because ``name`` is a closure
     # variable, which silently drops the query binding.
-    async def _crs_dep(value: str | None = Query(default=None, alias=name)) -> str:
+    async def _crs_dep(
+        value: str | None = Query(
+            default=None,
+            alias=name,
+            description=CRS_DESCRIPTION,
+            # The allow-list is a closed set; emit it as an OpenAPI enum.
+            json_schema_extra={'enum': list(allowed_uris)},
+        ),
+    ) -> str:
         # validate_crs owns the full resolution: an absent value resolves to
         # resolved_default (or 400s when that is None), a present one is checked
         # against the allow-list.
@@ -91,7 +125,13 @@ def Negotiate(  # noqa: N802  (factory returning a Depends, named like one)
     # can't be resolved by get_type_hints, which would drop the binding.
     async def _negotiate_dep(
         request: Request,
-        value: str | None = Query(default=None, alias=name),
+        value: str | None = Query(
+            default=None,
+            alias=name,
+            description=F_DESCRIPTION,
+            # The representation keys are a closed set; emit them as an OpenAPI enum.
+            json_schema_extra={'enum': [rep.key for rep in reps]},
+        ),
     ) -> Representation:
         return negotiate(
             reps,

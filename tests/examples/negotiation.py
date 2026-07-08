@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import Response
+from fastapi import Query, Response
 from fastapi.responses import HTMLResponse
 from fastapi.testclient import TestClient
 from pydantic import Field
@@ -46,6 +46,45 @@ async def collection(
 
 
 # --8<-- [end:route]
+
+
+# --8<-- [start:folded]
+from pydantic import BaseModel
+
+from gazebo.ext.fastapi import FormatEnum, GazeboApp, Providers
+from gazebo.negotiation import HTML, JSON, Representation
+
+# Map each format key to the Representation you serve for it (the enum is keys only).
+REPS = {rep.key: rep for rep in (JSON, HTML)}
+
+
+class DocFormat(FormatEnum):  # your closed ?f= key set — a real class, a usable field type
+    json = 'json'
+    html = 'html'
+
+
+class DocQuery(BaseModel):  # fold ?f= into your own query model as a field
+    f: DocFormat = DocFormat.json  # a real enum field: no type: ignore, native validation
+
+
+folded_app = GazeboApp(Providers())
+
+
+@folded_app.get('/report')
+async def report(query: Annotated[DocQuery, Query()]) -> dict:
+    # query.f is a validated ?f= key (no Accept at model-validation time). Map it to the
+    # Representation you serve; an absent ?f= falls back to the field default (json).
+    rep: Representation = REPS[query.f]
+    return {'format': rep.key}
+
+
+# --8<-- [end:folded]
+
+
+with TestClient(folded_app) as client:
+    assert client.get('/report?f=html').json() == {'format': 'html'}
+    assert client.get('/report').json() == {'format': 'json'}  # absent -> first offered
+    assert client.get('/report?f=xml').status_code == 400  # unknown -> 400 problem
 
 
 with TestClient(app) as client:

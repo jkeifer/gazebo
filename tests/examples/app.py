@@ -76,17 +76,19 @@ vapp = GazeboApp(Providers())
 vapp.include_router(validating)
 
 # Now GET /widgets?limit=nope fails request validation and the glue returns an
-# application/problem+json 422 (see the response shape below) — no handler needed.
+# application/problem+json response — no handler needed. A malformed *query* param is a
+# 400 (OGC client error); a bad request *body* is a 422.
 # --8<-- [end:validation_problem]
 
 
 with TestClient(vapp) as client:
     resp = client.get('/widgets?limit=nope')
-    assert resp.status_code == 422
+    assert resp.status_code == 400  # a bad query param is an OGC client error
     assert resp.headers['content-type'] == 'application/problem+json'
     problem = resp.json()
-    assert problem['status'] == 422
+    assert problem['status'] == 400
     assert problem['errors'][0]['loc'] == ['query', 'limit']
+    assert problem['parameter'] == 'limit'
 
 
 # --8<-- [start:cors]

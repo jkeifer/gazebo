@@ -31,14 +31,20 @@ from gazebo.ext.fastapi.problems import (
 )
 from gazebo.ext.fastapi.responses import not_modified, set_cache_headers, set_link_header
 from gazebo.ext.fastapi.routers import GazeboRouter, LinkedRouter, RootRouter
+from gazebo.negotiation import FormatEnum
+from gazebo.params import BBoxQuery, CrsEnum, DatetimeQuery
 
 __all__ = [
     'BBoxParam',
+    'BBoxQuery',
     'Cors',
     'CorsConfig',
+    'CrsEnum',
     'CrsParam',
     'DatetimeParam',
+    'DatetimeQuery',
     'FilterParam',
+    'FormatEnum',
     'GazeboApp',
     'GazeboRouter',
     'Inject',
