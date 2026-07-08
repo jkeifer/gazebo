@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Deprecated
+
+### Removed
+
+### Security
+
+## [v0.9.0] - 2026-07-08
+
+### Added
+
 - context/negotiation: `RequestContext` now exposes `headers` (the request headers
   as a case-insensitive mapping), unifying the request metadata the core needs onto
   one seam. Core `negotiate()` reads it: when called with no explicit `accept` and an
@@ -36,14 +50,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   protocol. `RequestContext`'s charter is now the framework-agnostic seam for *all*
   the request metadata the core needs (URL building **and** headers), not just link
   URLs.
-
-### Fixed
-
-### Deprecated
-
-### Removed
-
-### Security
 
 ## [v0.8.0] - 2026-07-08
 
@@ -465,7 +471,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release 🎉
 
-[unreleased]: https://github.com/jkeifer/gazebo/compare/v0.8.0...HEAD
+[unreleased]: https://github.com/jkeifer/gazebo/compare/v0.9.0...HEAD
+[v0.9.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.9.0
 [v0.8.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.8.0
 [v0.7.1]: https://github.com/jkeifer/gazebo/releases/tag/v0.7.1
 [v0.7.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.7.0
