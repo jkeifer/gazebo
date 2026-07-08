@@ -51,6 +51,27 @@ into the deferred resolver and handed to `ctx.url_for` at serialization time —
 they are *not* stored as fields on the link, so they never appear in the emitted
 JSON.
 
+## Templated links
+
+Sometimes a link's URL isn't fully known even to the server: the client supplies
+the final path segment, or a set of optional query filters. Rather than resolve
+those, `to_route` can leave chosen variables *unbound* as RFC 6570 `{var}`
+expressions and mark the link `templated: true`, so the client expands it. Pass
+`template` for path-position variables and `query_template` for form-query
+variables — the latter is appended as `{?a,b}` (or `{&a,b}` when the resolved
+base already carries a query string):
+
+```python
+--8<-- "tests/examples/links.py:templated"
+```
+
+Path variables you *do* know still go in `path` and are resolved normally;
+`template` is only for the ones you want the client to fill in. A plain
+`to_route` call (no `template`/`query_template`) serializes exactly as before,
+with no `templated` member. Under the FastAPI glue the unbound path variables are
+resolved through the real router, so the emitted template stays proxy-correct
+(scheme, host, and root path intact).
+
 ## Resolving without a request
 
 A link only serializes to a real URL when a context is available. Under the

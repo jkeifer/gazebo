@@ -127,6 +127,28 @@ def build_router() -> GazeboRouter:
     async def boom():
         raise ProblemException(404, detail='nope', instance='/boom')
 
+    @router.get('/stats/{triplet}/date-range', name='stats')
+    async def stats(triplet: str):
+        return {'triplet': triplet}
+
+    @router.get('/templated')
+    async def templated():
+        return {
+            'links': [
+                Link.to_route(
+                    'stats',
+                    rel=Rel.ITEM,
+                    template=['triplet'],
+                    query_template=['from', 'to'],
+                ),
+            ],
+        }
+
+    @router.get('/bad-template')
+    async def bad_template():
+        # 'nope' is not a route variable of 'stats' — resolution must fail loudly.
+        return {'links': [Link.to_route('stats', rel=Rel.ITEM, template=['nope'])]}
+
     return router
 
 
@@ -167,6 +189,29 @@ def test_links_resolved_in_response(client):
     rels = {link['rel']: link['href'] for link in body['links']}
     assert rels['self'].endswith('/things?limit=1')
     assert rels['root'].endswith('/')
+
+
+def test_templated_link_resolved_proxy_correct(client):
+    # The adapter resolves through the real router (preserving proxy scheme/host),
+    # leaving the path var as {triplet} and appending the {?from,to} query template.
+    body = client.get('/templated', headers={'x-forwarded-proto': 'https'}).json()
+    link = body['links'][0]
+    assert link['href'].endswith('/stats/{triplet}/date-range{?from,to}')
+    assert link['href'].startswith('https://')
+    assert link['templated'] is True
+
+
+def test_templated_field_in_openapi_link_schema(client):
+    schema = client.get('/openapi.json').json()
+    link_schema = schema['components']['schemas']['Link']
+    assert 'templated' in link_schema['properties']
+
+
+def test_bad_template_var_fails_loudly(client):
+    # A template var that is not a real route parameter must not silently produce a
+    # bogus URL; url_for rejects it and the failure surfaces (500, not 200).
+    with pytest.raises(Exception):  # noqa: B017,PT011
+        client.get('/bad-template')
 
 
 def test_problem_response(client):

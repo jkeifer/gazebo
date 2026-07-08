@@ -9,7 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- links: RFC 6570 templated-link support. `Link.to_route` gains `template`
+  (path-position variables left unbound as `{var}`) and `query_template`
+  (optional query variables appended as `{?a,b}`/`{&a,b}`); such links serialize
+  with `templated: true` for the client to expand. Backed by a new
+  `RequestContext.url_for_template` (resolved proxy-correctly by the FastAPI
+  adapter), a declared `Link.templated` field (present in the OpenAPI schema,
+  omitted on the wire when unset), and wired into the garden beds collection.
+
 ### Changed
+
+- **Breaking (for `RequestContext` implementers):** the `RequestContext` protocol
+  gained a required `url_for_template(name, path, template)` method. The built-in
+  FastAPI adapter implements it; any custom `RequestContext` implementation must add
+  it to keep structurally satisfying the (`@runtime_checkable`) protocol.
 
 ### Fixed
 

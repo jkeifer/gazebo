@@ -8,7 +8,9 @@ gazebo packages the recurring machinery of OGC-style services so it doesn't get
 re-implemented per project:
 
 - **Deferred links** — a `Link` model whose `href` can be a callable resolved at
-  serialization time, so links are built without a request in hand.
+  serialization time, so links are built without a request in hand; including
+  RFC 6570 templated links (`templated: true`) that leave path/query variables
+  for the client to expand.
 - **Collection envelopes** — `LinkedCollection[T]`: items + links + counts, with a
   configurable items alias (`features`, `records`, ...), plus first-class GeoJSON
   `Feature`/`FeatureCollection` for OGC API Features.

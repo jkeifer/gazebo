@@ -10,7 +10,7 @@ a pydantic serialization ``context``.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Annotated, Any, Self
 
 from pydantic import (
@@ -86,6 +86,7 @@ class Link(OmitNullModel):
     method: str | None = None
     headers: dict[str, str | list[str]] | None = None
     body: Any = None
+    templated: bool | None = None
 
     # --- factories (framework-agnostic; resolve via RequestContext) -------
 
@@ -135,9 +136,15 @@ class Link(OmitNullModel):
         rel: str,
         type: str | None = MediaType.JSON,
         path: dict[str, Any] | None = None,
+        template: Sequence[str] | None = None,
+        query_template: Sequence[str] | None = None,
         **kwargs: Any,
     ) -> Self:
         """Link to a named route (resolved via ``ctx.url_for(name, **path)``).
+
+        With ``template`` and/or ``query_template`` the link instead advertises an
+        unbound RFC 6570 URI template (``templated: true``) for the client to expand:
+        the named vars are left as ``{var}`` expressions rather than resolved.
 
         Args:
             name: The route name to resolve.
@@ -145,14 +152,33 @@ class Link(OmitNullModel):
             type: The target media type.
             path: Path parameters for the route. Bound into the deferred
                 resolver; not stored on the link itself.
+            template: Path-position route variables to leave unbound as RFC 6570
+                ``{var}`` expressions (resolved via
+                :meth:`~gazebo.context.RequestContext.url_for_template`).
+            query_template: Query variables to append as an RFC 6570 form-query
+                expression — ``{?a,b}`` on a query-less base, or ``{&a,b}`` when the
+                resolved base already carries a query string.
             **kwargs: Extra link fields (e.g. ``title``).
         """
         path = path or {}
+        templated = bool(template) or bool(query_template)
+
+        def resolve(ctx: RequestContext) -> str:
+            if template:
+                base = ctx.url_for_template(name, path, template)
+            else:
+                base = ctx.url_for(name, **path)
+            if query_template:
+                op = '&' if '?' in base else '?'
+                base = f'{base}{{{op}{",".join(query_template)}}}'
+            return base
+
         return cls.model_validate(
             {
-                'href': lambda ctx: ctx.url_for(name, **path),
+                'href': resolve,
                 'rel': rel,
                 'type': type,
+                'templated': True if templated else None,
                 **kwargs,
             },
         )
