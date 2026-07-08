@@ -169,8 +169,8 @@ def test_representation_is_hashable_value():
 
 
 class _Format(FormatEnum):
-    json = 'json'
-    html = 'html'
+    json = 'json', 'application/json'
+    html = 'html', 'text/html'
 
 
 class _NegQuery(BaseModel):
@@ -200,7 +200,18 @@ def test_format_enum_unknown_is_valueerror():
 
 
 def test_format_enum_members_are_key_strings():
-    # a member is its ?f= key (StrEnum); the consumer maps it to a Representation
+    # a member is its ?f= key (StrEnum); it also carries its media type
     assert _Format.html == 'html'
-    key_to_rep = {'json': JSON, 'html': HTML}
-    assert key_to_rep[_Format.html] is HTML
+    assert _Format.html.media_type == 'text/html'
+
+
+def test_format_enum_member_representation():
+    # a member alone yields a Representation — no external {key: rep} dict needed
+    assert _Format.html.representation == Representation('html', 'text/html')
+    assert _Format.json.representation == JSON
+
+
+def test_format_enum_representations_in_definition_order():
+    # the `available` list for negotiate(), straight off the enum, server-preferred order
+    assert _Format.representations() == [member.representation for member in _Format]
+    assert _Format.representations()[0] == _Format.json.representation

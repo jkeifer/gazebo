@@ -190,6 +190,35 @@ def test_beds_search_bad_f_is_400_problem(client):
     assert r.json()['parameter'] == 'f'
 
 
+def test_beds_search_negotiates_absent_f_on_accept(client):
+    # ?f= absent: the handler's one-line negotiate() call negotiates on the Accept header,
+    # and the negotiated format drives the self link's advertised media type.
+    r = client.get('/collections/beds/search', headers={'accept': 'application/json'})
+    assert r.status_code == 200
+    self_link = next(link for link in r.json()['links'] if link['rel'] == 'self')
+    assert self_link['type'] == 'application/json'
+
+
+def test_beds_search_absent_f_and_accept_falls_to_first_member(client):
+    # No ?f=, no meaningful Accept -> the first BedFormat member (geojson).
+    r = client.get('/collections/beds/search', headers={'accept': '*/*'})
+    self_link = next(link for link in r.json()['links'] if link['rel'] == 'self')
+    assert self_link['type'] == 'application/geo+json'
+
+
+def test_beds_search_f_wins_over_accept(client):
+    # An explicit ?f= wins over the Accept header.
+    r = client.get('/collections/beds/search?f=geojson', headers={'accept': 'application/json'})
+    self_link = next(link for link in r.json()['links'] if link['rel'] == 'self')
+    assert self_link['type'] == 'application/geo+json'
+
+
+def test_beds_search_unacceptable_accept_is_406(client):
+    # ?f= absent + an Accept listing nothing on offer -> a 406 problem+json.
+    r = client.get('/collections/beds/search', headers={'accept': 'application/xml'})
+    assert_problem(r, status=406)
+
+
 def test_beds_search_folded_params_documented_in_openapi(client):
     schema = client.get('/openapi.json').json()
     params = {
@@ -204,7 +233,9 @@ def test_beds_search_folded_params_documented_in_openapi(client):
     crs_schema = schema['components']['schemas'][crs_ref]
     assert 'coordinate reference system' in crs_schema['description']
     assert crs_schema['enum'][0] == CRS84
-    f_ref = params['f']['schema']['$ref'].rsplit('/', 1)[-1]
+    # f is an optional field -> anyOf: [{$ref enum}, {null}]; the ref carries the enum.
+    f_node = next(part for part in params['f']['schema']['anyOf'] if '$ref' in part)
+    f_ref = f_node['$ref'].rsplit('/', 1)[-1]
     assert 'output format' in schema['components']['schemas'][f_ref]['description']
 
 

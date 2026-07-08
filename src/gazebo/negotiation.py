@@ -202,39 +202,65 @@ def alternate_links(
 # The closed set of ``?f=`` format keys is a *consumer* decision, so it must be spelled by
 # the consumer as a real ``StrEnum`` subclass (a class definition is the only construct a
 # static type checker accepts as a usable field type). :class:`FormatEnum` is the base to
-# subclass: members are format-key strings, so a folded field validates membership
-# natively and FastAPI renders it as an ``enum`` query param. Unlike the glue's
-# ``Negotiate`` dependency, a folded field sees only ``?f=`` (no ``Accept`` header at
-# model-validation time); the consumer maps a chosen member (key) to their
-# :class:`Representation` to drive rendering / :func:`alternate_links`.
+# subclass: each member's *value* is its ``?f=`` key (so a folded field validates
+# membership natively and FastAPI renders it as an ``enum`` query param) and each member
+# also carries a ``.media_type``, so the member alone is enough to build a
+# :class:`Representation` (``.representation``) for rendering / :func:`alternate_links` and
+# for ``Accept``-aware negotiation — no external ``{key: rep}`` dict.
 
 
 class FormatEnum(StrEnum):
     """Base ``StrEnum`` for a folded ``?f=`` (format) query field's closed key set.
 
-    Subclass it, spelling each supported output format as a member whose value is its
-    ``?f=`` key, then fold the subclass into a pydantic query model as a real field type
-    (no ``type: ignore`` needed — it is an ordinary class)::
+    Subclass it, spelling each supported output format as a member of ``key, media_type``:
+    the *value* is the ``?f=`` key and ``media_type`` is what that key serves. Then fold
+    the subclass into a pydantic query model as a real field type (no ``type: ignore``
+    needed — it is an ordinary class)::
 
         class BedFormat(FormatEnum):
-            json = 'json'
-            html = 'html'
+            json = 'json', 'application/json'
+            html = 'html', 'text/html'
 
         class BedQuery(BaseModel):
             f: BedFormat = BedFormat.json
 
-    Pydantic validates membership natively: an unknown ``?f=`` is a ``ValidationError``
-    that a :class:`~gazebo.ext.fastapi.GazeboApp` renders as a `400`
+    Pydantic validates membership by the *key* (member value): an unknown ``?f=`` is a
+    ``ValidationError`` that a :class:`~gazebo.ext.fastapi.GazeboApp` renders as a `400`
     ``application/problem+json`` citing the parameter. FastAPI renders the field as an
-    ``enum`` query param, and the base carries :data:`F_DESCRIPTION` so it self-documents
-    in OpenAPI. Give the field a default so an absent ``?f=`` resolves to it.
+    ``enum`` of keys, and the base carries :data:`F_DESCRIPTION` so it self-documents in
+    OpenAPI. Give the field a plain default so an absent ``?f=`` resolves to it.
 
-    A folded field only ever sees ``?f=`` — there is no ``Accept`` header at
-    model-validation time — so it negotiates on the query value alone. When you need
-    ``Accept``-aware negotiation (and its `406`), use the glue's ``Negotiate`` dependency
-    instead; when ``?f=`` is one field among several in a query model you already have,
-    reach for this base and map the chosen member (key) to your :class:`Representation`.
+    Because each member carries its media type, :attr:`representation` turns a chosen
+    member into a :class:`Representation` with no external mapping — drive rendering and
+    :func:`alternate_links` straight off the member. For ``Accept``-aware negotiation
+    (``?f=`` → ``Accept`` → default, and its `406`), make the field an **optional**
+    member (``f: MyFormat | None = None``) and add a one-line
+    ``negotiate(MyFormat.representations(), f=query.f)`` call in the handler —
+    :func:`negotiate` reads the request's ``Accept`` from the ambient context, so no
+    header wrangling is needed.
     """
+
+    media_type: str
+
+    def __new__(cls, key: str, media_type: str) -> FormatEnum:
+        obj = str.__new__(cls, key)
+        obj._value_ = key
+        obj.media_type = media_type
+        return obj
+
+    @property
+    def representation(self) -> Representation:
+        """The :class:`Representation` (``?f=`` key + media type) this member serves."""
+        return Representation(self.value, self.media_type)
+
+    @classmethod
+    def representations(cls) -> list[Representation]:
+        """Every member's :class:`Representation`, in definition (server-preferred) order.
+
+        The ``available`` list for :func:`negotiate` straight off the enum, so a folded
+        field negotiates with ``negotiate(MyFormat.representations(), f=query.f)``.
+        """
+        return [member.representation for member in cls]
 
     @classmethod
     def __get_pydantic_json_schema__(

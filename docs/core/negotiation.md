@@ -51,11 +51,11 @@ for the current representation.
 ## Folded into your own query model
 
 When a route already takes a Pydantic query model, you can fold `?f=` into it as a field
-rather than adding a separate dependency. The supported format keys are a *closed set*
-you own, so — as with [`crs`](params.md#folded-into-your-own-query-model) — gazebo gives
-you a base enum to subclass: [`FormatEnum`](../reference.md#gazebo.negotiation.FormatEnum),
-a `StrEnum` whose members are your `?f=` keys. It is a real class, so it drops onto your
-model as an ordinary field type (no `type: ignore`), pydantic validates membership
+rather than adding a separate dependency. The supported formats are a *closed set* you
+own, so — as with [`crs`](params.md#folded-into-your-own-query-model) — gazebo gives you a
+base enum to subclass: [`FormatEnum`](../reference.md#gazebo.negotiation.FormatEnum), a
+`StrEnum` whose members are `(?f= key, media type)` pairs. It is a real class, so it drops
+onto your model as an ordinary field type (no `type: ignore`), pydantic validates the key
 natively, and FastAPI renders it as an `enum` query param carrying the shared `f`
 description:
 
@@ -63,15 +63,34 @@ description:
 --8<-- "tests/examples/negotiation.py:folded"
 ```
 
-A folded field only ever sees `?f=` — there is no `Accept` header at model-validation
-time — so it validates the query key alone; give the field a default so an absent `?f=`
-resolves to it. The enum carries *keys*, not `Representation`s, so map the chosen member
-to the `Representation` you serve (a small `{key: rep}` dict) to drive rendering and
-`alternate_links`. An unknown `?f=` is a `400` problem.
+Give the field a default so an absent `?f=` resolves to it. Because each member carries
+its media type, a member alone yields its
+[`Representation`](../reference.md#gazebo.negotiation.Representation) via
+[`.representation`](../reference.md#gazebo.negotiation.FormatEnum.representation) — no
+external `{key: rep}` dict — so drive rendering and `alternate_links` straight off it. An
+unknown `?f=` is a `400` problem. A plain-default field like this negotiates on the query
+key alone; the next section adds `Accept`.
 
-Reach for the `Negotiate` dependency instead when you need `Accept`-header negotiation
-(and its `406`); reach for a `FormatEnum` field when `?f=` is one field among several in
-a query model you already have.
+### Getting `Accept`-aware negotiation
+
+A plain-default `FormatEnum` field negotiates on the query key alone. For the full OGC
+order — `?f=` → `Accept` → default — make the field **optional** (`f: MyFormat | None =
+None`) and add a one-line `negotiate(MyFormat.representations(), f=query.f)` in the handler:
+
+```python
+--8<-- "tests/examples/negotiation.py:folded_accept"
+```
+
+`negotiate()` applies the order for you: an explicit `?f=` wins; otherwise the request's
+`Accept` — read ambiently from the active context, so you never pull the header yourself —
+with the enum's members (definition order is server-preferred) scored by their media
+types; otherwise the `default`. An unknown `?f=` is a `400` problem (the enum field
+validates the key), and an `Accept` that lists nothing on offer is a `406`.
+
+Reach for the `Negotiate` dependency when negotiation is the route's primary input; reach
+for a `FormatEnum` field — plain-default for key-only, or optional + a one-line
+`negotiate()` call for the full `Accept`-aware order — when `?f=` is one field among
+several in a query model you already have.
 
 ## Reference
 

@@ -60,13 +60,15 @@ class BedCrs(CrsEnum):
 class BedFormat(FormatEnum):
     """The closed ``?f=`` output-format set the beds search endpoint advertises.
 
-    A :class:`~gazebo.negotiation.FormatEnum` subclass folded into :class:`BedQuery` as a
-    real field type. It sees only ``?f=`` (no ``Accept`` header at model-validation time);
-    an unsupported value is a `400` problem.
+    A :class:`~gazebo.negotiation.FormatEnum` subclass folded into :class:`BedQuery`. Each
+    member carries its media type, so the ``search_beds`` handler resolves the full OGC
+    order in one :func:`~gazebo.negotiation.negotiate` call — an absent ``?f=`` negotiates
+    on the request's ``Accept`` header (member order is server-preferred); an unsupported
+    ``?f=`` is a `400` problem and an unsatisfiable ``Accept`` a `406`.
     """
 
-    geojson = 'geojson'
-    json = 'json'
+    geojson = 'geojson', 'application/geo+json'
+    json = 'json', 'application/json'
 
 
 class BedQuery(BaseModel):
@@ -83,7 +85,10 @@ class BedQuery(BaseModel):
     bbox: BBoxQuery = None
     datetime: DatetimeQuery = None
     crs: BedCrs = BedCrs.CRS84
-    f: BedFormat = BedFormat.geojson
+    # Optional format field: an absent ?f= leaves it None, so search_beds negotiates on the
+    # Accept header (else the default, geojson) via one negotiate() call; an unsupported ?f=
+    # is a 400, an unsatisfiable Accept a 406.
+    f: BedFormat | None = None
     limit: int = Field(10, ge=1, le=10_000)
     offset: int = Field(0, ge=0)
 
