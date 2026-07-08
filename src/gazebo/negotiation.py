@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
-from gazebo.context import with_query
+from gazebo.context import link_context, with_query
 from gazebo.link import Link, UrlResolver
 from gazebo.params import ParamError
 from gazebo.problems import ProblemException
@@ -121,7 +121,12 @@ def negotiate(
     Args:
         available: The representations the resource offers, in server-preferred order.
         f: The ``?f=`` query value, if any (an explicit format key).
-        accept: The ``Accept`` header value, if any.
+        accept: The ``Accept`` header value, if any. When omitted (``None``) and an
+            ambient :data:`~gazebo.context.link_context` is active, its request's
+            ``Accept`` header is used; an explicitly-passed value always takes
+            precedence. Passing ``accept=''`` (or a value with no acceptable range)
+            still short-circuits to the ``406``/``default`` path without the ambient
+            read.
         default: The representation to serve when neither ``f`` nor ``accept`` selects
             one; falls back to the first of ``available``.
         f_param: The query parameter name to cite in an unknown-format error.
@@ -133,6 +138,12 @@ def negotiate(
     """
     if not available:
         raise ValueError('negotiate requires at least one available representation')
+    if accept is None:
+        # No explicit Accept: fall back to the ambient request's header, if a context
+        # is active. Keeps negotiate() pure when called with no context (unit tests).
+        ctx = link_context.get(None)
+        if ctx is not None:
+            accept = ctx.headers.get('accept')
     if f is not None:
         for rep in available:
             if rep.key == f:

@@ -1,14 +1,18 @@
-"""Request-context seam for deferred URL generation.
+"""The framework-agnostic request-metadata seam gazebo's core builds on.
 
-The core never imports a web framework. Link hrefs may be callables that need
-"the current request" to produce a URL; that request is abstracted behind the
-``RequestContext`` protocol and delivered ambiently through a ``ContextVar`` (set
-by the framework glue) with a pydantic-serialization-context fallback for manual
-dumps and tests.
+The core never imports a web framework. The request metadata gazebo's core
+features need — URL building for deferred links, and the request headers for
+content negotiation — is abstracted behind the ``RequestContext`` protocol and
+delivered ambiently through a ``ContextVar`` (set by the framework glue) with a
+pydantic-serialization-context fallback for manual dumps and tests.
 
-``RequestContext`` also carries :meth:`RequestContext.url_for_template`, which
-resolves a route while leaving selected variables as RFC 6570 ``{var}`` expressions
-so a link can advertise an unbound URI template (``templated: true``).
+For URL building, link hrefs may be callables that need "the current request" to
+produce a URL; ``RequestContext`` also carries
+:meth:`RequestContext.url_for_template`, which resolves a route while leaving
+selected variables as RFC 6570 ``{var}`` expressions so a link can advertise an
+unbound URI template (``templated: true``). For content negotiation,
+:attr:`RequestContext.headers` exposes the request headers (notably ``Accept``) so
+core negotiation can fall back to the ambient request with no request in hand.
 """
 
 from __future__ import annotations
@@ -22,13 +26,15 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 @runtime_checkable
 class RequestContext(Protocol):
-    """The minimal surface link factories need to build URLs.
+    """The framework-agnostic seam for the request metadata gazebo's core needs.
 
-    Any object structurally satisfying this (e.g. a framework request adapter) can be
-    placed in :data:`link_context`. The core only ever calls these members.
+    Covers both request-derived features of the core: URL building (for deferred link
+    hrefs) and the request headers (for content negotiation). Any object structurally
+    satisfying this (e.g. a framework request adapter) can be placed in
+    :data:`link_context`; the core only ever calls these members.
 
     Because this protocol is ``@runtime_checkable``, every adapter must implement the
-    whole surface below — including :meth:`url_for_template`.
+    whole surface below — including :meth:`url_for_template` and :attr:`headers`.
     """
 
     @property
@@ -39,6 +45,11 @@ class RequestContext(Protocol):
 
     @property
     def query_params(self) -> Mapping[str, str]: ...
+
+    @property
+    def headers(self) -> Mapping[str, str]:
+        """The request headers, as a case-insensitive mapping (e.g. ``Accept``)."""
+        ...
 
     def url_for(self, name: str, /, **path: object) -> str: ...
 

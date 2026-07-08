@@ -13,6 +13,7 @@ class FakeContext:
     url: str = 'https://api.example.com/things?limit=10&token=abc'
     base_url: str = 'https://api.example.com/'
     query_params: Mapping[str, str] = field(default_factory=lambda: {'limit': '10'})
+    headers: Mapping[str, str] = field(default_factory=dict)
 
     def url_for(self, name: str, /, **path: object) -> str:
         suffix = ('/' + '/'.join(str(v) for v in path.values())) if path else ''

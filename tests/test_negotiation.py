@@ -115,6 +115,28 @@ def test_default_when_nothing_supplied():
     assert negotiate(AVAILABLE, default=HTML) is HTML
 
 
+# --- ambient Accept fallback -----------------------------------------------
+
+
+def test_negotiate_reads_ambient_accept_when_omitted(ctx):
+    # accept omitted + an active context -> the context's Accept header is used.
+    ctx.headers = {'accept': 'text/html'}
+    with use_context(ctx):
+        assert negotiate(AVAILABLE) is HTML
+
+
+def test_negotiate_explicit_accept_beats_ambient(ctx):
+    # An explicitly-passed accept wins over the ambient header.
+    ctx.headers = {'accept': 'text/html'}
+    with use_context(ctx):
+        assert negotiate(AVAILABLE, accept='application/json') is JSON
+
+
+def test_negotiate_pure_without_context():
+    # No context, no accept -> pure default (first offered); no ambient read.
+    assert negotiate(AVAILABLE) is JSON
+
+
 def test_empty_available_raises():
     with pytest.raises(ValueError, match='at least one'):
         negotiate([])

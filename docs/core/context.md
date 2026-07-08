@@ -1,8 +1,9 @@
 # Request context
 
-> The core never imports a web framework, yet link URLs depend on the live
-> request. `RequestContext` is the seam that squares that — the minimal request
-> surface, delivered ambiently at serialization time.
+> The core never imports a web framework, yet some core features depend on the
+> live request — link URLs on its scheme/host/route, content negotiation on its
+> `Accept` header. `RequestContext` is the seam that squares that — the
+> request-metadata surface the core needs, delivered ambiently.
 
 ## The problem
 
@@ -15,16 +16,19 @@ that coupling in code). gazebo resolves the tension by *deferring*: the href is
 a callable, and the request is supplied ambiently at serialization time, through
 the one small seam this page describes.
 
-## RequestContext: the minimal surface
+## RequestContext: the request-metadata surface
 
-That seam is the `RequestContext` protocol — the minimal slice of "the request" a
-link factory needs: `base_url`, `url`, `query_params`, `url_for(name, **path)`,
-and `url_for_template` (which resolves a route while leaving selected variables as
-RFC 6570 `{var}` expressions, backing [templated links](links.md#templated-links)).
-It's a `Protocol`, so anything structurally matching it qualifies: the FastAPI glue
-adapts a FastAPI `Request`, and a test can pass a hand-rolled object. Because the
-protocol is `@runtime_checkable`, a conforming object must implement the whole
-surface.
+That seam is the [`RequestContext`](../reference.md#gazebo.context.RequestContext)
+protocol — the slice of "the request" the core's request-derived features need. For
+URL building: `base_url`, `url`, `query_params`, `url_for(name, **path)`, and
+`url_for_template` (which resolves a route while leaving selected variables as RFC
+6570 `{var}` expressions, backing [templated links](links.md#templated-links)). For
+content negotiation: `headers`, the request headers as a case-insensitive mapping,
+so core negotiation can fall back to the ambient request's `Accept`
+([Content negotiation](negotiation.md) covers that). It's a `Protocol`, so anything
+structurally matching it qualifies: the FastAPI glue adapts a FastAPI `Request`, and
+a test can pass a hand-rolled object. Because the protocol is `@runtime_checkable`, a
+conforming object must implement the whole surface.
 
 ```python
 --8<-- "tests/examples/context.py:protocol"
