@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+### Fixed
+
+### Deprecated
+
+### Removed
+
+### Security
+
+## [v0.9.1] - 2026-07-08
+
+### Changed
+
 - negotiation: the `f` (format) parameter's OpenAPI description is now
   format-neutral and names the *actual* supported `?f=` keys instead of a
   hardcoded `json`/`html` example. A folded `FormatEnum` field enumerates its
@@ -24,12 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   so the generated OpenAPI documents them as strings and Swagger UI renders a
   plain text box instead of the parsed model's (`BBox`/`DatetimeInterval`) object
   editor. Parsing and validation behavior are unchanged.
-
-### Deprecated
-
-### Removed
-
-### Security
 
 ## [v0.9.0] - 2026-07-08
 
@@ -483,7 +489,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release 🎉
 
-[unreleased]: https://github.com/jkeifer/gazebo/compare/v0.9.0...HEAD
+[unreleased]: https://github.com/jkeifer/gazebo/compare/v0.9.1...HEAD
+[v0.9.1]: https://github.com/jkeifer/gazebo/releases/tag/v0.9.1
 [v0.9.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.9.0
 [v0.8.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.8.0
 [v0.7.1]: https://github.com/jkeifer/gazebo/releases/tag/v0.7.1
