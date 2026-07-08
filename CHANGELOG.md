@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Deprecated
+
+### Removed
+
+### Security
+
+## [v0.8.0] - 2026-07-08
+
+### Added
+
 - links: RFC 6570 templated-link support. `Link.to_route` gains `template`
   (path-position variables left unbound as `{var}`) and `query_template`
   (optional query variables appended as `{?a,b}`/`{&a,b}`); such links serialize
@@ -46,14 +60,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   gained a required `url_for_template(name, path, template)` method. The built-in
   FastAPI adapter implements it; any custom `RequestContext` implementation must add
   it to keep structurally satisfying the (`@runtime_checkable`) protocol.
-
-### Fixed
-
-### Deprecated
-
-### Removed
-
-### Security
 
 ## [v0.7.1] - 2026-07-05
 
@@ -433,7 +439,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release 🎉
 
-[unreleased]: https://github.com/jkeifer/gazebo/compare/v0.7.1...HEAD
+[unreleased]: https://github.com/jkeifer/gazebo/compare/v0.8.0...HEAD
+[v0.8.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.8.0
 [v0.7.1]: https://github.com/jkeifer/gazebo/releases/tag/v0.7.1
 [v0.7.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.7.0
 [v0.6.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.6.0
