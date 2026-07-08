@@ -1574,8 +1574,8 @@ own, so — as with <a href="../params/#folded-into-your-own-query-model"><code>
 base enum to subclass: <a href="../../reference/#gazebo.negotiation.FormatEnum"><code>FormatEnum</code></a>, a
 <code>StrEnum</code> whose members are <code>(?f= key, media type)</code> pairs. It is a real class, so it drops
 onto your model as an ordinary field type (no <code>type: ignore</code>), pydantic validates the key
-natively, and FastAPI renders it as an <code>enum</code> query param carrying the shared <code>f</code>
-description:</p>
+natively, and FastAPI renders it as an <code>enum</code> query param whose OpenAPI description names
+your subclass's actual <code>?f=</code> keys (not a stock example):</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseModel</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
 </span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">gazebo.ext.fastapi</span><span class="w"> </span><span class="kn">import</span> <span class="n">FormatEnum</span><span class="p">,</span> <span class="n">GazeboApp</span><span class="p">,</span> <span class="n">Providers</span>

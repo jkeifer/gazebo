@@ -1560,7 +1560,10 @@ OGC parameters into it <em>as fields</em> rather than adding separate <code>Depe
 and <code>DatetimeQuery</code> are annotated field types (pydantic <code>BeforeValidator</code> + documented
 <code>Field</code>) for their open value spaces; drop them onto your model and use it as
 <code>Annotated[MyQuery, Query()]</code>, and FastAPI explodes it into individual, documented query
-parameters — each parsed by the same core parser.</p>
+parameters — each parsed by the same core parser. Although each parses into a model
+(<code>BBox</code>, <code>DatetimeInterval</code>), the field advertises a <em>string</em> input schema, so Swagger UI
+renders a plain text box (the value a client actually sends) rather than a nested object
+editor.</p>
 <p>The <code>crs</code> parameter is different: its allowed values are a <em>closed set</em>, and that set is
 a decision only you can make. So instead of a helper, gazebo gives you a base enum to
 subclass — <a href="../../reference/#gazebo.params.CrsEnum"><code>CrsEnum</code></a>, a <code>StrEnum</code> whose members
