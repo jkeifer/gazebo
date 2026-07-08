@@ -768,8 +768,8 @@ class _FoldedCrs(CrsEnum):
 
 
 class _FoldedFormat(FormatEnum):
-    json = 'json'
-    html = 'html'
+    json = 'json', 'application/json'
+    html = 'html', 'text/html'
 
 
 class _FoldedQuery(BaseModel):

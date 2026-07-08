@@ -15,9 +15,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ambient `RequestContext` is active, it falls back to that request's `Accept` header
   (an explicit `accept` still wins), so negotiation works from the ambient request
   with no request in hand — while staying pure when called with no context.
+- negotiation: `FormatEnum` members now carry a media type — spell each as
+  `key, media_type` — and expose `.media_type` and `.representation` (the member's
+  `Representation`), plus a `.representations()` classmethod giving every member's
+  `Representation` in definition order, so a folded field needs no external `{key: rep}`
+  map. For `Accept`-aware negotiation of a folded field, make it optional and add a
+  one-line `negotiate(MyFormat.representations(), f=query.f)` call in the handler
+  (`Accept` is read from the ambient request context).
 
 ### Changed
 
+- **Breaking:** `FormatEnum` members now require a media type: spell each member as
+  `key, media_type` (e.g. `json = 'json', 'application/json'`). Existing single-value
+  subclasses (`json = 'json'`) must be updated. The member value (the `?f=` key) and
+  native key validation are unchanged.
 - **Breaking (for `RequestContext` implementers):** the (`@runtime_checkable`)
   `RequestContext` protocol gained a required `headers` property (case-insensitive
   request headers). The built-in FastAPI adapter implements it; any custom

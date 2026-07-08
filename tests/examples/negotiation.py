@@ -52,15 +52,11 @@ async def collection(
 from pydantic import BaseModel
 
 from gazebo.ext.fastapi import FormatEnum, GazeboApp, Providers
-from gazebo.negotiation import HTML, JSON, Representation
-
-# Map each format key to the Representation you serve for it (the enum is keys only).
-REPS = {rep.key: rep for rep in (JSON, HTML)}
 
 
-class DocFormat(FormatEnum):  # your closed ?f= key set — a real class, a usable field type
-    json = 'json'
-    html = 'html'
+class DocFormat(FormatEnum):  # your closed ?f= set — a real class, a usable field type
+    json = 'json', 'application/json'  # each member is (?f= key, media type)
+    html = 'html', 'text/html'
 
 
 class DocQuery(BaseModel):  # fold ?f= into your own query model as a field
@@ -72,10 +68,10 @@ folded_app = GazeboApp(Providers())
 
 @folded_app.get('/report')
 async def report(query: Annotated[DocQuery, Query()]) -> dict:
-    # query.f is a validated ?f= key (no Accept at model-validation time). Map it to the
-    # Representation you serve; an absent ?f= falls back to the field default (json).
-    rep: Representation = REPS[query.f]
-    return {'format': rep.key}
+    # query.f is a validated ?f= key (no Accept at model-validation time). The member
+    # carries its media type — `.representation` needs no external {key: rep} map; an
+    # absent ?f= falls back to the field default (json).
+    return {'format': query.f.representation.key}
 
 
 # --8<-- [end:folded]
@@ -99,3 +95,50 @@ with TestClient(app) as client:
 
     unknown = client.get('/collections/beds?f=xml')
     assert unknown.status_code == 400
+
+
+# --8<-- [start:folded_accept]
+from gazebo.ext.fastapi import FormatEnum, GazeboApp, Providers
+from gazebo.negotiation import negotiate
+
+
+class ReportFormat(FormatEnum):
+    json = 'json', 'application/json'
+    html = 'html', 'text/html'
+
+
+class ReportQuery(BaseModel):
+    # Optional field: an absent ?f= leaves it None, so the handler can negotiate on Accept.
+    f: ReportFormat | None = None
+
+
+neg_app = GazeboApp(Providers())
+
+
+@neg_app.get('/report')
+async def negotiated_report(query: Annotated[ReportQuery, Query()]) -> dict:
+    # One line for the full OGC order: ?f= wins, then the request's Accept (read ambiently
+    # from the context — no header wrangling), then the default. Member order is
+    # server-preferred; an unsatisfiable Accept raises a 406, an unknown ?f= a 400.
+    rep = negotiate(
+        ReportFormat.representations(),
+        f=query.f,
+        default=ReportFormat.json.representation,
+    )
+    return {'format': rep.key}
+
+
+# --8<-- [end:folded_accept]
+
+
+with TestClient(neg_app) as client:
+    # ?f= still wins over Accept
+    got = client.get('/report?f=json', headers={'accept': 'text/html'})
+    assert got.json() == {'format': 'json'}
+    # an absent ?f= now negotiates on the Accept header
+    got = client.get('/report', headers={'accept': 'text/html'})
+    assert got.json() == {'format': 'html'}
+    # an unknown ?f= key is still a 400 — the enum field validates it
+    assert client.get('/report?f=xml').status_code == 400
+    # an Accept listing nothing on offer, with ?f= absent, is a 406 problem
+    assert client.get('/report', headers={'accept': 'application/xml'}).status_code == 406

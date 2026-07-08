@@ -40,7 +40,7 @@ from gazebo.filtering import (
     queryables_from_model,
     sortables_from_model,
 )
-from gazebo.negotiation import HTML, JSON, Representation, alternate_links
+from gazebo.negotiation import HTML, JSON, Representation, alternate_links, negotiate
 from gazebo.link import Link
 from gazebo.ogc import (
     Collection,
@@ -372,9 +372,17 @@ async def search_beds(
     total = len(rows)
     page = rows[query.offset : query.offset + query.limit]
     # The folded crs/f enums are already validated by pydantic (a bad value never gets
-    # here). We only serve CRS84 coordinates, so echo the requested crs in the OGC
-    # `Content-Crs` header; the f key selects the self link's advertised media type.
-    self_type = MediaType.JSON if query.f is BedFormat.json else MediaType.GEOJSON
+    # here). One negotiate() call resolves the format in OGC order: ?f= wins, else the
+    # request's Accept (read ambiently from the context), else the default (geojson); an
+    # unsatisfiable Accept raises a 406. We only serve CRS84 coordinates, so echo the
+    # requested crs in the OGC `Content-Crs` header; the negotiated representation drives
+    # the self link's advertised media type (no external {key: rep} map).
+    rep = negotiate(
+        BedFormat.representations(),
+        f=query.f,
+        default=BedFormat.geojson.representation,
+    )
+    self_type = rep.media_type
     links = [
         Link.self_link(type=self_type),
         Link.root_link(),
