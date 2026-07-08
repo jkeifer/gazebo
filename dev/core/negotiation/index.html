@@ -641,6 +641,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Folded into your own query model">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#getting-accept-aware-negotiation" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Getting <code>Accept</code>-aware negotiation
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1433,6 +1450,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Folded into your own query model">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#getting-accept-aware-negotiation" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Getting <code>Accept</code>-aware negotiation
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1535,49 +1569,86 @@ the JSON view can discover and follow the HTML one. Pair it with a normal <code>
 for the current representation.</p>
 <h2 id="folded-into-your-own-query-model">Folded into your own query model<a class="headerlink" href="#folded-into-your-own-query-model" title="Permanent link">&para;</a></h2>
 <p>When a route already takes a Pydantic query model, you can fold <code>?f=</code> into it as a field
-rather than adding a separate dependency. The supported format keys are a <em>closed set</em>
-you own, so — as with <a href="../params/#folded-into-your-own-query-model"><code>crs</code></a> — gazebo gives
-you a base enum to subclass: <a href="../../reference/#gazebo.negotiation.FormatEnum"><code>FormatEnum</code></a>,
-a <code>StrEnum</code> whose members are your <code>?f=</code> keys. It is a real class, so it drops onto your
-model as an ordinary field type (no <code>type: ignore</code>), pydantic validates membership
+rather than adding a separate dependency. The supported formats are a <em>closed set</em> you
+own, so — as with <a href="../params/#folded-into-your-own-query-model"><code>crs</code></a> — gazebo gives you a
+base enum to subclass: <a href="../../reference/#gazebo.negotiation.FormatEnum"><code>FormatEnum</code></a>, a
+<code>StrEnum</code> whose members are <code>(?f= key, media type)</code> pairs. It is a real class, so it drops
+onto your model as an ordinary field type (no <code>type: ignore</code>), pydantic validates the key
 natively, and FastAPI renders it as an <code>enum</code> query param carrying the shared <code>f</code>
 description:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseModel</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
 </span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">gazebo.ext.fastapi</span><span class="w"> </span><span class="kn">import</span> <span class="n">FormatEnum</span><span class="p">,</span> <span class="n">GazeboApp</span><span class="p">,</span> <span class="n">Providers</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">gazebo.negotiation</span><span class="w"> </span><span class="kn">import</span> <span class="n">HTML</span><span class="p">,</span> <span class="n">JSON</span><span class="p">,</span> <span class="n">Representation</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>
 </span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="c1"># Map each format key to the Representation you serve for it (the enum is keys only).</span>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="n">REPS</span> <span class="o">=</span> <span class="p">{</span><span class="n">rep</span><span class="o">.</span><span class="n">key</span><span class="p">:</span> <span class="n">rep</span> <span class="k">for</span> <span class="n">rep</span> <span class="ow">in</span> <span class="p">(</span><span class="n">JSON</span><span class="p">,</span> <span class="n">HTML</span><span class="p">)}</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="k">class</span><span class="w"> </span><span class="nc">DocFormat</span><span class="p">(</span><span class="n">FormatEnum</span><span class="p">):</span>  <span class="c1"># your closed ?f= set — a real class, a usable field type</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="n">json</span> <span class="o">=</span> <span class="s1">&#39;json&#39;</span><span class="p">,</span> <span class="s1">&#39;application/json&#39;</span>  <span class="c1"># each member is (?f= key, media type)</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="n">html</span> <span class="o">=</span> <span class="s1">&#39;html&#39;</span><span class="p">,</span> <span class="s1">&#39;text/html&#39;</span>
 </span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>
-</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="k">class</span><span class="w"> </span><span class="nc">DocFormat</span><span class="p">(</span><span class="n">FormatEnum</span><span class="p">):</span>  <span class="c1"># your closed ?f= key set — a real class, a usable field type</span>
-</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>    <span class="n">json</span> <span class="o">=</span> <span class="s1">&#39;json&#39;</span>
-</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>    <span class="n">html</span> <span class="o">=</span> <span class="s1">&#39;html&#39;</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="k">class</span><span class="w"> </span><span class="nc">DocQuery</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>  <span class="c1"># fold ?f= into your own query model as a field</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>    <span class="n">f</span><span class="p">:</span> <span class="n">DocFormat</span> <span class="o">=</span> <span class="n">DocFormat</span><span class="o">.</span><span class="n">json</span>  <span class="c1"># a real enum field: no type: ignore, native validation</span>
 </span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>
 </span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>
-</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="k">class</span><span class="w"> </span><span class="nc">DocQuery</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>  <span class="c1"># fold ?f= into your own query model as a field</span>
-</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>    <span class="n">f</span><span class="p">:</span> <span class="n">DocFormat</span> <span class="o">=</span> <span class="n">DocFormat</span><span class="o">.</span><span class="n">json</span>  <span class="c1"># a real enum field: no type: ignore, native validation</span>
+</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="n">folded_app</span> <span class="o">=</span> <span class="n">GazeboApp</span><span class="p">(</span><span class="n">Providers</span><span class="p">())</span>
+</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>
 </span><span id="__span-2-17"><a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>
-</span><span id="__span-2-18"><a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>
-</span><span id="__span-2-19"><a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="n">folded_app</span> <span class="o">=</span> <span class="n">GazeboApp</span><span class="p">(</span><span class="n">Providers</span><span class="p">())</span>
-</span><span id="__span-2-20"><a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>
-</span><span id="__span-2-21"><a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>
-</span><span id="__span-2-22"><a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a><span class="nd">@folded_app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/report&#39;</span><span class="p">)</span>
-</span><span id="__span-2-23"><a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">report</span><span class="p">(</span><span class="n">query</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">DocQuery</span><span class="p">,</span> <span class="n">Query</span><span class="p">()])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
-</span><span id="__span-2-24"><a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a>    <span class="c1"># query.f is a validated ?f= key (no Accept at model-validation time). Map it to the</span>
-</span><span id="__span-2-25"><a id="__codelineno-2-25" name="__codelineno-2-25" href="#__codelineno-2-25"></a>    <span class="c1"># Representation you serve; an absent ?f= falls back to the field default (json).</span>
-</span><span id="__span-2-26"><a id="__codelineno-2-26" name="__codelineno-2-26" href="#__codelineno-2-26"></a>    <span class="n">rep</span><span class="p">:</span> <span class="n">Representation</span> <span class="o">=</span> <span class="n">REPS</span><span class="p">[</span><span class="n">query</span><span class="o">.</span><span class="n">f</span><span class="p">]</span>
-</span><span id="__span-2-27"><a id="__codelineno-2-27" name="__codelineno-2-27" href="#__codelineno-2-27"></a>    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;format&#39;</span><span class="p">:</span> <span class="n">rep</span><span class="o">.</span><span class="n">key</span><span class="p">}</span>
+</span><span id="__span-2-18"><a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a><span class="nd">@folded_app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/report&#39;</span><span class="p">)</span>
+</span><span id="__span-2-19"><a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">report</span><span class="p">(</span><span class="n">query</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">DocQuery</span><span class="p">,</span> <span class="n">Query</span><span class="p">()])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+</span><span id="__span-2-20"><a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>    <span class="c1"># query.f is a validated ?f= key (no Accept at model-validation time). The member</span>
+</span><span id="__span-2-21"><a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>    <span class="c1"># carries its media type — `.representation` needs no external {key: rep} map; an</span>
+</span><span id="__span-2-22"><a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a>    <span class="c1"># absent ?f= falls back to the field default (json).</span>
+</span><span id="__span-2-23"><a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a>    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;format&#39;</span><span class="p">:</span> <span class="n">query</span><span class="o">.</span><span class="n">f</span><span class="o">.</span><span class="n">representation</span><span class="o">.</span><span class="n">key</span><span class="p">}</span>
 </span></code></pre></div>
-<p>A folded field only ever sees <code>?f=</code> — there is no <code>Accept</code> header at model-validation
-time — so it validates the query key alone; give the field a default so an absent <code>?f=</code>
-resolves to it. The enum carries <em>keys</em>, not <code>Representation</code>s, so map the chosen member
-to the <code>Representation</code> you serve (a small <code>{key: rep}</code> dict) to drive rendering and
-<code>alternate_links</code>. An unknown <code>?f=</code> is a <code>400</code> problem.</p>
-<p>Reach for the <code>Negotiate</code> dependency instead when you need <code>Accept</code>-header negotiation
-(and its <code>406</code>); reach for a <code>FormatEnum</code> field when <code>?f=</code> is one field among several in
-a query model you already have.</p>
+<p>Give the field a default so an absent <code>?f=</code> resolves to it. Because each member carries
+its media type, a member alone yields its
+<a href="../../reference/#gazebo.negotiation.Representation"><code>Representation</code></a> via
+<a href="../../reference/#gazebo.negotiation.FormatEnum.representation"><code>.representation</code></a> — no
+external <code>{key: rep}</code> dict — so drive rendering and <code>alternate_links</code> straight off it. An
+unknown <code>?f=</code> is a <code>400</code> problem. A plain-default field like this negotiates on the query
+key alone; the next section adds <code>Accept</code>.</p>
+<h3 id="getting-accept-aware-negotiation">Getting <code>Accept</code>-aware negotiation<a class="headerlink" href="#getting-accept-aware-negotiation" title="Permanent link">&para;</a></h3>
+<p>A plain-default <code>FormatEnum</code> field negotiates on the query key alone. For the full OGC
+order — <code>?f=</code> → <code>Accept</code> → default — make the field <strong>optional</strong> (<code>f: MyFormat | None =
+None</code>) and add a one-line <code>negotiate(MyFormat.representations(), f=query.f)</code> in the handler:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">gazebo.ext.fastapi</span><span class="w"> </span><span class="kn">import</span> <span class="n">FormatEnum</span><span class="p">,</span> <span class="n">GazeboApp</span><span class="p">,</span> <span class="n">Providers</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">gazebo.negotiation</span><span class="w"> </span><span class="kn">import</span> <span class="n">negotiate</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="k">class</span><span class="w"> </span><span class="nc">ReportFormat</span><span class="p">(</span><span class="n">FormatEnum</span><span class="p">):</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="n">json</span> <span class="o">=</span> <span class="s1">&#39;json&#39;</span><span class="p">,</span> <span class="s1">&#39;application/json&#39;</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    <span class="n">html</span> <span class="o">=</span> <span class="s1">&#39;html&#39;</span><span class="p">,</span> <span class="s1">&#39;text/html&#39;</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="k">class</span><span class="w"> </span><span class="nc">ReportQuery</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>    <span class="c1"># Optional field: an absent ?f= leaves it None, so the handler can negotiate on Accept.</span>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>    <span class="n">f</span><span class="p">:</span> <span class="n">ReportFormat</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>
+</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="n">neg_app</span> <span class="o">=</span> <span class="n">GazeboApp</span><span class="p">(</span><span class="n">Providers</span><span class="p">())</span>
+</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>
+</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>
+</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="nd">@neg_app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/report&#39;</span><span class="p">)</span>
+</span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">negotiated_report</span><span class="p">(</span><span class="n">query</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">ReportQuery</span><span class="p">,</span> <span class="n">Query</span><span class="p">()])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+</span><span id="__span-3-20"><a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>    <span class="c1"># One line for the full OGC order: ?f= wins, then the request&#39;s Accept (read ambiently</span>
+</span><span id="__span-3-21"><a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a>    <span class="c1"># from the context — no header wrangling), then the default. Member order is</span>
+</span><span id="__span-3-22"><a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a>    <span class="c1"># server-preferred; an unsatisfiable Accept raises a 406, an unknown ?f= a 400.</span>
+</span><span id="__span-3-23"><a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a>    <span class="n">rep</span> <span class="o">=</span> <span class="n">negotiate</span><span class="p">(</span>
+</span><span id="__span-3-24"><a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a>        <span class="n">ReportFormat</span><span class="o">.</span><span class="n">representations</span><span class="p">(),</span>
+</span><span id="__span-3-25"><a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a>        <span class="n">f</span><span class="o">=</span><span class="n">query</span><span class="o">.</span><span class="n">f</span><span class="p">,</span>
+</span><span id="__span-3-26"><a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a>        <span class="n">default</span><span class="o">=</span><span class="n">ReportFormat</span><span class="o">.</span><span class="n">json</span><span class="o">.</span><span class="n">representation</span><span class="p">,</span>
+</span><span id="__span-3-27"><a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a>    <span class="p">)</span>
+</span><span id="__span-3-28"><a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a>    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;format&#39;</span><span class="p">:</span> <span class="n">rep</span><span class="o">.</span><span class="n">key</span><span class="p">}</span>
+</span></code></pre></div>
+<p><code>negotiate()</code> applies the order for you: an explicit <code>?f=</code> wins; otherwise the request's
+<code>Accept</code> — read ambiently from the active context, so you never pull the header yourself —
+with the enum's members (definition order is server-preferred) scored by their media
+types; otherwise the <code>default</code>. An unknown <code>?f=</code> is a <code>400</code> problem (the enum field
+validates the key), and an <code>Accept</code> that lists nothing on offer is a <code>406</code>.</p>
+<p>Reach for the <code>Negotiate</code> dependency when negotiation is the route's primary input; reach
+for a <code>FormatEnum</code> field — plain-default for key-only, or optional + a one-line
+<code>negotiate()</code> call for the full <code>Accept</code>-aware order — when <code>?f=</code> is one field among
+several in a query model you already have.</p>
 <h2 id="reference">Reference<a class="headerlink" href="#reference" title="Permanent link">&para;</a></h2>
 <p>See <a href="../../reference/#gazebo.negotiation"><code>gazebo.negotiation</code></a> (<code>Representation</code>,
 <code>negotiate</code>, <code>alternate_links</code>) and the glue's
