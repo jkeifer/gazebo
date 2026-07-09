@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Deprecated
+
+### Removed
+
+### Security
+
+## [v0.9.2] - 2026-07-09
+
+### Added
+
 - fastapi: `GazeboApp`/`upgrade()` accept `query_problem=`/`body_problem=`
   (`ProblemType`s) so the framework's own malformed-query-parameter (`400`) and
   bad-body (`422`) errors carry a resolvable `type`/`title` from the service's own
@@ -20,20 +34,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rejected at install time if its `status` contradicts the case it wires
   (`query_problem` must be `400`, `body_problem` `422`).
 
-### Changed
-
-### Fixed
-
-### Deprecated
-
 ### Removed
 
 - fastapi: the standalone `validation_exception_handler` and
   `param_exception_handler` are no longer exported. They are redundant with the
   new `install_problem_handlers()` seam (which `GazeboApp`/`upgrade()` call for
   you); register handlers through it instead.
-
-### Security
 
 ## [v0.9.1] - 2026-07-08
 
@@ -505,7 +511,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release 🎉
 
-[unreleased]: https://github.com/jkeifer/gazebo/compare/v0.9.1...HEAD
+[unreleased]: https://github.com/jkeifer/gazebo/compare/v0.9.2...HEAD
+[v0.9.2]: https://github.com/jkeifer/gazebo/releases/tag/v0.9.2
 [v0.9.1]: https://github.com/jkeifer/gazebo/releases/tag/v0.9.1
 [v0.9.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.9.0
 [v0.8.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.8.0
