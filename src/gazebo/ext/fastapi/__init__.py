@@ -24,11 +24,7 @@ from gazebo.ext.fastapi.cors import Cors, CorsConfig
 from gazebo.ext.fastapi.filtering import FilterParam, SortByParam
 from gazebo.ext.fastapi.injection import Inject, inject_signature
 from gazebo.ext.fastapi.params import BBoxParam, CrsParam, DatetimeParam, Negotiate
-from gazebo.ext.fastapi.problems import (
-    param_exception_handler,
-    problem_exception_handler,
-    validation_exception_handler,
-)
+from gazebo.ext.fastapi.problems import install_problem_handlers, problem_exception_handler
 from gazebo.ext.fastapi.responses import not_modified, set_cache_headers, set_link_header
 from gazebo.ext.fastapi.routers import GazeboRouter, LinkedRouter, RootRouter
 from gazebo.negotiation import FormatEnum
@@ -58,11 +54,10 @@ __all__ = [
     'etag_for',
     'forward_lifespans',
     'inject_signature',
+    'install_problem_handlers',
     'not_modified',
-    'param_exception_handler',
     'problem_exception_handler',
     'set_cache_headers',
     'set_link_header',
     'upgrade',
-    'validation_exception_handler',
 ]

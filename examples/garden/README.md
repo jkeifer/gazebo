@@ -21,6 +21,7 @@ workspace, so it resolves `gazebo` from one directory up.
 | Collection envelope with items alias + counts | `PlantCollection` (`plants`, `numberReturned`, `numberMatched`) |
 | Pagination links (next/prev) | `list_plants` in `api.py` (`paginate(...)`) |
 | RFC 7807 problem responses | `get_plant` 404; auto 422 on bad bodies |
+| Catalogued `type` on framework validation 400s | `MALFORMED_QUERY_PARAMETER` + `query_problem=` in `app.py` |
 | Hierarchical landing pages | `LinkedRouter` root → collections in `api.py` |
 | Conformance declaration | `GET /conformance` |
 | Proxy-aware URLs + pluggable trust | `trust=trust_all` in `create_app` (demo) |

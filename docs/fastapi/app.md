@@ -36,9 +36,9 @@ idempotent (calling it twice is a no-op).
 `GazeboApp` and `upgrade()` register two exception handlers so every error
 response is `application/problem+json` (see [Problems](../core/problems.md)):
 
-- `problem_exception_handler` renders any [`ProblemException`](../core/problems.md)
-  you raise with its status and detail.
-- `validation_exception_handler` maps FastAPI's `RequestValidationError` to a
+- one renders any [`ProblemException`](../core/problems.md) you raise with its
+  status and detail.
+- one maps FastAPI's `RequestValidationError` to a
   problem response, carrying the field-level errors under an `errors` extension
   member (RFC 9457). Without this, bad input would return FastAPI's default
   `{"detail": [...]}` shape and break problem+json uniformity. The status follows
@@ -64,6 +64,23 @@ A bad query parameter then yields:
   "parameter": "limit",
   "errors": [{"type": "int_parsing", "loc": ["query", "limit"], "msg": "..."}]
 }
+```
+
+By default that `type` is `about:blank`: the resolvable URI for a malformed
+parameter is *service-relative* (it lives in your own `/problems` catalog), so
+gazebo can't hardcode one. If your service defines a
+[`ProblemType`](../core/problems.md#a-catalog-of-problem-types) for it, hand it to
+`GazeboApp`/`upgrade()` (or call `install_problem_handlers()` directly) and those
+framework errors carry your catalogued `type`/`title` — the `status`, `detail`,
+`errors`, and `parameter(s)` members are unchanged:
+
+- `query_problem=` — the `400` case (malformed query parameter); it must have
+  `status == 400`.
+- `body_problem=` — the `422` case (bad request body/path); it must have
+  `status == 422`.
+
+```python
+--8<-- "tests/examples/app.py:typed_validation_problem"
 ```
 
 ## CORS

@@ -102,6 +102,16 @@ BED_NOT_FOUND = PROBLEMS.define(
     title='Garden bed not found',
     status=404,
 )
+# The framework's own malformed-query-parameter error (a folded field that fails to parse,
+# a bad `f`, a non-int `limit`, ...) is a 400 like the domain errors above. Registering it
+# here — and handing it to the app (see create_app) — gives those framework 400s a
+# resolvable `type` in this same catalog instead of a bare `about:blank`.
+MALFORMED_QUERY_PARAMETER = PROBLEMS.define(
+    'malformed-query-parameter',
+    type='https://gazebo.example/problems/malformed-query-parameter',
+    title='Malformed query parameter',
+    status=400,
+)
 
 plants_router = GazeboRouter(tags=['plants'])
 

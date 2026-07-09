@@ -18,7 +18,7 @@ from gazebo.ext.fastapi import GazeboApp, Overrides, Providers
 from gazebo.requestid import use_request_id
 from gazebo.tags import Tag, tags_metadata
 
-from .api import root_router
+from .api import MALFORMED_QUERY_PARAMETER, root_router
 from .resources import (
     Catalog,
     Database,
@@ -71,6 +71,9 @@ def create_app(*, overrides: Overrides | None = None) -> GazeboApp:
         # DEMO ONLY: permissive CORS so a browser app can call from any origin.
         # In production pass an explicit origin list, e.g. cors=['https://app.example'].
         cors=True,
+        # Type the framework's malformed-query-parameter 400s with a catalog entry, so
+        # they resolve like the domain problems instead of defaulting to `about:blank`.
+        query_problem=MALFORMED_QUERY_PARAMETER,
         title='Gazebo Gardens',
         description='A tiny OGC-style plant catalog built with gazebo.',
         openapi_tags=tags_metadata(*TAGS),

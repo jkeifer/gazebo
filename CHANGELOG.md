@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- fastapi: `GazeboApp`/`upgrade()` accept `query_problem=`/`body_problem=`
+  (`ProblemType`s) so the framework's own malformed-query-parameter (`400`) and
+  bad-body (`422`) errors carry a resolvable `type`/`title` from the service's own
+  problem catalog instead of `about:blank` (the RFC 9457 default, since the URI is
+  service-relative and gazebo has none to emit). The new public
+  `install_problem_handlers(app, *, query_problem=None, body_problem=None)` is the
+  underlying seam. The handler stays authoritative for the response `status`,
+  `detail`, and the `errors`/`parameter(s)` extension members; a supplied type is
+  rejected at install time if its `status` contradicts the case it wires
+  (`query_problem` must be `400`, `body_problem` `422`).
+
 ### Changed
 
 ### Fixed
@@ -16,6 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 
 ### Removed
+
+- fastapi: the standalone `validation_exception_handler` and
+  `param_exception_handler` are no longer exported. They are redundant with the
+  new `install_problem_handlers()` seam (which `GazeboApp`/`upgrade()` call for
+  you); register handlers through it instead.
 
 ### Security
 
