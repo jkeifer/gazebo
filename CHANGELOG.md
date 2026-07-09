@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+### Deprecated
+
+### Removed
+
+### Security
+
+## [v0.9.3] - 2026-07-09
+
+### Fixed
+
 - fastapi: the `parameter`/`parameters` extension member on a malformed-query-parameter
   problem is now derived from the loc element right after the `query` scope marker
   (`loc[1]`) rather than the last one (`loc[-1]`). A bad value in a list/repeatable query
@@ -20,12 +30,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   index, and a cross-field `@model_validator` error (loc `('query',)`) no longer fabricates
   a `parameter` from the scope marker — it stays a `400` but cites no parameter. Scalar
   fields are unchanged.
-
-### Deprecated
-
-### Removed
-
-### Security
 
 ## [v0.9.2] - 2026-07-09
 
@@ -519,7 +523,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release 🎉
 
-[unreleased]: https://github.com/jkeifer/gazebo/compare/v0.9.2...HEAD
+[unreleased]: https://github.com/jkeifer/gazebo/compare/v0.9.3...HEAD
+[v0.9.3]: https://github.com/jkeifer/gazebo/releases/tag/v0.9.3
 [v0.9.2]: https://github.com/jkeifer/gazebo/releases/tag/v0.9.2
 [v0.9.1]: https://github.com/jkeifer/gazebo/releases/tag/v0.9.1
 [v0.9.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.9.0
