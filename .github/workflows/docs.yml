@@ -1,10 +1,12 @@
-name: Documentation
+name: "Documentation"
 
 on:
   push:
     branches:
       - main
   pull_request:
+    branches:
+      - main
   release:
     types:
       - published
@@ -12,46 +14,37 @@ on:
 
 # Allow only one concurrent deployment, to avoid mike/gh-pages races.
 concurrency:
-  group: docs-${{ github.ref }}
+  group: ${{ github.ref }}-docs
   cancel-in-progress: false
 
 permissions:
   contents: write
 
 jobs:
-  # On pull requests, just confirm the docs build cleanly (no deploy).
   build:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
-        with:
-          python-version: "3.14"
-      - name: Sync
-        run: uv sync --locked --all-extras --group docs
-      - name: Build (strict)
-        run: uv run zensical build --strict --clean
-
-  deploy:
-    if: github.event_name != 'pull_request'
+    name: Build docs
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0  # full history so mike can update the gh-pages branch
-
-      - name: Configure git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
       - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
           python-version: "3.14"
 
       - name: Sync
         run: uv sync --locked --all-extras --group docs
+
+      # Always build (strict) so pull requests validate the docs without deploying.
+      - name: Build (strict)
+        run: uv run zensical build --strict --clean
+
+      # Everything below deploys; skipped on pull requests.
+      - name: Configure git
+        if: github.event_name != 'pull_request'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
       # mike (squidfunk's Zensical-aware fork) builds via `zensical build` and
       # commits each version to the gh-pages branch.
