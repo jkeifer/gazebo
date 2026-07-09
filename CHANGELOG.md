@@ -23,13 +23,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- fastapi: the `parameter`/`parameters` extension member on a malformed-query-parameter
-  problem is now derived from the loc element right after the `query` scope marker
-  (`loc[1]`) rather than the last one (`loc[-1]`). A bad value in a list/repeatable query
-  param (loc `('query', name, <index>)`) now cites the param name instead of the list
-  index, and a cross-field `@model_validator` error (loc `('query',)`) no longer fabricates
-  a `parameter` from the scope marker — it stays a `400` but cites no parameter. Scalar
-  fields are unchanged.
+- fastapi: the `parameter`/`parameters` extension member on a
+  malformed-query-parameter problem is now derived from the loc element right
+  after the `query` scope marker (`loc[1]`) rather than the last one
+  (`loc[-1]`). A bad value in a list/repeatable query param (loc `('query',
+  name, <index>)`) now cites the param name instead of the list index, and a
+  cross-field `@model_validator` error (loc `('query',)`) no longer fabricates
+  a `parameter` from the scope marker — it stays a `400` but cites no
+  parameter. Scalar fields are unchanged.
 
 ## [v0.9.2] - 2026-07-09
 
@@ -37,14 +38,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - fastapi: `GazeboApp`/`upgrade()` accept `query_problem=`/`body_problem=`
   (`ProblemType`s) so the framework's own malformed-query-parameter (`400`) and
-  bad-body (`422`) errors carry a resolvable `type`/`title` from the service's own
-  problem catalog instead of `about:blank` (the RFC 9457 default, since the URI is
-  service-relative and gazebo has none to emit). The new public
-  `install_problem_handlers(app, *, query_problem=None, body_problem=None)` is the
-  underlying seam. The handler stays authoritative for the response `status`,
-  `detail`, and the `errors`/`parameter(s)` extension members; a supplied type is
-  rejected at install time if its `status` contradicts the case it wires
-  (`query_problem` must be `400`, `body_problem` `422`).
+  bad-body (`422`) errors carry a resolvable `type`/`title` from the service's
+  own problem catalog instead of `about:blank` (the RFC 9457 default, since the
+  URI is service-relative and gazebo has none to emit). The new public
+  `install_problem_handlers(app, *, query_problem=None, body_problem=None)` is
+  the underlying seam. The handler stays authoritative for the response
+  `status`, `detail`, and the `errors`/`parameter(s)` extension members; a
+  supplied type is rejected at install time if its `status` contradicts the
+  case it wires (`query_problem` must be `400`, `body_problem` `422`).
 
 ### Removed
 
@@ -60,48 +61,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - negotiation: the `f` (format) parameter's OpenAPI description is now
   format-neutral and names the *actual* supported `?f=` keys instead of a
   hardcoded `json`/`html` example. A folded `FormatEnum` field enumerates its
-  subclass's members and the `Negotiate` dependency its representations, both via
-  the new `gazebo.negotiation.f_description` helper.
+  subclass's members and the `Negotiate` dependency its representations, both
+  via the new `gazebo.negotiation.f_description` helper.
 
 ### Fixed
 
 - params: the folded `BBoxQuery`/`DatetimeQuery` field types now advertise a
-  string input schema (`json_schema_input_type=str` on their `BeforeValidator`),
-  so the generated OpenAPI documents them as strings and Swagger UI renders a
-  plain text box instead of the parsed model's (`BBox`/`DatetimeInterval`) object
-  editor. Parsing and validation behavior are unchanged.
+  string input schema (`json_schema_input_type=str` on their
+  `BeforeValidator`), so the generated OpenAPI documents them as strings and
+  Swagger UI renders a plain text box instead of the parsed model's
+  (`BBox`/`DatetimeInterval`) object editor. Parsing and validation behavior
+  are unchanged.
 
 ## [v0.9.0] - 2026-07-08
 
 ### Added
 
-- context/negotiation: `RequestContext` now exposes `headers` (the request headers
-  as a case-insensitive mapping), unifying the request metadata the core needs onto
-  one seam. Core `negotiate()` reads it: when called with no explicit `accept` and an
-  ambient `RequestContext` is active, it falls back to that request's `Accept` header
-  (an explicit `accept` still wins), so negotiation works from the ambient request
-  with no request in hand — while staying pure when called with no context.
+- context/negotiation: `RequestContext` now exposes `headers` (the request
+  headers as a case-insensitive mapping), unifying the request metadata the
+  core needs onto one seam. Core `negotiate()` reads it: when called with no
+  explicit `accept` and an ambient `RequestContext` is active, it falls back to
+  that request's `Accept` header (an explicit `accept` still wins), so
+  negotiation works from the ambient request with no request in hand — while
+  staying pure when called with no context.
 - negotiation: `FormatEnum` members now carry a media type — spell each as
-  `key, media_type` — and expose `.media_type` and `.representation` (the member's
-  `Representation`), plus a `.representations()` classmethod giving every member's
-  `Representation` in definition order, so a folded field needs no external `{key: rep}`
-  map. For `Accept`-aware negotiation of a folded field, make it optional and add a
-  one-line `negotiate(MyFormat.representations(), f=query.f)` call in the handler
+  `key, media_type` — and expose `.media_type` and `.representation` (the
+  member's `Representation`), plus a `.representations()` classmethod giving
+  every member's `Representation` in definition order, so a folded field needs
+  no external `{key: rep}` map. For `Accept`-aware negotiation of a folded
+  field, make it optional and add a one-line
+  `negotiate(MyFormat.representations(), f=query.f)` call in the handler
   (`Accept` is read from the ambient request context).
 
 ### Changed
 
-- **Breaking:** `FormatEnum` members now require a media type: spell each member as
-  `key, media_type` (e.g. `json = 'json', 'application/json'`). Existing single-value
-  subclasses (`json = 'json'`) must be updated. The member value (the `?f=` key) and
-  native key validation are unchanged.
+- **Breaking:** `FormatEnum` members now require a media type: spell each
+  member as `key, media_type` (e.g. `json = 'json', 'application/json'`).
+  Existing single-value subclasses (`json = 'json'`) must be updated. The
+  member value (the `?f=` key) and native key validation are unchanged.
 - **Breaking (for `RequestContext` implementers):** the (`@runtime_checkable`)
-  `RequestContext` protocol gained a required `headers` property (case-insensitive
-  request headers). The built-in FastAPI adapter implements it; any custom
-  `RequestContext` implementation must add it to keep structurally satisfying the
-  protocol. `RequestContext`'s charter is now the framework-agnostic seam for *all*
-  the request metadata the core needs (URL building **and** headers), not just link
-  URLs.
+  `RequestContext` protocol gained a required `headers` property
+  (case-insensitive request headers). The built-in FastAPI adapter implements
+  it; any custom `RequestContext` implementation must add it to keep
+  structurally satisfying the protocol. `RequestContext`'s charter is now the
+  framework-agnostic seam for *all* the request metadata the core needs (URL
+  building **and** headers), not just link URLs.
 
 ## [v0.8.0] - 2026-07-08
 
@@ -109,41 +113,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - links: RFC 6570 templated-link support. `Link.to_route` gains `template`
   (path-position variables left unbound as `{var}`) and `query_template`
-  (optional query variables appended as `{?a,b}`/`{&a,b}`); such links serialize
-  with `templated: true` for the client to expand. Backed by a new
+  (optional query variables appended as `{?a,b}`/`{&a,b}`); such links
+  serialize with `templated: true` for the client to expand. Backed by a new
   `RequestContext.url_for_template` (resolved proxy-correctly by the FastAPI
   adapter), a declared `Link.templated` field (present in the OpenAPI schema,
   omitted on the wire when unset), and wired into the garden beds collection.
 - params/negotiation: the standard OGC query parameters (`bbox`, `datetime`,
-  `crs`, `f`) now fully self-document in OpenAPI — the `BBoxParam`/`DatetimeParam`/
-  `CrsParam`/`Negotiate` `Depends` adapters carry a `description` and
-  `openapi_examples`, plus a closed `enum` for `crs`/`f`.
+  `crs`, `f`) now fully self-document in OpenAPI — the
+  `BBoxParam`/`DatetimeParam`/ `CrsParam`/`Negotiate` `Depends` adapters carry
+  a `description` and `openapi_examples`, plus a closed `enum` for `crs`/`f`.
 - params/negotiation: composable OGC query **field types** to fold into a
-  consumer's own Pydantic query model (used as `Annotated[MyQuery, Query()]`, which
-  FastAPI explodes into individual documented params). For the open value spaces,
-  `BBoxQuery` and `DatetimeQuery` (in `gazebo.params`) are annotated field types
-  validated by the existing core parser. For the *closed sets* — whose members are a
-  consumer decision — `CrsEnum` (in `gazebo.params`) and `FormatEnum` (in
-  `gazebo.negotiation`) are `StrEnum` base classes to subclass: spelling the allowed
-  CRS URIs / `?f=` keys as enum members yields a real field type (no type-checker
-  suppression) that pydantic validates natively, renders as an OpenAPI `enum`, and
-  self-documents (each base injects the shared `crs`/`f` description). A malformed
-  value renders as a `400` `application/problem+json`, preserving OGC's client-error
-  semantics. Wired into the garden beds `search` route.
+  consumer's own Pydantic query model (used as `Annotated[MyQuery, Query()]`,
+  which FastAPI explodes into individual documented params). For the open value
+  spaces, `BBoxQuery` and `DatetimeQuery` (in `gazebo.params`) are annotated
+  field types validated by the existing core parser. For the *closed sets* —
+  whose members are a consumer decision — `CrsEnum` (in `gazebo.params`) and
+  `FormatEnum` (in `gazebo.negotiation`) are `StrEnum` base classes to
+  subclass: spelling the allowed CRS URIs / `?f=` keys as enum members yields a
+  real field type (no type-checker suppression) that pydantic validates
+  natively, renders as an OpenAPI `enum`, and self-documents (each base injects
+  the shared `crs`/`f` description). A malformed value renders as a `400`
+  `application/problem+json`, preserving OGC's client-error semantics. Wired
+  into the garden beds `search` route.
 
 ### Changed
 
-- **Breaking:** `validation_exception_handler` now derives its status from the error
-  location — a malformed **query** parameter is a `400` (an OGC client error,
-  matching `ParamError`) and cites the offending `parameter`/`parameters`, while a
-  bad request **body** or path stays a `422`. Both continue to render as
-  `application/problem+json`. This changes the status of query-validation failures
-  (e.g. a non-integer `?limit=`) from `422` to `400` — clients keying on `422` for
-  bad query parameters must update.
-- **Breaking (for `RequestContext` implementers):** the `RequestContext` protocol
-  gained a required `url_for_template(name, path, template)` method. The built-in
-  FastAPI adapter implements it; any custom `RequestContext` implementation must add
-  it to keep structurally satisfying the (`@runtime_checkable`) protocol.
+- **Breaking:** `validation_exception_handler` now derives its status from the
+  error location — a malformed **query** parameter is a `400` (an OGC client
+  error, matching `ParamError`) and cites the offending
+  `parameter`/`parameters`, while a bad request **body** or path stays a `422`.
+  Both continue to render as `application/problem+json`. This changes the
+  status of query-validation failures (e.g. a non-integer `?limit=`) from `422`
+  to `400` — clients keying on `422` for bad query parameters must update.
+- **Breaking (for `RequestContext` implementers):** the `RequestContext`
+  protocol gained a required `url_for_template(name, path, template)` method.
+  The built-in FastAPI adapter implements it; any custom `RequestContext`
+  implementation must add it to keep structurally satisfying the
+  (`@runtime_checkable`) protocol.
 
 ## [v0.7.1] - 2026-07-05
 
@@ -325,12 +331,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Migration: `serve_command(app, workers=4)` → `serve_command(app,
   uvicorn_args=('--workers', '4'))`.
 - **Breaking:** `uvicorn` is no longer pulled in by the `gazebo[cli]` extra; it
-  now lives in its own `gazebo[uvicorn]` extra (which depends on `gazebo[cli]`).
-  This matches `gazebo.ext.cli` (server-agnostic: `click`, `pydantic-settings`)
-  and `gazebo.ext.uvicorn` (the only module importing `uvicorn`) being separate
-  modules. Migration: install `gazebo[uvicorn]` instead of `gazebo[cli]` if you
-  use `gazebo.ext.uvicorn.serve` / `serve_command`; `gazebo[cli]` alone still
-  gets you `gazebo.ext.cli`'s building blocks for composing atop another server.
+  now lives in its own `gazebo[uvicorn]` extra (which depends on
+  `gazebo[cli]`).  This matches `gazebo.ext.cli` (server-agnostic: `click`,
+  `pydantic-settings`) and `gazebo.ext.uvicorn` (the only module importing
+  `uvicorn`) being separate modules. Migration: install `gazebo[uvicorn]`
+  instead of `gazebo[cli]` if you use `gazebo.ext.uvicorn.serve` /
+  `serve_command`; `gazebo[cli]` alone still gets you `gazebo.ext.cli`'s
+  building blocks for composing atop another server.
 
 ## [v0.4.1] - 2026-06-30
 
@@ -344,10 +351,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`Choice`) keep their widgets. Secret (`SecretStr`) fields are now listed in
   `--help` as a documented configuration surface (their env var) without a
   value-accepting flag, so they stay discoverable yet off the command line
-  (shell history / `ps`). Required fields (no default) are now marked `[required]`
-  in `--help` and enforced at parse time — satisfied by the flag *or* its env var,
-  since click reads the env var; a required secret is marked `(required)` in the
-  Secrets section.
+  (shell history / `ps`). Required fields (no default) are now marked
+  `[required]` in `--help` and enforced at parse time — satisfied by the flag
+  *or* its env var, since click reads the env var; a required secret is marked
+  `(required)` in the Secrets section.
 
 ## [v0.4.0] - 2026-06-30
 
