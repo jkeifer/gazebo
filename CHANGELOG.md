@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- fastapi: the `parameter`/`parameters` extension member on a malformed-query-parameter
+  problem is now derived from the loc element right after the `query` scope marker
+  (`loc[1]`) rather than the last one (`loc[-1]`). A bad value in a list/repeatable query
+  param (loc `('query', name, <index>)`) now cites the param name instead of the list
+  index, and a cross-field `@model_validator` error (loc `('query',)`) no longer fabricates
+  a `parameter` from the scope marker — it stays a `400` but cites no parameter. Scalar
+  fields are unchanged.
+
 ### Deprecated
 
 ### Removed

@@ -69,7 +69,13 @@ def _validation_problem(
     # response to 400 to preserve those OGC param semantics.
     query_errors = [err for err in errors if err.get('loc') and err['loc'][0] == 'query']
     status = 400 if query_errors else 422
-    parameters = sorted({str(err['loc'][-1]) for err in query_errors})
+    # The parameter name is the loc element right *after* the 'query' scope marker (`loc[1]`),
+    # never the last: a list/repeatable param appends the element index (`('query', name, 0)`),
+    # so `loc[-1]` would be that index, and a model/root `@model_validator` error has no field
+    # at all (`loc == ('query',)`), so `loc[-1]` would be the scope marker itself. Skip the
+    # fieldless case so a cross-field error doesn't fabricate a parameter name (it still tips
+    # the status to 400 via `query_errors`). pydantic puts the alias at `loc[1]` when set.
+    parameters = sorted({str(err['loc'][1]) for err in query_errors if len(err['loc']) > 1})
     # Cite the offending query parameter name(s) as an RFC 9457 extension member, consistent
     # with ParamError's problem: a single one as `parameter`, several as `parameters`.
     extensions: dict[str, Any] = {'errors': jsonable_encoder(errors)}

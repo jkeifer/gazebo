@@ -12,7 +12,7 @@ import pytest
 
 from fastapi import Query, Request, Response
 from fastapi.testclient import TestClient
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from gazebo.asgi import trust_all
 from gazebo.collection import LinkedCollection
@@ -964,6 +964,67 @@ def test_wrong_status_problem_type_rejected():
         GazeboApp(Providers(), query_problem=_BODY_PROBLEM)
     with pytest.raises(ValueError, match='status 422'):
         GazeboApp(Providers(), body_problem=_QUERY_PROBLEM)
+
+
+# --- Problems: the cited `parameter` is derived from the right loc element ----
+
+
+class _LocQuery(BaseModel):
+    # A folded query model whose validation errors span the three loc shapes: a scalar
+    # field (`('query', 'zone')`), a list/repeatable param (`('query', 'sizes', <idx>)`),
+    # and a model-level validator (`('query',)`).
+    zone: int = 0
+    sizes: list[int] = []
+
+    @model_validator(mode='after')
+    def _check(self) -> _LocQuery:
+        if self.zone == 99:
+            raise ValueError('zone 99 is reserved')
+        return self
+
+
+@pytest.fixture
+def loc_client():
+    app = GazeboApp(Providers())
+
+    @app.get('/q')
+    async def search(query: Annotated[_LocQuery, Query()]) -> dict:
+        return {'zone': query.zone, 'sizes': query.sizes}
+
+    with TestClient(app) as c:
+        yield c
+
+
+def test_scalar_field_error_cites_field_name(loc_client):
+    r = loc_client.get('/q?zone=nope')
+    assert r.status_code == 400
+    body = r.json()
+    assert any(err['loc'] == ['query', 'zone'] for err in body['errors'])
+    assert body['parameter'] == 'zone'
+
+
+def test_list_param_error_cites_name_not_index(loc_client):
+    # A bad element in a repeatable param fails with `('query', 'sizes', <idx>)`; the cited
+    # parameter must be the name `sizes`, not the list index (the last loc element).
+    r = loc_client.get('/q?sizes=1&sizes=nope')
+    assert r.status_code == 400
+    body = r.json()
+    # the failing error's loc really does end in an index, confirming the shape under test
+    assert any(
+        err['loc'][:2] == ['query', 'sizes'] and len(err['loc']) > 2 for err in body['errors']
+    )
+    assert body['parameter'] == 'sizes'
+
+
+def test_model_validator_error_cites_no_parameter(loc_client):
+    # A cross-field `@model_validator` error has loc `('query',)` — no single field. It must
+    # stay a 400 (query-scoped) but fabricate no `parameter`/`parameters` member.
+    r = loc_client.get('/q?zone=99')
+    assert r.status_code == 400
+    body = r.json()
+    assert any(err['loc'] == ['query'] for err in body['errors'])
+    assert 'parameter' not in body
+    assert 'parameters' not in body
 
 
 # --- Link: response header via set_link_header helper ---------------------
