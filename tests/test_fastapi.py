@@ -38,6 +38,7 @@ from gazebo.ext.fastapi import (
     RootRouter,
     SortByParam,
     forward_lifespans,
+    install_problem_handlers,
     set_link_header,
     upgrade,
 )
@@ -46,7 +47,7 @@ from gazebo.filtering.cql2 import Cql2Engine
 from gazebo.link import Link
 from gazebo.negotiation import HTML, JSON, Representation
 from gazebo.params import CRS84, BBox, DatetimeInterval
-from gazebo.problems import ProblemException
+from gazebo.problems import ProblemException, ProblemType
 from gazebo.rels import Rel
 
 if TYPE_CHECKING:
@@ -875,6 +876,94 @@ def test_body_validation_still_422_problem():
         assert body['errors']
         # no query params were involved, so no parameter citation
         assert 'parameter' not in body
+
+
+# --- Problems: app-supplied resolvable type for validation/param errors ----
+
+
+_QUERY_PROBLEM = ProblemType(
+    type='/problems/malformed-query-parameter',
+    title='Malformed query parameter',
+    status=400,
+)
+_BODY_PROBLEM = ProblemType(
+    type='/problems/unprocessable-body',
+    title='Unprocessable body',
+    status=422,
+)
+
+
+def test_query_problem_types_the_400(client):
+    # With a query_problem supplied, a malformed query param 400 carries that resolvable
+    # type/title but keeps its handler-computed status, detail, errors, and parameter.
+    app = make_app()
+    install_problem_handlers(app, query_problem=_QUERY_PROBLEM)
+    with TestClient(app) as c:
+        r = c.get('/things?limit=nope', headers={'authorization': 'a'})
+        assert r.status_code == 400
+        body = r.json()
+        assert body['type'] == '/problems/malformed-query-parameter'
+        assert body['title'] == 'Malformed query parameter'
+        assert body['status'] == 400
+        assert body['detail']
+        assert body['errors']
+        assert body['parameter'] == 'limit'
+
+
+def test_query_problem_via_gazebo_app():
+    # The same, threaded through GazeboApp's constructor.
+    app = GazeboApp(Providers(), query_problem=_QUERY_PROBLEM, body_problem=_BODY_PROBLEM)
+
+    @app.get('/things')
+    async def things(limit: int = 10) -> dict:
+        return {'limit': limit}
+
+    with TestClient(app) as c:
+        r = c.get('/things?limit=nope')
+        assert r.json()['type'] == '/problems/malformed-query-parameter'
+
+
+def test_body_problem_types_the_422():
+    app = GazeboApp(Providers(), body_problem=_BODY_PROBLEM)
+
+    @app.post('/things')
+    async def make(body: _IntBody) -> dict:
+        return {'n': body.n}
+
+    with TestClient(app) as c:
+        r = c.post('/things', json={'n': 'nope'})
+        assert r.status_code == 422
+        body = r.json()
+        assert body['type'] == '/problems/unprocessable-body'
+        assert body['title'] == 'Unprocessable body'
+        assert body['status'] == 422
+        assert body['errors']
+
+
+def test_query_problem_types_the_param_error():
+    # The ParamError path (a gazebo OGC param adapter) is typed by query_problem too.
+    app = _params_app()
+    install_problem_handlers(app, query_problem=_QUERY_PROBLEM)
+    with TestClient(app) as c:
+        r = c.get('/search?bbox=1,2,3')
+        assert r.status_code == 400
+        body = r.json()
+        assert body['type'] == '/problems/malformed-query-parameter'
+        assert body['parameter'] == 'bbox'
+
+
+def test_no_problem_types_stays_about_blank(client):
+    # Back-compat: with nothing supplied, the malformed-param problem is typeless.
+    r = client.get('/things?limit=nope', headers={'authorization': 'a'})
+    assert r.json()['type'] == 'about:blank'
+
+
+def test_wrong_status_problem_type_rejected():
+    # A supplied type whose status contradicts the case it wires is rejected at install.
+    with pytest.raises(ValueError, match='status 400'):
+        GazeboApp(Providers(), query_problem=_BODY_PROBLEM)
+    with pytest.raises(ValueError, match='status 422'):
+        GazeboApp(Providers(), body_problem=_QUERY_PROBLEM)
 
 
 # --- Link: response header via set_link_header helper ---------------------

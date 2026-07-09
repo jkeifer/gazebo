@@ -89,6 +89,41 @@ with TestClient(vapp) as client:
     assert problem['status'] == 400
     assert problem['errors'][0]['loc'] == ['query', 'limit']
     assert problem['parameter'] == 'limit'
+    # Untyped by default: the resolvable URI is service-relative, so gazebo leaves it blank.
+    assert problem['type'] == 'about:blank'
+
+
+# --8<-- [start:typed_validation_problem]
+from gazebo.ext.fastapi import GazeboApp, GazeboRouter, Providers
+from gazebo.problems import ProblemType
+
+# A catalogued 400 problem this service serves from its own /problems endpoint.
+MALFORMED_QUERY_PARAMETER = ProblemType(
+    type='https://errors.example/malformed-query-parameter',
+    title='Malformed query parameter',
+    status=400,
+)
+
+typed = GazeboRouter()
+
+
+@typed.get('/widgets')
+async def list_typed_widgets(limit: int = 10) -> dict[str, int]:
+    return {'limit': limit}
+
+
+# Hand the type to the app; now the framework's own 400s carry it instead of about:blank.
+tapp = GazeboApp(Providers(), query_problem=MALFORMED_QUERY_PARAMETER)
+tapp.include_router(typed)
+# --8<-- [end:typed_validation_problem]
+
+
+with TestClient(tapp) as client:
+    problem = client.get('/widgets?limit=nope').json()
+    assert problem['type'] == 'https://errors.example/malformed-query-parameter'
+    assert problem['title'] == 'Malformed query parameter'
+    assert problem['status'] == 400  # status stays authoritative in the handler
+    assert problem['parameter'] == 'limit'  # extension members unchanged
 
 
 # --8<-- [start:cors]

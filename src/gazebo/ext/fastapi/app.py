@@ -16,7 +16,6 @@ from contextlib import AsyncExitStack, asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, Request
-from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from gazebo.asgi import (
@@ -38,13 +37,8 @@ from gazebo.ext.fastapi.injection import (
     _validate_unique_route_names,
     inject_signature,
 )
-from gazebo.ext.fastapi.problems import (
-    param_exception_handler,
-    problem_exception_handler,
-    validation_exception_handler,
-)
-from gazebo.params import ParamError
-from gazebo.problems import ProblemException
+from gazebo.ext.fastapi.problems import install_problem_handlers
+from gazebo.problems import ProblemType
 
 _STATE_ATTR = 'gazebo_app_state'
 _RUNTIME_ATTR = 'gazebo_runtime'
@@ -117,6 +111,8 @@ def upgrade(
     trust: TrustPolicy = trust_none,
     cors: Cors = None,
     health_path: str | None = '/health',
+    query_problem: ProblemType | None = None,
+    body_problem: ProblemType | None = None,
 ) -> FastAPI:
     """Add gazebo's injection/context machinery to an *existing* FastAPI app.
 
@@ -126,6 +122,10 @@ def upgrade(
     request-scope middleware, registers the problem handlers, and rewrites
     ``@app.get`` routes for injection. Injectable routes still belong on a
     ``GazeboRouter`` (or ``@app.get`` on this app). Idempotent.
+
+    ``query_problem``/``body_problem`` give the framework's own validation/param
+    errors a resolvable ``type`` (see :func:`~gazebo.ext.fastapi.install_problem_handlers`);
+    both default to today's typeless ``about:blank`` problem.
     """
     if getattr(app.state, _RUNTIME_ATTR, None) is not None:
         return app
@@ -163,9 +163,7 @@ def upgrade(
     # requests and attaches headers to every response, including problem responses.
     if (cors_config := CorsConfig.resolve(cors)) is not None:
         cors_config.apply(app)
-    app.add_exception_handler(ProblemException, problem_exception_handler)  # type: ignore[arg-type]
-    app.add_exception_handler(RequestValidationError, validation_exception_handler)  # type: ignore[arg-type]
-    app.add_exception_handler(ParamError, param_exception_handler)  # type: ignore[arg-type]
+    install_problem_handlers(app, query_problem=query_problem, body_problem=body_problem)
 
     previous_lifespan = app.router.lifespan_context
 
@@ -209,6 +207,8 @@ class GazeboApp(FastAPI):
         trust: TrustPolicy = trust_none,
         cors: Cors = None,
         health_path: str | None = '/health',
+        query_problem: ProblemType | None = None,
+        body_problem: ProblemType | None = None,
         **fastapi_kwargs: Any,
     ) -> None:
         super().__init__(**fastapi_kwargs)
@@ -219,6 +219,8 @@ class GazeboApp(FastAPI):
             trust=trust,
             cors=cors,
             health_path=health_path,
+            query_problem=query_problem,
+            body_problem=body_problem,
         )
 
     @property

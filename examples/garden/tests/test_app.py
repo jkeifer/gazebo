@@ -56,6 +56,22 @@ def test_problems_catalog(client):
     catalog = client.get('/problems').json()
     assert catalog['plant-not-found']['status'] == 404
     assert catalog['plant-not-found']['type'].endswith('/plant-not-found')
+    # the framework's malformed-query-parameter 400 is catalogued alongside the domain errors
+    assert catalog['malformed-query-parameter']['status'] == 400
+
+
+def test_malformed_query_param_carries_catalog_type(client):
+    # A framework validation 400 (non-int limit) now resolves to the catalogued type,
+    # not `about:blank`, and still cites the offending parameter.
+    r = client.get('/plants?limit=nope', headers=AUTH)
+    assert_problem(r, status=400)
+    body = r.json()
+    assert body['type'] == catalog_type(client, 'malformed-query-parameter')
+    assert body['parameter'] == 'limit'
+
+
+def catalog_type(client, key: str) -> str:
+    return client.get('/problems').json()[key]['type']
 
 
 def test_auth_required_returns_problem(client):

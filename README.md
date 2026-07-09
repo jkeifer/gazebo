@@ -22,7 +22,8 @@ re-implemented per project:
   `X-Forwarded-Proto/Host/Prefix` (with pluggable trust), so generated links are
   correct behind a load balancer.
 - **The OGC request/response surface** — RFC 7807 problems (with a reusable
-  `ProblemType`/`ProblemRegistry` catalog of stable, linkable `type` URIs),
+  `ProblemType`/`ProblemRegistry` catalog of stable, linkable `type` URIs, which
+  the framework's own validation/param `400`/`422` errors can draw from too),
   landing pages + conformance (a `RootRouter` that emits `service-desc`/
   `service-doc` and derives its conformance declaration from the running app),
   pagination, content negotiation (`?f=` then `Accept`), typed OGC query params
