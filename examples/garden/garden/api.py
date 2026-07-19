@@ -9,10 +9,11 @@ service-desc/service-doc links and an app-derived conformance declaration.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from typing import Annotated
 
 from fastapi import Query, Request, Response
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 
 from gazebo.caching import etag_for
 from gazebo.ext.fastapi import (
@@ -40,7 +41,7 @@ from gazebo.filtering import (
     queryables_from_model,
     sortables_from_model,
 )
-from gazebo.negotiation import HTML, JSON, Representation, alternate_links, negotiate
+from gazebo.negotiation import CSV, HTML, JSON, Representation, alternate_links, negotiate
 from gazebo.link import Link
 from gazebo.ogc import (
     Collection,
@@ -302,15 +303,24 @@ async def list_collections(response: Response) -> Collections:
 
 @collections_router.get('/beds', response_model=Collection, name='beds_collection')
 async def beds_collection(
-    rep: Annotated[Representation, Negotiate([JSON, HTML])],
+    rep: Annotated[Representation, Negotiate([JSON, HTML, CSV])],
 ) -> Collection | Response:
-    # Content negotiation: ?f=json|html (then the Accept header) picks the
-    # representation; gazebo adds the `alternate` link to the other one. HTML rendering
-    # is the app's job — gazebo ships no templating opinion.
+    # Content negotiation: ?f=json|html|csv (then the Accept header) picks the
+    # representation; gazebo adds the `alternate` links to the others, and — because this
+    # is a Negotiate route — auto-documents every media type in OpenAPI from the same
+    # representation list. HTML/CSV rendering is the app's job; gazebo ships no opinion.
     coll = build_beds_collection()
-    coll.links.extend(alternate_links(rep, [JSON, HTML]))
+    coll.links.extend(alternate_links(rep, [JSON, HTML, CSV]))
     if rep.key == 'html':
         return HTMLResponse(f'<h1>{coll.title}</h1>\n<p>{coll.description}</p>')
+    if rep.key == 'csv':
+        # A small realistic beds CSV: one row per bed with a couple of fields.
+        def rows() -> Iterator[str]:
+            yield 'id,name,planted\n'
+            for bed in all_beds():
+                yield f'{bed["id"]},{bed["name"]},{bed["planted"].date().isoformat()}\n'
+
+        return StreamingResponse(rows(), media_type='text/csv')
     return coll
 
 

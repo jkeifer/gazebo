@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- negotiation: `openapi_responses()` projects a representation set into an
+  OpenAPI response content map, and `FormatEnum.openapi_responses()` does the
+  same off a folded format enum — so every negotiated media type is documented
+  from the same list that drives `negotiate`/`alternate_links`. A ready-made
+  `CSV` representation and `MediaType.CSV` (`text/csv`) ship alongside.
+- fastapi: routes carrying a `Negotiate([...])` dependency now have their extra
+  negotiated media types folded into the operation's OpenAPI `responses`
+  automatically (on `GazeboApp`/`GazeboRouter`/`upgrade()`), leaving
+  `application/json` to the `response_model` and never clobbering a
+  `responses=` you supply yourself.
+
 ### Changed
 
 ### Fixed

@@ -450,6 +450,31 @@ def test_beds_collection_accept_header_html(client):
     assert html.headers['content-type'].startswith('text/html')
 
 
+def test_beds_collection_negotiates_csv(client):
+    # ?f=csv selects the CSV representation, streamed as text/csv.
+    csv = client.get('/collections/beds?f=csv')
+    assert csv.status_code == 200
+    assert csv.headers['content-type'].startswith('text/csv')
+    assert csv.text.splitlines()[0] == 'id,name,planted'
+    assert any(line.startswith('roses,Rose Bed,') for line in csv.text.splitlines())
+
+    # the JSON representation advertises CSV as an alternate
+    js = client.get('/collections/beds?f=json').json()
+    alt_types = {link['type'] for link in js['links'] if link['rel'] == 'alternate'}
+    assert 'text/csv' in alt_types
+
+
+def test_beds_collection_openapi_documents_csv(client):
+    # end-to-end proof of the auto-fold: the Negotiate route's media types are
+    # documented from the same representation list that drives negotiation.
+    content = client.app.openapi()['paths']['/collections/beds']['get']['responses']['200'][
+        'content'
+    ]
+    assert content['text/csv']['schema'] == {'type': 'string'}
+    # application/json still carries the Collection model's $ref, not a string
+    assert '$ref' in content['application/json']['schema']
+
+
 def test_beds_collection_unknown_format_is_400(client):
     r = client.get('/collections/beds?f=xml')
     assert_problem(r, status=400)

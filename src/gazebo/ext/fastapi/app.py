@@ -35,6 +35,7 @@ from gazebo.ext.fastapi.injection import (
     _SCOPE_KEY,
     _validate_routes,
     _validate_unique_route_names,
+    fold_negotiated_responses,
     inject_signature,
 )
 from gazebo.ext.fastapi.problems import install_problem_handlers
@@ -153,6 +154,7 @@ def upgrade(
     original_add = app.router.add_api_route
 
     def add_api_route(path: str, endpoint: Callable[..., Any], **kwargs: Any) -> None:
+        kwargs = fold_negotiated_responses(endpoint, kwargs)
         return original_add(path, inject_signature(endpoint), **kwargs)
 
     app.router.add_api_route = add_api_route  # type: ignore[method-assign]

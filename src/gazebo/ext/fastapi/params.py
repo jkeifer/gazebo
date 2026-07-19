@@ -142,6 +142,11 @@ def Negotiate(  # noqa: N802  (factory returning a Depends, named like one)
             f_param=name,
         )
 
+    # Publish the reps on the dependency callable so route registration can discover them
+    # (GazeboRouter / upgrade()'s add_api_route) and fold an OpenAPI response content map
+    # documenting every negotiated media type — one source of truth with `negotiate`.
+    _negotiate_dep.__gazebo_representations__ = reps  # type: ignore[attr-defined]
+
     return Depends(_negotiate_dep)
 
 

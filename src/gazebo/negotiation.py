@@ -8,6 +8,10 @@ the others. It ships no HTML/templating opinion: rendering a chosen representati
 the caller's job (a callable or template hook); gazebo only tells you *which* one and
 links the rest.
 
+The representation set is also the single source for OpenAPI: :func:`openapi_responses`
+projects it into a response content map so every negotiated media type is documented
+from the same list that drives resolution and ``alternate`` links.
+
 Resolution order (per OGC API Common):
 
 1. ``?f=`` — an explicit format key wins. An *unknown* key is a client error
@@ -23,10 +27,10 @@ renders as ``application/problem+json`` with no extra wiring.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from gazebo.context import link_context, with_query
 from gazebo.link import Link, UrlResolver
@@ -77,6 +81,53 @@ class Representation:
 JSON = Representation('json', MediaType.JSON)
 GEOJSON = Representation('geojson', MediaType.GEOJSON)
 HTML = Representation('html', MediaType.HTML)
+CSV = Representation('csv', MediaType.CSV)
+
+
+def openapi_responses(
+    available: Iterable[Representation],
+    *,
+    status: int | str = 200,
+    schemas: Mapping[str, dict[str, Any] | None] | None = None,
+    default_schema: dict[str, Any] | None = None,
+) -> dict[int | str, dict[str, Any]]:
+    """Project ``available`` into an OpenAPI response content map, one entry per media type.
+
+    A negotiated route serves several media types (JSON from a ``response_model``, CSV
+    from a streaming response, ...), but FastAPI only documents the ``response_model``'s
+    ``application/json``. This turns the same representation list that drives
+    :func:`negotiate` / :func:`alternate_links` into a ``responses=`` mapping so every
+    offered media type is documented from one source. Pass it to the route (the FastAPI
+    glue folds it in automatically for a ``Negotiate`` dependency).
+
+    Args:
+        available: The representations to document, in server-preferred order.
+        status: The HTTP status code (or its string form) the content map hangs under.
+        schemas: Per-media-type schema overrides keyed by media type. A value of ``None``
+            **omits** that media type from the map, so a ``response_model`` keeps owning
+            it; a dict is used as that media type's schema verbatim. A media type absent
+            from the mapping falls back to ``default_schema``.
+        default_schema: The schema for any media type not named in ``schemas``. Defaults
+            to ``{'type': 'string'}`` (a text body such as CSV) when ``None``.
+
+    Returns:
+        A ``{status: {"content": {media_type: {"schema": ...}, ...}}}`` mapping, merge-able
+        into FastAPI's ``responses=``. The common recipe for a route with a
+        ``response_model`` is ``schemas={MediaType.JSON: None}``: JSON stays owned by the
+        model (its ``$ref`` is preserved) and only the extra media types (csv, ...) are
+        added.
+    """
+    fallback = default_schema if default_schema is not None else {'type': 'string'}
+    content: dict[str, dict[str, Any]] = {}
+    for rep in available:
+        if schemas is not None and rep.media_type in schemas:
+            schema = schemas[rep.media_type]
+            if schema is None:
+                continue
+        else:
+            schema = fallback
+        content[rep.media_type] = {'schema': schema}
+    return {status: {'content': content}}
 
 
 def _parse_accept(header: str) -> list[tuple[str, str, float]]:
@@ -282,6 +333,16 @@ class FormatEnum(StrEnum):
         return [member.representation for member in cls]
 
     @classmethod
+    def openapi_responses(cls, **kwargs: Any) -> dict[int | str, dict[str, Any]]:
+        """:func:`openapi_responses` over this enum's :meth:`representations`.
+
+        So a folded field documents every negotiated media type straight off the enum;
+        ``kwargs`` are forwarded to :func:`openapi_responses` (``status``, ``schemas``,
+        ``default_schema``).
+        """
+        return openapi_responses(cls.representations(), **kwargs)
+
+    @classmethod
     def __get_pydantic_json_schema__(
         cls,
         core_schema: CoreSchema,
@@ -299,6 +360,7 @@ class FormatEnum(StrEnum):
 
 
 __all__ = [
+    'CSV',
     'F_DESCRIPTION',
     'GEOJSON',
     'HTML',
@@ -308,4 +370,5 @@ __all__ = [
     'alternate_links',
     'f_description',
     'negotiate',
+    'openapi_responses',
 ]

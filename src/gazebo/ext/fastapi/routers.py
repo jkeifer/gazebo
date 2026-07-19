@@ -15,7 +15,7 @@ from typing import Any
 
 from fastapi import APIRouter, Request
 
-from gazebo.ext.fastapi.injection import inject_signature
+from gazebo.ext.fastapi.injection import fold_negotiated_responses, inject_signature
 from gazebo.link import Link
 from gazebo.ogc import Conformance, ConformanceDeclaration, LandingPage
 from gazebo.rels import MediaType, Rel
@@ -25,6 +25,7 @@ class GazeboRouter(APIRouter):
     """An ``APIRouter`` that rewrites routes for bare-type injection at decoration."""
 
     def add_api_route(self, path: str, endpoint: Callable[..., Any], **kwargs: Any) -> None:
+        kwargs = fold_negotiated_responses(endpoint, kwargs)
         return super().add_api_route(path, inject_signature(endpoint), **kwargs)
 
 

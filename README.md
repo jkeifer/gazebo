@@ -26,7 +26,9 @@ re-implemented per project:
   the framework's own validation/param `400`/`422` errors can draw from too),
   landing pages + conformance (a `RootRouter` that emits `service-desc`/
   `service-doc` and derives its conformance declaration from the running app),
-  pagination, content negotiation (`?f=` then `Accept`), typed OGC query params
+  pagination, content negotiation (`?f=` then `Accept`, with every negotiated
+  media type auto-documented in OpenAPI from one representation list), typed OGC
+  query params
   (`bbox`/`datetime`/`crs`/`f`) — fully self-documented in OpenAPI and available
   both as `Depends` adapters and as field types you fold into your own query model
   (the closed-set `crs`/`f` as `StrEnum` bases you subclass) — CQL2 filtering +
