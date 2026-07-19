@@ -1,10 +1,15 @@
-"""Bare-type injection: signature rewriting and the route-validation guard.
+"""Bare-type injection and negotiated-response documentation at route registration.
 
 The seam that lets a route declare an injectable parameter by *type* (a type carrying
 ``__provide__``, or one marked ``Annotated[T, Inject]``) and have it resolved from the
 per-request DI scope. ``inject_signature`` rewrites such parameters into FastAPI
 ``Depends`` at decoration time; ``_validate_routes`` fails loudly when an injectable
 parameter slips onto a plain ``APIRouter`` and was never rewritten.
+
+``fold_negotiated_responses`` is the second thing done at registration: it discovers a
+``Negotiate`` dependency in the signature and folds its media types into the operation's
+OpenAPI ``responses`` so a negotiated route self-documents. Both concerns walk the
+endpoint signature the same way, over the shared :func:`_resolved_params` rule.
 """
 
 from __future__ import annotations
@@ -18,9 +23,12 @@ from dataclasses import dataclass
 from typing import Any
 
 from fastapi import Depends, FastAPI, Request
+from fastapi.params import Depends as DependsClass
 from fastapi.routing import APIRoute
 
 from gazebo.di import Container, Key, ScopeState, parse_annotation, resolve_annotation
+from gazebo.negotiation import Representation, openapi_responses
+from gazebo.rels import MediaType
 
 # The ASGI scope key under which the request-scope middleware publishes the open DI
 # ``ScopeState``; the injected resolver reads it back out. Both sides share this name.
@@ -68,26 +76,40 @@ class _Candidate:
     resolved: bool
 
 
-def _candidate_params(endpoint: Callable[..., Any]) -> Iterator[_Candidate]:
-    """Yield each injection-eligible parameter of ``endpoint`` with its resolved type.
+def _resolved_params(
+    endpoint: Callable[..., Any],
+) -> Iterator[tuple[inspect.Parameter, type | None, str | None, tuple[Any, ...], bool]]:
+    """Walk ``endpoint``'s signature, resolving each annotation leniently.
 
-    Eligible means a positional/keyword parameter with no default (a default already
-    marks it as wired or framework-handled, and ``**kwargs`` is never injectable). Each
-    annotation is resolved independently and leniently (see :func:`gazebo.di.resolve_annotation`),
-    so one unresolvable sibling cannot mask the injectable parameters next to it. This is
-    the single source of that resolution rule for both the rewrite and the route guard.
+    The single source of the signature-walk + annotation-resolution rule shared by the
+    injection rewrite, the route guard, and the negotiated-response fold. Each annotation
+    is resolved independently and leniently (see :func:`gazebo.di.resolve_annotation`), so
+    one unresolvable sibling cannot mask the parameters next to it. Yields the raw
+    ``(param, base, qualifier, meta, resolved)`` tuple; callers apply their own filtering.
     """
     try:
         sig = inspect.signature(endpoint)
     except (ValueError, TypeError):
         return
     globalns = getattr(inspect.unwrap(endpoint), '__globals__', {})
-    for name, param in sig.parameters.items():
-        if param.kind is param.VAR_KEYWORD or param.default is not inspect.Parameter.empty:
-            continue
+    for param in sig.parameters.values():
         annotation, resolved = resolve_annotation(param.annotation, globalns)
         base, qualifier, meta = parse_annotation(annotation)
-        yield _Candidate(name, param, base, qualifier, meta, resolved)
+        yield param, base, qualifier, meta, resolved
+
+
+def _candidate_params(endpoint: Callable[..., Any]) -> Iterator[_Candidate]:
+    """Yield each injection-eligible parameter of ``endpoint`` with its resolved type.
+
+    Eligible means a positional/keyword parameter with no default (a default already
+    marks it as wired or framework-handled, and ``**kwargs`` is never injectable). Builds
+    on :func:`_resolved_params` for the resolution rule, so one unresolvable sibling
+    cannot mask the injectable parameters next to it.
+    """
+    for param, base, qualifier, meta, resolved in _resolved_params(endpoint):
+        if param.kind is param.VAR_KEYWORD or param.default is not inspect.Parameter.empty:
+            continue
+        yield _Candidate(param.name, param, base, qualifier, meta, resolved)
 
 
 def _iter_api_routes(routes: list[Any]) -> Iterator[APIRoute]:
@@ -165,6 +187,63 @@ def inject_signature(endpoint: Callable[..., Any]) -> Callable[..., Any]:
     return endpoint
 
 
+def _representations_of(endpoint: Callable[..., Any]) -> tuple[Representation, ...] | None:
+    """Find a ``Negotiate`` dependency's representations in ``endpoint``'s signature.
+
+    Handles both a ``Depends(...)`` default value and an ``Annotated[T, Depends(...)]``
+    marker; the dependency callable is ``depends.dependency``, which ``Negotiate`` stamps
+    with ``__gazebo_representations__``. Returns ``None`` for a route with no such
+    dependency. Lenient by design: never raises on a normal, non-negotiated endpoint.
+    """
+    # The Depends may be the param default OR sit in the Annotated metadata; under
+    # `from __future__ import annotations` the annotation reaches us as a string, which
+    # :func:`_resolved_params` has already resolved before we read the metadata.
+    for param, _, _, meta, _ in _resolved_params(endpoint):
+        for candidate in (param.default, *meta):
+            if isinstance(candidate, DependsClass) and candidate.dependency is not None:
+                reps = getattr(candidate.dependency, '__gazebo_representations__', None)
+                if reps is not None:
+                    return reps
+    return None
+
+
+def fold_negotiated_responses(
+    endpoint: Callable[..., Any],
+    kwargs: dict[str, Any],
+) -> dict[str, Any]:
+    """Fold a ``Negotiate`` dependency's media types into ``kwargs['responses']``.
+
+    If ``endpoint`` carries a ``Negotiate`` dependency, deep-merge an
+    :func:`~gazebo.negotiation.openapi_responses` content map (with ``application/json``
+    left to the ``response_model`` via ``schemas={MediaType.JSON: None}``) into the
+    route's ``responses``, without clobbering any status/media type the caller already
+    documented. A no-op when there is no such dependency. Shared by ``GazeboRouter`` and
+    ``upgrade()``'s route registration so negotiated routes self-document from the same
+    representation list that drives negotiation.
+
+    Assumes a ``response_model`` owns ``application/json`` (hence ``MediaType.JSON: None``,
+    which drops JSON so the model's ``$ref`` is preserved). A negotiated route with a JSON
+    representation but no ``response_model`` therefore leaves its JSON branch undocumented
+    — pass an explicit ``responses=`` for that case.
+    """
+    reps = _representations_of(endpoint)
+    if not reps:
+        return kwargs
+    derived = openapi_responses(reps, schemas={MediaType.JSON: None})
+    existing = kwargs.get('responses') or {}
+    merged: dict[Any, Any] = {status: dict(resp) for status, resp in existing.items()}
+    for status, resp in derived.items():
+        target = merged.setdefault(status, {})
+        target_content = dict(target.get('content') or {})
+        for media_type, schema in resp.get('content', {}).items():
+            # Don't clobber a media type the caller documented explicitly.
+            target_content.setdefault(media_type, schema)
+        if target_content:
+            target['content'] = target_content
+    kwargs['responses'] = merged
+    return kwargs
+
+
 def _validate_routes(app: FastAPI, container: Container) -> None:
     """Fail loudly if a route has an injectable param that wasn't rewritten.
 
@@ -219,4 +298,4 @@ def _validate_unique_route_names(app: FastAPI) -> None:
         )
 
 
-__all__ = ['Inject', 'inject_signature']
+__all__ = ['Inject', 'fold_negotiated_responses', 'inject_signature']

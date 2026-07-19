@@ -41,6 +41,7 @@ class MediaType(StrEnum):
     GEOJSON = 'application/geo+json'
     PROBLEM = 'application/problem+json'
     HTML = 'text/html'
+    CSV = 'text/csv'
     XML = 'application/xml'
     TEXT = 'text/plain'
     OPENAPI = 'application/vnd.oai.openapi+json;version=3.0'

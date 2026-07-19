@@ -142,3 +142,46 @@ with TestClient(neg_app) as client:
     assert client.get('/report?f=xml').status_code == 400
     # an Accept listing nothing on offer, with ?f= absent, is a 406 problem
     assert client.get('/report', headers={'accept': 'application/xml'}).status_code == 406
+
+
+# --8<-- [start:openapi]
+from gazebo.ext.fastapi import GazeboApp, Negotiate, Providers
+from gazebo.negotiation import CSV, JSON, Representation
+
+docs_app = GazeboApp(Providers())
+
+
+@docs_app.get('/beds', response_model=Doc)
+async def beds(rep: Annotated[Representation, Negotiate([JSON, CSV])]) -> Doc | Response:
+    if rep.key == 'csv':
+        return Response('id\n1\n', media_type='text/csv')
+    return Doc(id='beds')
+
+
+# --8<-- [end:openapi]
+
+
+_docs_content = docs_app.openapi()['paths']['/beds']['get']['responses']['200']['content']
+# text/csv is documented (auto-folded) alongside the model-owned application/json
+assert _docs_content['text/csv']['schema'] == {'type': 'string'}
+assert '$ref' in _docs_content['application/json']['schema']
+
+with TestClient(docs_app) as client:
+    assert client.get('/beds?f=csv').headers['content-type'].startswith('text/csv')
+
+
+# --8<-- [start:openapi_manual]
+from gazebo.negotiation import openapi_responses
+from gazebo.rels import MediaType
+
+# The escape hatch: build the content map yourself and pass it as `responses=`. Keep
+# application/json owned by the response_model with `{MediaType.JSON: None}`, and give a
+# richer schema to another media type than the default string body.
+responses = openapi_responses(
+    [JSON, CSV],
+    schemas={MediaType.JSON: None, MediaType.CSV: {'type': 'string', 'format': 'csv'}},
+)
+# --8<-- [end:openapi_manual]
+
+assert 'application/json' not in responses[200]['content']
+assert responses[200]['content']['text/csv']['schema'] == {'type': 'string', 'format': 'csv'}

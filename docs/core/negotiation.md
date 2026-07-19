@@ -48,6 +48,33 @@ representation, each pointing at the current URL with `?f=` switched — so a cl
 the JSON view can discover and follow the HTML one. Pair it with a normal `self` link
 for the current representation.
 
+## Documenting every negotiated media type
+
+A negotiated route serves several media types, but FastAPI's OpenAPI only documents the
+`response_model`'s `application/json` — the CSV or HTML branch goes unmentioned. The
+representation list already single-sources negotiation and the `alternate` links, so it
+single-sources the docs too: a route carrying a `Negotiate([...])` dependency has its
+extra media types **folded into the operation's `responses` automatically**, with
+`application/json` left to the `response_model` (its `$ref` is preserved):
+
+```python
+--8<-- "tests/examples/negotiation.py:openapi"
+```
+
+No wiring is needed — the fold happens at route registration on a `GazeboApp`/`GazeboRouter`.
+The extra media types default to a string body schema. When you want a richer schema (or to
+document a route without a `Negotiate` dependency), reach for the escape hatch:
+[`openapi_responses()`](../reference.md#gazebo.negotiation.openapi_responses) builds the same
+content map for you to pass as `responses=`, and a `{MediaType.JSON: None}` entry keeps JSON
+owned by the model:
+
+```python
+--8<-- "tests/examples/negotiation.py:openapi_manual"
+```
+
+A `responses=` you pass yourself is never clobbered — the auto-fold only *adds* media types
+the route does not already document.
+
 ## Folded into your own query model
 
 When a route already takes a Pydantic query model, you can fold `?f=` into it as a field
@@ -95,5 +122,5 @@ several in a query model you already have.
 ## Reference
 
 See [`gazebo.negotiation`](../reference.md#gazebo.negotiation) (`Representation`,
-`negotiate`, `alternate_links`) and the glue's
+`negotiate`, `alternate_links`, `openapi_responses`) and the glue's
 [`Negotiate`](../reference.md#fastapi-integration) dependency.

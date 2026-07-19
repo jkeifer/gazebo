@@ -8,6 +8,7 @@ from pydantic import BaseModel, ValidationError
 
 from gazebo.context import use_context
 from gazebo.negotiation import (
+    CSV,
     F_DESCRIPTION,
     GEOJSON,
     HTML,
@@ -17,10 +18,11 @@ from gazebo.negotiation import (
     alternate_links,
     f_description,
     negotiate,
+    openapi_responses,
 )
 from gazebo.params import ParamError
 from gazebo.problems import ProblemException
-from gazebo.rels import Rel
+from gazebo.rels import MediaType, Rel
 
 AVAILABLE = [JSON, HTML]
 
@@ -239,3 +241,58 @@ def test_f_description_helper():
     # empty keys degrade to the bare, format-neutral base
     assert f_description([]) == F_DESCRIPTION
     assert 'Supported keys' not in F_DESCRIPTION
+
+
+# --- openapi_responses -----------------------------------------------------
+
+
+def test_openapi_responses_default_string_schema():
+    # each media type gets a string schema by default (a text body such as CSV)
+    responses = openapi_responses([JSON, CSV])
+    assert responses == {
+        200: {
+            'content': {
+                'application/json': {'schema': {'type': 'string'}},
+                'text/csv': {'schema': {'type': 'string'}},
+            },
+        },
+    }
+
+
+def test_openapi_responses_custom_default_schema():
+    responses = openapi_responses([CSV], default_schema={'type': 'array'})
+    assert responses[200]['content']['text/csv']['schema'] == {'type': 'array'}
+
+
+def test_openapi_responses_schemas_override():
+    responses = openapi_responses(
+        [JSON, CSV],
+        schemas={MediaType.JSON: {'$ref': '#/x'}},
+    )
+    assert responses[200]['content']['application/json']['schema'] == {'$ref': '#/x'}
+    # unnamed media types still fall back to the default string schema
+    assert responses[200]['content']['text/csv']['schema'] == {'type': 'string'}
+
+
+def test_openapi_responses_none_skips_media_type():
+    # a None schema omits the media type entirely, so a response_model can own it
+    responses = openapi_responses([JSON, CSV], schemas={MediaType.JSON: None})
+    content = responses[200]['content']
+    assert 'application/json' not in content
+    assert 'text/csv' in content
+
+
+def test_openapi_responses_custom_status():
+    responses = openapi_responses([CSV], status=201)
+    assert set(responses) == {201}
+
+
+def test_format_enum_openapi_responses_classmethod():
+    class _Fmt(FormatEnum):
+        json = 'json', 'application/json'
+        csv = 'csv', 'text/csv'
+
+    responses = _Fmt.openapi_responses(schemas={MediaType.JSON: None})
+    content = responses[200]['content']
+    assert 'application/json' not in content
+    assert content['text/csv']['schema'] == {'type': 'string'}
