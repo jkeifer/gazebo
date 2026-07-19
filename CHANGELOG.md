@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Deprecated
+
+### Removed
+
+### Security
+
+## [v0.10.0] - 2026-07-19
+
+### Added
+
 - negotiation: `openapi_responses()` projects a representation set into an
   OpenAPI response content map, and `FormatEnum.openapi_responses()` does the
   same off a folded format enum — so every negotiated media type is documented
@@ -19,16 +33,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   automatically (on `GazeboApp`/`GazeboRouter`/`upgrade()`), leaving
   `application/json` to the `response_model` and never clobbering a
   `responses=` you supply yourself.
-
-### Changed
-
-### Fixed
-
-### Deprecated
-
-### Removed
-
-### Security
 
 ## [v0.9.3] - 2026-07-09
 
@@ -541,7 +545,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release 🎉
 
-[unreleased]: https://github.com/jkeifer/gazebo/compare/v0.9.3...HEAD
+[unreleased]: https://github.com/jkeifer/gazebo/compare/v0.10.0...HEAD
+[v0.10.0]: https://github.com/jkeifer/gazebo/releases/tag/v0.10.0
 [v0.9.3]: https://github.com/jkeifer/gazebo/releases/tag/v0.9.3
 [v0.9.2]: https://github.com/jkeifer/gazebo/releases/tag/v0.9.2
 [v0.9.1]: https://github.com/jkeifer/gazebo/releases/tag/v0.9.1
